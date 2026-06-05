@@ -36,9 +36,15 @@ export interface SimulationScene {
 }
 
 function colorForCell(cell: Cell): Color {
-  const cool = new Color("#10395f");
-  const warm = new Color(cell.isPentagon ? "#ff8f00" : "#7ce2ff");
-  return cool.lerp(warm, cell.state);
+  if (cell.terrainKind === "water") {
+    return new Color("#1d5ca8");
+  }
+
+  const barren = new Color("#8a6833");
+  const fertile = new Color("#6bbf4e");
+  const geologyTint = new Color("#8dc8a9");
+  const base = barren.lerp(fertile, cell.vegetation);
+  return base.lerp(geologyTint, cell.geology * 0.18);
 }
 
 const OVERLAY_LIFT = 0.006;

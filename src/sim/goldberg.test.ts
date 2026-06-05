@@ -11,6 +11,22 @@ describe("createGoldbergMesh", () => {
     expect(mesh.geometry.faces).toHaveLength(42);
   });
 
+  it("creates both water and land cells", () => {
+    const waterCells = mesh.cells.filter((cell) => cell.terrainKind === "water");
+    const landCells = mesh.cells.filter((cell) => cell.terrainKind === "land");
+    expect(waterCells.length).toBeGreaterThan(0);
+    expect(landCells.length).toBeGreaterThan(0);
+  });
+
+  it("initializes resource and geology for every cell", () => {
+    for (const cell of mesh.cells) {
+      expect(cell.resource).toBeGreaterThanOrEqual(0);
+      expect(cell.resource).toBeLessThanOrEqual(1);
+      expect(cell.geology).toBeGreaterThanOrEqual(0);
+      expect(cell.geology).toBeLessThanOrEqual(1);
+    }
+  });
+
   it("keeps all 12 pentagons as 5-neighbor cells", () => {
     const pentagons = mesh.cells.filter((cell) => cell.isPentagon);
     expect(pentagons).toHaveLength(12);

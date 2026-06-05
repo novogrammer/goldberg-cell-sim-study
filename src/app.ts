@@ -18,7 +18,7 @@ export function mountApp(root: HTMLElement): void {
       <div class="hud">
         <div>
           <p class="eyebrow">Goldberg多面体セルシミュレーション</p>
-          <h1>42 cells, 12 pentagons, neighbor-average updates</h1>
+          <h1>Water basins drive vegetation across the planet</h1>
         </div>
         <div class="controls">
           <button type="button" data-action="toggle">Pause</button>
@@ -33,8 +33,13 @@ export function mountApp(root: HTMLElement): void {
           <div><dt>Cells</dt><dd data-stat="cells">${cells.length}</dd></div>
           <div><dt>Pentagons</dt><dd data-stat="pentagons">${meshData.pentagonCount}</dd></div>
           <div><dt>Hexagons</dt><dd data-stat="hexagons">${meshData.hexagonCount}</dd></div>
-          <div><dt>Rule</dt><dd>Neighbor average</dd></div>
+          <div><dt>Rule</dt><dd>Water + vegetation locality</dd></div>
           <div><dt>Selected</dt><dd data-stat="selected">none</dd></div>
+          <div><dt>Terrain</dt><dd data-stat="terrain">-</dd></div>
+          <div><dt>Vegetation</dt><dd data-stat="vegetation">-</dd></div>
+          <div><dt>Water Adj.</dt><dd data-stat="water-adj">-</dd></div>
+          <div><dt>Resource</dt><dd data-stat="resource">-</dd></div>
+          <div><dt>Geology</dt><dd data-stat="geology">-</dd></div>
         </dl>
       </div>
       <div class="viewport" data-role="viewport"></div>
@@ -53,14 +58,45 @@ export function mountApp(root: HTMLElement): void {
   const randomizeButton = root.querySelector<HTMLButtonElement>("[data-action='randomize']");
   const speedSlider = root.querySelector<HTMLInputElement>("[data-action='speed']");
   const selectedStat = root.querySelector<HTMLElement>("[data-stat='selected']");
+  const terrainStat = root.querySelector<HTMLElement>("[data-stat='terrain']");
+  const vegetationStat = root.querySelector<HTMLElement>("[data-stat='vegetation']");
+  const waterAdjStat = root.querySelector<HTMLElement>("[data-stat='water-adj']");
+  const resourceStat = root.querySelector<HTMLElement>("[data-stat='resource']");
+  const geologyStat = root.querySelector<HTMLElement>("[data-stat='geology']");
 
-  if (!toggleButton || !stepButton || !randomizeButton || !speedSlider || !selectedStat) {
+  if (
+    !toggleButton ||
+    !stepButton ||
+    !randomizeButton ||
+    !speedSlider ||
+    !selectedStat ||
+    !terrainStat ||
+    !vegetationStat ||
+    !waterAdjStat ||
+    !resourceStat ||
+    !geologyStat
+  ) {
     throw new Error("Control elements were not created.");
   }
 
   const syncScene = (nextCells: Cell[]) => {
     cells = nextCells;
     scene.updateCells(cells);
+    if (selectedCellId !== null) {
+      const selectedCell = cells[selectedCellId];
+      if (selectedCell) {
+        const waterAdjacency = selectedCell.neighbors.reduce(
+          (total, neighborId) => total + (cells[neighborId].terrainKind === "water" ? 1 : 0),
+          0
+        ) / selectedCell.neighborCount;
+        selectedStat.textContent = `cell ${selectedCellId}`;
+        terrainStat.textContent = selectedCell.terrainKind;
+        vegetationStat.textContent = selectedCell.vegetation.toFixed(2);
+        waterAdjStat.textContent = waterAdjacency.toFixed(2);
+        resourceStat.textContent = selectedCell.resource.toFixed(2);
+        geologyStat.textContent = selectedCell.geology.toFixed(2);
+      }
+    }
   };
 
   toggleButton.addEventListener("click", () => {
@@ -92,7 +128,27 @@ export function mountApp(root: HTMLElement): void {
     const pickedCellId = scene.pickCellAtClientPoint(event.clientX, event.clientY);
     selectedCellId = selectedCellId === pickedCellId ? null : pickedCellId;
     scene.setSelectedCell(selectedCellId);
-    selectedStat.textContent = selectedCellId === null ? "none" : `cell ${selectedCellId}`;
+    if (selectedCellId === null) {
+      selectedStat.textContent = "none";
+      terrainStat.textContent = "-";
+      vegetationStat.textContent = "-";
+      waterAdjStat.textContent = "-";
+      resourceStat.textContent = "-";
+      geologyStat.textContent = "-";
+      return;
+    }
+
+    const selectedCell = cells[selectedCellId];
+    const waterAdjacency = selectedCell.neighbors.reduce(
+      (total, neighborId) => total + (cells[neighborId].terrainKind === "water" ? 1 : 0),
+      0
+    ) / selectedCell.neighborCount;
+    selectedStat.textContent = `cell ${selectedCellId}`;
+    terrainStat.textContent = selectedCell.terrainKind;
+    vegetationStat.textContent = selectedCell.vegetation.toFixed(2);
+    waterAdjStat.textContent = waterAdjacency.toFixed(2);
+    resourceStat.textContent = selectedCell.resource.toFixed(2);
+    geologyStat.textContent = selectedCell.geology.toFixed(2);
   });
 
   const onResize = () => scene.resize();

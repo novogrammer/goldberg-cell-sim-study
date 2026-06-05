@@ -3,15 +3,23 @@ export interface Cell {
   neighbors: number[];
   neighborCount: number;
   isPentagon: boolean;
+  terrainKind: "water" | "land";
+  resource: number;
+  geology: number;
+  vegetation: number;
+  nextVegetation: number;
   state: number;
   nextState: number;
 }
 
 export interface SimulationRuleConfig {
-  coupling: number;
-  activationThreshold: number;
-  activationBoost: number;
-  decay: number;
+  waterInfluence: number;
+  neighborVegetationInfluence: number;
+  resourceInfluence: number;
+  geologyInfluence: number;
+  baselineDecay: number;
+  growthCap: number;
+  selfLimitingFactor: number;
 }
 
 export interface SimulationStepContext {

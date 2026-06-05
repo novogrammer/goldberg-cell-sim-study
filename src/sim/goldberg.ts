@@ -271,6 +271,11 @@ function createGoldbergTopology(): GoldbergTopology {
       neighbors,
       neighborCount,
       isPentagon: neighborCount === 5,
+      terrainKind: "land",
+      resource: 0,
+      geology: 0,
+      vegetation: 0,
+      nextVegetation: 0,
       state: 0,
       nextState: 0
     };
@@ -347,27 +352,68 @@ function createGoldbergPolyhedronGeometry(
   };
 }
 
+function normalizedNoise(seed: number): number {
+  return clamp01(Math.sin(seed * 12.9898) * 43758.5453 % 1 + 0.5);
+}
+
+export function createInitialPlanetEnvironment(
+  cells: Cell[],
+  geometry: GoldbergPolyhedronGeometry
+): Cell[] {
+  const waterPoleA = new Vector3(0.65, 0.22, 0.72).normalize();
+  const waterPoleB = new Vector3(-0.58, -0.31, 0.75).normalize();
+
+  return cells.map((cell) => {
+    const face = geometry.faces[cell.id];
+    const center = new Vector3(...face.center).normalize();
+    const waterScore = Math.max(center.dot(waterPoleA), center.dot(waterPoleB));
+    const terrainKind = waterScore > 0.84 ? "water" : "land";
+    const noiseSeed = center.x * 31.7 + center.y * 19.3 + center.z * 13.1 + cell.id * 0.37;
+    const geology = clamp01(
+      0.5 + center.y * 0.18 + Math.sin(noiseSeed * 1.9) * 0.24 + normalizedNoise(noiseSeed) * 0.1
+    );
+    const resource = clamp01(
+      0.46 + center.x * 0.12 - center.z * 0.08 + Math.cos(noiseSeed * 1.4) * 0.21
+    );
+    const vegetation = terrainKind === "water"
+      ? 0
+      : clamp01(0.12 + resource * 0.16 + geology * 0.08 - (1 - waterScore) * 0.06);
+
+    return {
+      ...cell,
+      terrainKind,
+      resource,
+      geology,
+      vegetation,
+      nextVegetation: vegetation,
+      state: vegetation,
+      nextState: vegetation
+    };
+  });
+}
+
 export function createGoldbergMesh(): GoldbergMeshData {
   const topology = createGoldbergTopology();
   const geometry = createGoldbergPolyhedronGeometry(topology);
+  const cells = createInitialPlanetEnvironment(topology.cells, geometry);
 
-  const pentagonCount = topology.cells.filter((cell) => cell.isPentagon).length;
-  const hexagonCount = topology.cells.length - pentagonCount;
+  const pentagonCount = cells.filter((cell) => cell.isPentagon).length;
+  const hexagonCount = cells.length - pentagonCount;
 
-  if (topology.cells.length !== 42) {
-    throw new Error(`Expected 42 cells for frequency-2 Goldberg mesh, got ${topology.cells.length}.`);
+  if (cells.length !== 42) {
+    throw new Error(`Expected 42 cells for frequency-2 Goldberg mesh, got ${cells.length}.`);
   }
 
   if (pentagonCount !== 12) {
     throw new Error(`Expected 12 pentagons, got ${pentagonCount}.`);
   }
 
-  if (!topology.cells.every((cell) => cell.isPentagon || cell.neighborCount === 6)) {
+  if (!cells.every((cell) => cell.isPentagon || cell.neighborCount === 6)) {
     throw new Error("Non-pentagon cells must remain 6-neighbor cells.");
   }
 
   return {
-    cells: topology.cells,
+    cells,
     geometry,
     pentagonCount,
     hexagonCount
@@ -376,8 +422,23 @@ export function createGoldbergMesh(): GoldbergMeshData {
 
 export function randomizeCellState(cells: Cell[], seed = 0.5): Cell[] {
   return cells.map((cell) => {
+    if (cell.terrainKind === "water") {
+      return {
+        ...cell,
+        vegetation: 0,
+        nextVegetation: 0,
+        state: 0,
+        nextState: 0
+      };
+    }
     const phase = Math.sin((cell.id + 1) * 12.9898 + seed * 78.233) * 43758.5453;
     const state = clamp01(phase - Math.floor(phase));
-    return { ...cell, state, nextState: state };
+    return {
+      ...cell,
+      vegetation: state,
+      nextVegetation: state,
+      state,
+      nextState: state
+    };
   });
 }
