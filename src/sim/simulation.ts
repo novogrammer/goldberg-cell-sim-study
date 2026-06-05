@@ -6,10 +6,12 @@ export const DEFAULT_RULE_CONFIG: SimulationRuleConfig = {
   moistureDecay: 0.1,
   moistureRetentionFromGeology: 0.12,
   vegetationGrowthFromMoisture: 0.42,
+  minimumMoistureForGrowth: 0.18,
   neighborVegetationInfluence: 0.28,
   fertilityInfluence: 0.2,
   geologyMoistureSupport: 0.12,
   baselineVegetationDecay: 0.06,
+  dryVegetationDecay: 0.08,
   growthCap: 0.22,
   selfLimitingFactor: 0.9
 };
@@ -93,17 +95,20 @@ export function updateVegetation(
 
   const {
     vegetationGrowthFromMoisture,
+    minimumMoistureForGrowth,
     neighborVegetationInfluence,
     fertilityInfluence,
     geologyMoistureSupport,
     baselineVegetationDecay,
+    dryVegetationDecay,
     growthCap,
     selfLimitingFactor
   } = context.config;
   const moisture = nextMoistureCells[cell.id].nextMoisture;
   const neighboringVegetation = getNeighborVegetationInfluence(cell, nextMoistureCells);
+  const usableMoisture = Math.max(0, moisture - minimumMoistureForGrowth);
   const growthPotential = clamp01(
-    moisture * vegetationGrowthFromMoisture +
+    usableMoisture * vegetationGrowthFromMoisture +
     neighboringVegetation * neighborVegetationInfluence +
     cell.fertility * fertilityInfluence +
     cell.geology * geologyMoistureSupport
@@ -117,7 +122,11 @@ export function updateVegetation(
     (1 - cell.fertility * 0.4) *
     (1 - neighboringVegetation * 0.35) *
     Math.max(cell.vegetation, 0.12);
-  const activated = cell.vegetation + growthDelta - decayDelta - dryness * 0.08 * cell.vegetation;
+  const activated =
+    cell.vegetation +
+    growthDelta -
+    decayDelta -
+    dryness * dryVegetationDecay * cell.vegetation;
 
   return clamp01(activated);
 }

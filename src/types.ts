@@ -20,10 +20,12 @@ export interface SimulationRuleConfig {
   moistureDecay: number;
   moistureRetentionFromGeology: number;
   vegetationGrowthFromMoisture: number;
+  minimumMoistureForGrowth: number;
   neighborVegetationInfluence: number;
   fertilityInfluence: number;
   geologyMoistureSupport: number;
   baselineVegetationDecay: number;
+  dryVegetationDecay: number;
   growthCap: number;
   selfLimitingFactor: number;
 }

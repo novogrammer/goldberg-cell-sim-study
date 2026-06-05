@@ -153,4 +153,27 @@ describe("simulation", () => {
 
     expect(next[0].vegetation).toBeLessThan(cells[0].vegetation);
   });
+
+  it("blocks moisture-driven growth below the minimum moisture threshold", () => {
+    const cell = createCell(0, [1, 2], 0.25, false, "land", 0.4, 0.4, 0.1);
+    const cells = [
+      cell,
+      createCell(1, [0], 0.02, false, "land", 0.4, 0.4, 0.1),
+      createCell(2, [0], 0.01, false, "land", 0.4, 0.4, 0.1)
+    ];
+    const belowThreshold = cells.map((entry) => ({
+      ...entry,
+      nextMoisture: 0.12
+    }));
+    const aboveThreshold = cells.map((entry) => ({
+      ...entry,
+      nextMoisture: 0.28
+    }));
+
+    const dryNext = updateVegetation(belowThreshold[0], belowThreshold, { config: DEFAULT_RULE_CONFIG });
+    const wetNext = updateVegetation(aboveThreshold[0], aboveThreshold, { config: DEFAULT_RULE_CONFIG });
+
+    expect(dryNext).toBeLessThan(cell.vegetation);
+    expect(wetNext).toBeGreaterThan(dryNext);
+  });
 });
