@@ -272,8 +272,10 @@ function createGoldbergTopology(): GoldbergTopology {
       neighborCount,
       isPentagon: neighborCount === 5,
       terrainKind: "land",
-      resource: 0,
+      fertility: 0,
       geology: 0,
+      moisture: 0,
+      nextMoisture: 0,
       vegetation: 0,
       nextVegetation: 0,
       state: 0,
@@ -372,18 +374,23 @@ export function createInitialPlanetEnvironment(
     const geology = clamp01(
       0.5 + center.y * 0.18 + Math.sin(noiseSeed * 1.9) * 0.24 + normalizedNoise(noiseSeed) * 0.1
     );
-    const resource = clamp01(
+    const fertility = clamp01(
       0.46 + center.x * 0.12 - center.z * 0.08 + Math.cos(noiseSeed * 1.4) * 0.21
     );
+    const moisture = terrainKind === "water"
+      ? 1
+      : clamp01(0.08 + Math.max(0, waterScore - 0.58) * 1.6 + geology * 0.08);
     const vegetation = terrainKind === "water"
       ? 0
-      : clamp01(0.12 + resource * 0.16 + geology * 0.08 - (1 - waterScore) * 0.06);
+      : clamp01(Math.max(0, moisture - 0.18) * 0.72 + fertility * 0.12 + geology * 0.06);
 
     return {
       ...cell,
       terrainKind,
-      resource,
+      fertility,
       geology,
+      moisture,
+      nextMoisture: moisture,
       vegetation,
       nextVegetation: vegetation,
       state: vegetation,
@@ -425,6 +432,8 @@ export function randomizeCellState(cells: Cell[], seed = 0.5): Cell[] {
     if (cell.terrainKind === "water") {
       return {
         ...cell,
+        moisture: 1,
+        nextMoisture: 1,
         vegetation: 0,
         nextVegetation: 0,
         state: 0,
@@ -435,6 +444,8 @@ export function randomizeCellState(cells: Cell[], seed = 0.5): Cell[] {
     const state = clamp01(phase - Math.floor(phase));
     return {
       ...cell,
+      moisture: clamp01(0.1 + state * 0.35 + cell.geology * 0.08),
+      nextMoisture: clamp01(0.1 + state * 0.35 + cell.geology * 0.08),
       vegetation: state,
       nextVegetation: state,
       state,

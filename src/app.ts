@@ -2,7 +2,7 @@ import "./style.css";
 
 import { createSimulationScene } from "./render/scene";
 import { createGoldbergMesh, randomizeCellState } from "./sim/goldberg";
-import { DEFAULT_RULE_CONFIG, stepSimulation } from "./sim/simulation";
+import { DEFAULT_RULE_CONFIG, getAdjacentWaterInfluence, stepSimulation } from "./sim/simulation";
 import type { Cell } from "./types";
 
 export function mountApp(root: HTMLElement): void {
@@ -36,9 +36,10 @@ export function mountApp(root: HTMLElement): void {
           <div><dt>Rule</dt><dd>Water + vegetation locality</dd></div>
           <div><dt>Selected</dt><dd data-stat="selected">none</dd></div>
           <div><dt>Terrain</dt><dd data-stat="terrain">-</dd></div>
+          <div><dt>Moisture</dt><dd data-stat="moisture">-</dd></div>
           <div><dt>Vegetation</dt><dd data-stat="vegetation">-</dd></div>
           <div><dt>Water Adj.</dt><dd data-stat="water-adj">-</dd></div>
-          <div><dt>Resource</dt><dd data-stat="resource">-</dd></div>
+          <div><dt>Fertility</dt><dd data-stat="fertility">-</dd></div>
           <div><dt>Geology</dt><dd data-stat="geology">-</dd></div>
         </dl>
       </div>
@@ -59,9 +60,10 @@ export function mountApp(root: HTMLElement): void {
   const speedSlider = root.querySelector<HTMLInputElement>("[data-action='speed']");
   const selectedStat = root.querySelector<HTMLElement>("[data-stat='selected']");
   const terrainStat = root.querySelector<HTMLElement>("[data-stat='terrain']");
+  const moistureStat = root.querySelector<HTMLElement>("[data-stat='moisture']");
   const vegetationStat = root.querySelector<HTMLElement>("[data-stat='vegetation']");
   const waterAdjStat = root.querySelector<HTMLElement>("[data-stat='water-adj']");
-  const resourceStat = root.querySelector<HTMLElement>("[data-stat='resource']");
+  const fertilityStat = root.querySelector<HTMLElement>("[data-stat='fertility']");
   const geologyStat = root.querySelector<HTMLElement>("[data-stat='geology']");
 
   if (
@@ -71,9 +73,10 @@ export function mountApp(root: HTMLElement): void {
     !speedSlider ||
     !selectedStat ||
     !terrainStat ||
+    !moistureStat ||
     !vegetationStat ||
     !waterAdjStat ||
-    !resourceStat ||
+    !fertilityStat ||
     !geologyStat
   ) {
     throw new Error("Control elements were not created.");
@@ -85,15 +88,13 @@ export function mountApp(root: HTMLElement): void {
     if (selectedCellId !== null) {
       const selectedCell = cells[selectedCellId];
       if (selectedCell) {
-        const waterAdjacency = selectedCell.neighbors.reduce(
-          (total, neighborId) => total + (cells[neighborId].terrainKind === "water" ? 1 : 0),
-          0
-        ) / selectedCell.neighborCount;
+        const waterAdjacency = getAdjacentWaterInfluence(selectedCell, cells);
         selectedStat.textContent = `cell ${selectedCellId}`;
         terrainStat.textContent = selectedCell.terrainKind;
+        moistureStat.textContent = selectedCell.moisture.toFixed(2);
         vegetationStat.textContent = selectedCell.vegetation.toFixed(2);
         waterAdjStat.textContent = waterAdjacency.toFixed(2);
-        resourceStat.textContent = selectedCell.resource.toFixed(2);
+        fertilityStat.textContent = selectedCell.fertility.toFixed(2);
         geologyStat.textContent = selectedCell.geology.toFixed(2);
       }
     }
@@ -131,23 +132,22 @@ export function mountApp(root: HTMLElement): void {
     if (selectedCellId === null) {
       selectedStat.textContent = "none";
       terrainStat.textContent = "-";
+      moistureStat.textContent = "-";
       vegetationStat.textContent = "-";
       waterAdjStat.textContent = "-";
-      resourceStat.textContent = "-";
+      fertilityStat.textContent = "-";
       geologyStat.textContent = "-";
       return;
     }
 
     const selectedCell = cells[selectedCellId];
-    const waterAdjacency = selectedCell.neighbors.reduce(
-      (total, neighborId) => total + (cells[neighborId].terrainKind === "water" ? 1 : 0),
-      0
-    ) / selectedCell.neighborCount;
+    const waterAdjacency = getAdjacentWaterInfluence(selectedCell, cells);
     selectedStat.textContent = `cell ${selectedCellId}`;
     terrainStat.textContent = selectedCell.terrainKind;
+    moistureStat.textContent = selectedCell.moisture.toFixed(2);
     vegetationStat.textContent = selectedCell.vegetation.toFixed(2);
     waterAdjStat.textContent = waterAdjacency.toFixed(2);
-    resourceStat.textContent = selectedCell.resource.toFixed(2);
+    fertilityStat.textContent = selectedCell.fertility.toFixed(2);
     geologyStat.textContent = selectedCell.geology.toFixed(2);
   });
 

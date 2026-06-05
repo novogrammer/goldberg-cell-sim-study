@@ -18,10 +18,10 @@ describe("createGoldbergMesh", () => {
     expect(landCells.length).toBeGreaterThan(0);
   });
 
-  it("initializes resource and geology for every cell", () => {
+  it("initializes fertility and geology for every cell", () => {
     for (const cell of mesh.cells) {
-      expect(cell.resource).toBeGreaterThanOrEqual(0);
-      expect(cell.resource).toBeLessThanOrEqual(1);
+      expect(cell.fertility).toBeGreaterThanOrEqual(0);
+      expect(cell.fertility).toBeLessThanOrEqual(1);
       expect(cell.geology).toBeGreaterThanOrEqual(0);
       expect(cell.geology).toBeLessThanOrEqual(1);
     }

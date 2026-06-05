@@ -8,7 +8,7 @@ Goldberg多面体上でセルシミュレーションを行う最小構成のブ
 
 - 五角形セルは除外せず、通常セルと同じ配列に含めて扱います。
 - 一部セルは固定の `water` セルとして扱います。
-- `land` セルは `vegetation` スコアを持ち、水場の近接、周囲の植生、資源、地質の影響で変化します。
+- `land` セルは `vegetation` スコアを持ち、水場の近接、周囲の植生、肥沃度、地質の影響で変化します。
 - `isPentagon` により、後から描画やルールを分けられる構造です。
 
 詳細は [docs/simulation-model.md](/Users/novo/Documents/aptanastudio3workspace/goldberg-cell-sim-study/docs/simulation-model.md:1) を参照してください。

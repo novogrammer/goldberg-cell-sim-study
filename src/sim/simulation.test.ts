@@ -2,9 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import {
   getAdjacentWaterInfluence,
+  getNeighborMoistureAverage,
   getNeighborVegetationInfluence,
   stepSimulation,
-  updateCell
+  updateMoisture,
+  updateVegetation,
+  DEFAULT_RULE_CONFIG
 } from "./simulation";
 import type { Cell } from "../types";
 
@@ -14,8 +17,9 @@ function createCell(
   vegetation: number,
   isPentagon = false,
   terrainKind: "water" | "land" = "land",
-  resource = 0.5,
-  geology = 0.5
+  fertility = 0.5,
+  geology = 0.5,
+  moisture = terrainKind === "water" ? 1 : 0.25
 ): Cell {
   return {
     id,
@@ -23,8 +27,10 @@ function createCell(
     neighborCount: neighbors.length,
     isPentagon,
     terrainKind,
-    resource,
+    fertility,
     geology,
+    moisture,
+    nextMoisture: moisture,
     vegetation,
     nextVegetation: vegetation,
     state: vegetation,
@@ -48,42 +54,28 @@ describe("simulation", () => {
 
   it("grows vegetation faster next to water than in dry cells", () => {
     const cells = [
-      createCell(0, [1, 2], 0.12, false, "land", 0.55, 0.55),
+      createCell(0, [1, 2], 0.12, false, "land", 0.55, 0.55, 0.4),
       createCell(1, [0], 0, false, "water"),
-      createCell(2, [0], 0.35, false, "land", 0.55, 0.55),
-      createCell(3, [4, 5], 0.12, false, "land", 0.55, 0.55),
-      createCell(4, [3], 0.1, false, "land", 0.55, 0.55),
-      createCell(5, [3], 0.08, false, "land", 0.55, 0.55)
+      createCell(2, [0], 0.35, false, "land", 0.55, 0.55, 0.4),
+      createCell(3, [4, 5], 0.12, false, "land", 0.55, 0.55, 0.08),
+      createCell(4, [3], 0.1, false, "land", 0.55, 0.55, 0.08),
+      createCell(5, [3], 0.08, false, "land", 0.55, 0.55, 0.08)
     ];
 
-    const wetNext = updateCell(cells[0], cells, {
-      config: {
-        waterInfluence: 0.62,
-        neighborVegetationInfluence: 0.28,
-        resourceInfluence: 0.2,
-        geologyInfluence: 0.14,
-        baselineDecay: 0.045,
-        growthCap: 0.22,
-        selfLimitingFactor: 0.9
-      }
-    });
-    const dryNext = updateCell(cells[3], cells, {
-      config: {
-        waterInfluence: 0.62,
-        neighborVegetationInfluence: 0.28,
-        resourceInfluence: 0.2,
-        geologyInfluence: 0.14,
-        baselineDecay: 0.045,
-        growthCap: 0.22,
-        selfLimitingFactor: 0.9
-      }
-    });
+    const wetMoisture = updateMoisture(cells[0], cells, { config: DEFAULT_RULE_CONFIG });
+    const dryMoisture = updateMoisture(cells[3], cells, { config: DEFAULT_RULE_CONFIG });
+    const moistureCells = cells.map((cell) => ({
+      ...cell,
+      nextMoisture: cell.id === 0 ? wetMoisture : cell.id === 3 ? dryMoisture : cell.nextMoisture
+    }));
+    const wetNext = updateVegetation(moistureCells[0], moistureCells, { config: DEFAULT_RULE_CONFIG });
+    const dryNext = updateVegetation(moistureCells[3], moistureCells, { config: DEFAULT_RULE_CONFIG });
 
     expect(wetNext).toBeGreaterThan(dryNext);
   });
 
   it("keeps water cells fixed at zero vegetation", () => {
-    const next = updateCell(
+    const next = updateVegetation(
       createCell(0, [1, 2, 3, 4, 5], 0, true, "water"),
       [
         createCell(0, [1, 2, 3, 4, 5], 0, true, "water"),
@@ -93,17 +85,7 @@ describe("simulation", () => {
         createCell(4, [0], 0.2),
         createCell(5, [0], 0.3)
       ],
-      {
-        config: {
-          waterInfluence: 0.62,
-          neighborVegetationInfluence: 0.28,
-          resourceInfluence: 0.2,
-          geologyInfluence: 0.14,
-          baselineDecay: 0.045,
-          growthCap: 0.22,
-          selfLimitingFactor: 0.9
-        }
-      }
+      { config: DEFAULT_RULE_CONFIG }
     );
 
     expect(next).toBe(0);
@@ -115,16 +97,9 @@ describe("simulation", () => {
       createCell(1, [0], 0, false, "water")
     ];
 
-    const next = stepSimulation(cells, {
-      waterInfluence: 0.62,
-      neighborVegetationInfluence: 0.28,
-      resourceInfluence: 0.2,
-      geologyInfluence: 0.14,
-      baselineDecay: 0.045,
-      growthCap: 0.22,
-      selfLimitingFactor: 0.9
-    });
+    const next = stepSimulation(cells, DEFAULT_RULE_CONFIG);
 
+    expect(next[0].moisture).toBeGreaterThan(cells[0].moisture);
     expect(next[0].vegetation).toBeCloseTo(next[0].state);
     expect(next[1].vegetation).toBe(0);
     expect(next[0].nextVegetation).toBeCloseTo(next[0].vegetation);
@@ -139,5 +114,43 @@ describe("simulation", () => {
     ];
 
     expect(getNeighborVegetationInfluence(cells[0], cells)).toBeCloseTo((0.9 + 0.6 + 0) / 3);
+  });
+
+  it("uses neighboring moisture as a local influence signal", () => {
+    const cells = [
+      createCell(0, [1, 2, 3], 0.1, false, "land", 0.4, 0.5, 0.2),
+      createCell(1, [0], 0.3, false, "land", 0.4, 0.5, 0.9),
+      createCell(2, [0], 0.2, false, "land", 0.4, 0.5, 0.6),
+      createCell(3, [0], 0.05, false, "land", 0.4, 0.5, 0.1)
+    ];
+
+    expect(getNeighborMoistureAverage(cells[0], cells)).toBeCloseTo((0.9 + 0.6 + 0.1) / 3);
+  });
+
+  it("propagates moisture beyond the first ring from water", () => {
+    const cells = [
+      createCell(0, [1], 0, false, "water"),
+      createCell(1, [0, 2], 0.15, false, "land", 0.5, 0.6, 0.25),
+      createCell(2, [1, 3], 0.15, false, "land", 0.5, 0.6, 0.1),
+      createCell(3, [2], 0.15, false, "land", 0.5, 0.6, 0.05)
+    ];
+
+    const next = stepSimulation(cells, DEFAULT_RULE_CONFIG);
+
+    expect(next[1].moisture).toBeGreaterThan(next[2].moisture);
+    expect(next[2].moisture).toBeGreaterThan(next[3].moisture);
+    expect(next[2].moisture).toBeGreaterThan(cells[2].moisture);
+  });
+
+  it("dries vegetation toward zero when moisture is missing", () => {
+    const cells = [
+      createCell(0, [1, 2], 0.75, false, "land", 0.2, 0.2, 0.02),
+      createCell(1, [0], 0.05, false, "land", 0.2, 0.2, 0.01),
+      createCell(2, [0], 0.03, false, "land", 0.2, 0.2, 0.01)
+    ];
+
+    const next = stepSimulation(cells, DEFAULT_RULE_CONFIG);
+
+    expect(next[0].vegetation).toBeLessThan(cells[0].vegetation);
   });
 });

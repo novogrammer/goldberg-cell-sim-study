@@ -40,10 +40,11 @@ function colorForCell(cell: Cell): Color {
     return new Color("#1d5ca8");
   }
 
-  const barren = new Color("#8a6833");
+  const barren = new Color("#8f6d37");
+  const moist = new Color("#80c7c2");
   const fertile = new Color("#6bbf4e");
-  const geologyTint = new Color("#8dc8a9");
-  const base = barren.lerp(fertile, cell.vegetation);
+  const geologyTint = new Color("#7db18f");
+  const base = barren.lerp(moist, cell.moisture * 0.45).lerp(fertile, cell.vegetation);
   return base.lerp(geologyTint, cell.geology * 0.18);
 }
 

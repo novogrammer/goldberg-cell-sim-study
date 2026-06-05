@@ -52,7 +52,7 @@
 
 - 固定または変わりにくい環境
   - `terrainKind`: `water` または `land`
-  - `resource`: 土地の豊かさ
+  - `fertility`: 土地の肥沃度
   - `geology`: 地質由来の育ちやすさ
 - 時間変化する状態
   - `vegetation`
@@ -67,7 +67,7 @@
 
 - 隣接 `water` セルの多さ
 - 周囲セルの植生量
-- そのセル自身の `resource`
+- そのセル自身の `fertility`
 - そのセル自身の `geology`
 - 水も植生も乏しい場合の減衰
 
