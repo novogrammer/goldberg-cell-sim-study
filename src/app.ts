@@ -11,6 +11,7 @@ export function mountApp(root: HTMLElement): void {
   let speed = 6;
   let isPlaying = true;
   let lastTick = 0;
+  let selectedCellId: number | null = null;
 
   root.innerHTML = `
     <div class="app-shell">
@@ -33,6 +34,7 @@ export function mountApp(root: HTMLElement): void {
           <div><dt>Pentagons</dt><dd data-stat="pentagons">${meshData.pentagonCount}</dd></div>
           <div><dt>Hexagons</dt><dd data-stat="hexagons">${meshData.hexagonCount}</dd></div>
           <div><dt>Rule</dt><dd>Neighbor average</dd></div>
+          <div><dt>Selected</dt><dd data-stat="selected">none</dd></div>
         </dl>
       </div>
       <div class="viewport" data-role="viewport"></div>
@@ -50,8 +52,9 @@ export function mountApp(root: HTMLElement): void {
   const stepButton = root.querySelector<HTMLButtonElement>("[data-action='step']");
   const randomizeButton = root.querySelector<HTMLButtonElement>("[data-action='randomize']");
   const speedSlider = root.querySelector<HTMLInputElement>("[data-action='speed']");
+  const selectedStat = root.querySelector<HTMLElement>("[data-stat='selected']");
 
-  if (!toggleButton || !stepButton || !randomizeButton || !speedSlider) {
+  if (!toggleButton || !stepButton || !randomizeButton || !speedSlider || !selectedStat) {
     throw new Error("Control elements were not created.");
   }
 
@@ -75,6 +78,21 @@ export function mountApp(root: HTMLElement): void {
 
   speedSlider.addEventListener("input", () => {
     speed = Number(speedSlider.value);
+  });
+
+  viewport.addEventListener("pointermove", (event) => {
+    scene.setHoveredCell(scene.pickCellAtClientPoint(event.clientX, event.clientY));
+  });
+
+  viewport.addEventListener("pointerleave", () => {
+    scene.setHoveredCell(null);
+  });
+
+  viewport.addEventListener("click", (event) => {
+    const pickedCellId = scene.pickCellAtClientPoint(event.clientX, event.clientY);
+    selectedCellId = selectedCellId === pickedCellId ? null : pickedCellId;
+    scene.setSelectedCell(selectedCellId);
+    selectedStat.textContent = selectedCellId === null ? "none" : `cell ${selectedCellId}`;
   });
 
   const onResize = () => scene.resize();
