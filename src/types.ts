@@ -18,15 +18,43 @@ export interface SimulationStepContext {
   config: SimulationRuleConfig;
 }
 
-export interface CellRenderData {
+export type Vec3 = [number, number, number];
+
+export interface CellFaceGeometry {
   cellId: number;
-  points: [number, number, number][];
+  vertexIndices: number[];
   center: [number, number, number];
+  normal: Vec3;
+  tangent: Vec3;
+  bitangent: Vec3;
+  inradius: number;
+  circumradius: number;
+}
+
+export interface GoldbergPolyhedronGeometry {
+  vertices: Vec3[];
+  faces: CellFaceGeometry[];
+}
+
+export interface CellPlacement {
+  cellId: number;
+  offsetU: number;
+  offsetV: number;
+  height: number;
+  yaw: number;
+}
+
+export interface CellPlacementTransform {
+  position: Vec3;
+  normal: Vec3;
+  tangent: Vec3;
+  bitangent: Vec3;
+  yaw: number;
 }
 
 export interface GoldbergMeshData {
   cells: Cell[];
-  renderCells: CellRenderData[];
+  geometry: GoldbergPolyhedronGeometry;
   pentagonCount: number;
   hexagonCount: number;
 }

@@ -1,6 +1,6 @@
 import { Vector3 } from "three";
 
-import type { Cell, CellRenderData, GoldbergMeshData } from "../types";
+import type { Cell, CellFaceGeometry, GoldbergMeshData, GoldbergPolyhedronGeometry } from "../types";
 
 const PHI = (1 + Math.sqrt(5)) / 2;
 const ICO_RADIUS = 1;
@@ -54,7 +54,14 @@ interface TriangulationData {
   faces: TriangleFace[];
 }
 
+interface GoldbergTopology {
+  cells: Cell[];
+  triangulation: TriangulationData;
+  incidentFaces: Map<number, number[]>;
+}
+
 const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
+const FACE_PLANE_DISTANCE = 1.12;
 
 function createNormalizedVertex(raw: [number, number, number]): Vector3 {
   return new Vector3(...raw).normalize().multiplyScalar(ICO_RADIUS);
@@ -193,10 +200,11 @@ function buildIncidentFaces(
   return incidentFaces;
 }
 
-function orderedDualPolygon(
+function orderedIndicesAroundNormal(
   cellCenter: Vector3,
-  triangleCenters: Vector3[]
-): Vector3[] {
+  points: Vector3[],
+  pointIndices: number[]
+): number[] {
   const normal = cellCenter.clone().normalize();
   const referenceAxis = Math.abs(normal.y) > 0.9
     ? new Vector3(1, 0, 0)
@@ -204,36 +212,55 @@ function orderedDualPolygon(
   const tangentX = new Vector3().crossVectors(referenceAxis, normal).normalize();
   const tangentY = new Vector3().crossVectors(normal, tangentX).normalize();
 
-  return triangleCenters
-    .map((center) => {
-      const projected = center
+  return points
+    .map((point, index) => {
+      const projected = point
         .clone()
-        .sub(normal.clone().multiplyScalar(center.dot(normal)))
+        .sub(normal.clone().multiplyScalar(point.dot(normal)))
         .normalize();
       const angle = Math.atan2(projected.dot(tangentY), projected.dot(tangentX));
-      return { angle, point: center.clone().normalize().multiplyScalar(ICO_RADIUS) };
+      return { angle, pointIndex: pointIndices[index] };
     })
     .sort((left, right) => left.angle - right.angle)
-    .map((entry) => entry.point);
+    .map((entry) => entry.pointIndex);
 }
 
-export function createGoldbergMesh(): GoldbergMeshData {
+function intersectFacePlanes(a: Vector3, b: Vector3, c: Vector3, distance: number): Vector3 {
+  const bc = new Vector3().crossVectors(b, c);
+  const ca = new Vector3().crossVectors(c, a);
+  const ab = new Vector3().crossVectors(a, b);
+  const denominator = a.dot(bc);
+
+  if (Math.abs(denominator) < 1e-8) {
+    throw new Error("Failed to intersect Goldberg多面体のface planes.");
+  }
+
+  return bc.add(ca).add(ab).multiplyScalar(distance / denominator);
+}
+
+function createLocalFrame(normal: Vector3, center: Vector3, firstVertex: Vector3) {
+  const fallbackAxis = Math.abs(normal.y) > 0.9
+    ? new Vector3(1, 0, 0)
+    : new Vector3(0, 1, 0);
+  const tangentSeed = firstVertex.clone().sub(center);
+  const tangent = tangentSeed.lengthSq() > 1e-10
+    ? tangentSeed.clone().normalize()
+    : new Vector3().crossVectors(fallbackAxis, normal).normalize();
+  const bitangent = new Vector3().crossVectors(normal, tangent).normalize();
+
+  return {
+    tangent,
+    bitangent
+  };
+}
+
+function createGoldbergTopology(): GoldbergTopology {
   const triangulation = createTriangulation();
   const adjacency = buildAdjacency(triangulation.vertices.length, triangulation.faces);
   const incidentFaces = buildIncidentFaces(
     triangulation.vertices.length,
     triangulation.faces
   );
-  const triangleCenters = triangulation.faces.map((face) => {
-    const [a, b, c] = face.vertices.map((id) => triangulation.vertices[id]);
-    return a
-      .clone()
-      .add(b)
-      .add(c)
-      .divideScalar(3)
-      .normalize()
-      .multiplyScalar(ICO_RADIUS);
-  });
 
   const cells: Cell[] = triangulation.vertices.map((_, cellId) => {
     const neighbors = Array.from(adjacency.get(cellId) ?? []).sort((a, b) => a - b);
@@ -249,41 +276,99 @@ export function createGoldbergMesh(): GoldbergMeshData {
     };
   });
 
-  const renderCells: CellRenderData[] = triangulation.vertices.map((vertex, cellId) => {
-    const polygonCenters = (incidentFaces.get(cellId) ?? []).map(
-      (faceId) => triangleCenters[faceId]
+  return {
+    cells,
+    triangulation,
+    incidentFaces
+  };
+}
+
+function createGoldbergPolyhedronGeometry(
+  topology: GoldbergTopology
+): GoldbergPolyhedronGeometry {
+  const vertices = topology.triangulation.faces.map((face) => {
+    const [a, b, c] = face.vertices.map((id) => topology.triangulation.vertices[id].clone().normalize());
+    const vertex = intersectFacePlanes(a, b, c, FACE_PLANE_DISTANCE);
+    return [vertex.x, vertex.y, vertex.z] as [number, number, number];
+  });
+
+  const faceVectors = vertices.map((vertex) => new Vector3(...vertex));
+  const faces: CellFaceGeometry[] = topology.cells.map((cell) => {
+    const centerNormal = topology.triangulation.vertices[cell.id].clone().normalize();
+    const incidentFaceIds = topology.incidentFaces.get(cell.id) ?? [];
+    const orderedVertexIndices = orderedIndicesAroundNormal(
+      centerNormal,
+      incidentFaceIds.map((vertexId) => faceVectors[vertexId]),
+      incidentFaceIds
     );
-    const points = orderedDualPolygon(vertex, polygonCenters).map((point) => [
-      point.x,
-      point.y,
-      point.z
-    ] as [number, number, number]);
+    const polygonPoints = orderedVertexIndices.map((vertexId) => faceVectors[vertexId]);
+    const faceCenter = polygonPoints
+      .reduce((sum, point) => sum.add(point.clone()), new Vector3())
+      .divideScalar(polygonPoints.length);
+    const projectedCenter = centerNormal
+      .clone()
+      .multiplyScalar(FACE_PLANE_DISTANCE / centerNormal.dot(faceCenter.clone().normalize()));
+    const { tangent, bitangent } = createLocalFrame(
+      centerNormal,
+      faceCenter,
+      polygonPoints[0]
+    );
+
+    let inradius = Number.POSITIVE_INFINITY;
+    let circumradius = 0;
+
+    for (let index = 0; index < polygonPoints.length; index += 1) {
+      const point = polygonPoints[index];
+      circumradius = Math.max(circumradius, point.distanceTo(faceCenter));
+
+      const next = polygonPoints[(index + 1) % polygonPoints.length];
+      const edge = next.clone().sub(point);
+      const toCenter = faceCenter.clone().sub(point);
+      const edgeLength = edge.length();
+      const distanceToEdge = edge.clone().cross(toCenter).length() / edgeLength;
+      inradius = Math.min(inradius, distanceToEdge);
+    }
 
     return {
-      cellId,
-      points,
-      center: [vertex.x, vertex.y, vertex.z]
+      cellId: cell.id,
+      vertexIndices: orderedVertexIndices,
+      center: [projectedCenter.x, projectedCenter.y, projectedCenter.z],
+      normal: [centerNormal.x, centerNormal.y, centerNormal.z],
+      tangent: [tangent.x, tangent.y, tangent.z],
+      bitangent: [bitangent.x, bitangent.y, bitangent.z],
+      inradius,
+      circumradius
     };
   });
 
-  const pentagonCount = cells.filter((cell) => cell.isPentagon).length;
-  const hexagonCount = cells.length - pentagonCount;
+  return {
+    vertices,
+    faces
+  };
+}
 
-  if (cells.length !== 42) {
-    throw new Error(`Expected 42 cells for frequency-2 Goldberg mesh, got ${cells.length}.`);
+export function createGoldbergMesh(): GoldbergMeshData {
+  const topology = createGoldbergTopology();
+  const geometry = createGoldbergPolyhedronGeometry(topology);
+
+  const pentagonCount = topology.cells.filter((cell) => cell.isPentagon).length;
+  const hexagonCount = topology.cells.length - pentagonCount;
+
+  if (topology.cells.length !== 42) {
+    throw new Error(`Expected 42 cells for frequency-2 Goldberg mesh, got ${topology.cells.length}.`);
   }
 
   if (pentagonCount !== 12) {
     throw new Error(`Expected 12 pentagons, got ${pentagonCount}.`);
   }
 
-  if (!cells.every((cell) => cell.isPentagon || cell.neighborCount === 6)) {
+  if (!topology.cells.every((cell) => cell.isPentagon || cell.neighborCount === 6)) {
     throw new Error("Non-pentagon cells must remain 6-neighbor cells.");
   }
 
   return {
-    cells,
-    renderCells,
+    cells: topology.cells,
+    geometry,
     pentagonCount,
     hexagonCount
   };

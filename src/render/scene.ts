@@ -17,8 +17,6 @@ import {
 
 import type { Cell, GoldbergMeshData } from "../types";
 
-const CELL_RADIUS = 1.02;
-
 interface CellVisual {
   mesh: Mesh;
   material: MeshStandardMaterial;
@@ -38,21 +36,16 @@ function colorForCell(cell: Cell): Color {
   return cool.lerp(warm, cell.state);
 }
 
-function createCellGeometry(
-  center: [number, number, number],
-  points: [number, number, number][]
-): BufferGeometry {
-  const centerVector = new Vector3(...center).normalize().multiplyScalar(CELL_RADIUS);
-  const ring = points.map((point) => new Vector3(...point).normalize().multiplyScalar(CELL_RADIUS));
+function createCellGeometry(points: Vector3[]): BufferGeometry {
   const positions: number[] = [];
 
-  for (let index = 0; index < ring.length; index += 1) {
-    const current = ring[index];
-    const next = ring[(index + 1) % ring.length];
+  for (let index = 1; index < points.length - 1; index += 1) {
+    const current = points[index];
+    const next = points[index + 1];
     positions.push(
-      centerVector.x,
-      centerVector.y,
-      centerVector.z,
+      points[0].x,
+      points[0].y,
+      points[0].z,
       current.x,
       current.y,
       current.z,
@@ -92,10 +85,12 @@ export function createSimulationScene(
   scene.add(group);
 
   const cellVisuals = new Map<number, CellVisual>();
+  const geometryVertices = meshData.geometry.vertices.map((vertex) => new Vector3(...vertex));
 
-  for (const renderCell of meshData.renderCells) {
-    const cell = cells[renderCell.cellId];
-    const geometry = createCellGeometry(renderCell.center, renderCell.points);
+  for (const face of meshData.geometry.faces) {
+    const cell = cells[face.cellId];
+    const polygonPoints = face.vertexIndices.map((vertexId) => geometryVertices[vertexId].clone());
+    const geometry = createCellGeometry(polygonPoints);
     const material = new MeshStandardMaterial({
       color: colorForCell(cell),
       roughness: 0.5,
@@ -103,9 +98,7 @@ export function createSimulationScene(
     });
     const mesh = new Mesh(geometry, material);
 
-    const borderGeometry = new BufferGeometry().setFromPoints(
-      renderCell.points.map((point) => new Vector3(...point).normalize().multiplyScalar(1.028))
-    );
+    const borderGeometry = new BufferGeometry().setFromPoints(polygonPoints);
     const border = new LineLoop(
       borderGeometry,
       new LineBasicMaterial({
@@ -117,7 +110,7 @@ export function createSimulationScene(
 
     mesh.add(border);
     group.add(mesh);
-    cellVisuals.set(cell.id, { mesh, material });
+    cellVisuals.set(face.cellId, { mesh, material });
   }
 
   const resize = () => {
