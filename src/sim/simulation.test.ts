@@ -154,6 +154,20 @@ describe("simulation", () => {
     expect(next[0].vegetation).toBeLessThan(cells[0].vegetation);
   });
 
+  it("keeps drying sparse land close to zero over repeated dry steps", () => {
+    let cells = [
+      createCell(0, [1, 2], 0.28, false, "land", 0.15, 0.15, 0.01),
+      createCell(1, [0], 0.01, false, "land", 0.15, 0.15, 0.01),
+      createCell(2, [0], 0.01, false, "land", 0.15, 0.15, 0.01)
+    ];
+
+    for (let index = 0; index < 24; index += 1) {
+      cells = stepSimulation(cells, DEFAULT_RULE_CONFIG);
+    }
+
+    expect(cells[0].vegetation).toBeLessThan(0.05);
+  });
+
   it("blocks moisture-driven growth below the minimum moisture threshold", () => {
     const cell = createCell(0, [1, 2], 0.25, false, "land", 0.4, 0.4, 0.1);
     const cells = [

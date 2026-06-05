@@ -41,11 +41,17 @@ function colorForCell(cell: Cell): Color {
   }
 
   const barren = new Color("#8f6d37");
-  const moist = new Color("#80c7c2");
   const fertile = new Color("#6bbf4e");
-  const geologyTint = new Color("#7db18f");
-  const base = barren.lerp(moist, cell.moisture * 0.45).lerp(fertile, cell.vegetation);
-  return base.lerp(geologyTint, cell.geology * 0.18);
+  const vegetationBlend = Math.pow(cell.vegetation, 0.78);
+  return barren.lerp(fertile, vegetationBlend);
+}
+
+function roughnessForCell(cell: Cell): number {
+  if (cell.terrainKind === "water") {
+    return 0.15;
+  }
+
+  return Math.max(0.38, Math.min(0.92, 0.92 - cell.moisture * 0.47));
 }
 
 const OVERLAY_LIFT = 0.006;
@@ -329,7 +335,7 @@ export function createSimulationScene(
     const geometry = createCellGeometry(polygonPoints, faceNormal, tileInsetRatio);
     const material = new MeshStandardMaterial({
       color: colorForCell(cell),
-      roughness: 0.5,
+      roughness: roughnessForCell(cell),
       metalness: 0.08
     });
     const mesh = new Mesh(geometry, material);
@@ -374,6 +380,7 @@ export function createSimulationScene(
         continue;
       }
       visual.material.color.copy(colorForCell(cell));
+      visual.material.roughness = roughnessForCell(cell);
     }
   };
 

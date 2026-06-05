@@ -2,15 +2,15 @@ import type { Cell, SimulationRuleConfig, SimulationStepContext } from "../types
 
 export const DEFAULT_RULE_CONFIG: SimulationRuleConfig = {
   waterSourceStrength: 0.85,
-  moistureSpread: 0.2,
+  moistureSpread: 0.28,
   moistureDecay: 0.1,
   moistureRetentionFromGeology: 0.12,
-  vegetationGrowthFromMoisture: 0.42,
-  minimumMoistureForGrowth: 0.18,
-  neighborVegetationInfluence: 0.28,
-  fertilityInfluence: 0.2,
+  vegetationGrowthFromMoisture: 0.32,
+  minimumMoistureForGrowth: 0.24,
+  neighborVegetationInfluence: 0.2,
+  fertilityInfluence: 0.14,
   geologyMoistureSupport: 0.12,
-  baselineVegetationDecay: 0.06,
+  baselineVegetationDecay: 0.05,
   dryVegetationDecay: 0.08,
   growthCap: 0.22,
   selfLimitingFactor: 0.9
@@ -107,11 +107,16 @@ export function updateVegetation(
   const moisture = nextMoistureCells[cell.id].nextMoisture;
   const neighboringVegetation = getNeighborVegetationInfluence(cell, nextMoistureCells);
   const usableMoisture = Math.max(0, moisture - minimumMoistureForGrowth);
+  const moistureSuitability = usableMoisture <= 0
+    ? 0
+    : clamp01(usableMoisture / Math.max(0.001, 1 - minimumMoistureForGrowth));
+  const fertilitySupport = 1 + cell.fertility * fertilityInfluence;
+  const geologySupport = 1 + cell.geology * geologyMoistureSupport;
   const growthPotential = clamp01(
-    usableMoisture * vegetationGrowthFromMoisture +
-    neighboringVegetation * neighborVegetationInfluence +
-    cell.fertility * fertilityInfluence +
-    cell.geology * geologyMoistureSupport
+    moistureSuitability *
+    (vegetationGrowthFromMoisture + neighboringVegetation * neighborVegetationInfluence) *
+    fertilitySupport *
+    geologySupport
   );
   const selfLimiting = Math.max(0, 1 - cell.vegetation * selfLimitingFactor);
   const growthDelta = growthPotential * growthCap * selfLimiting;
@@ -121,7 +126,7 @@ export function updateVegetation(
     dryness *
     (1 - cell.fertility * 0.4) *
     (1 - neighboringVegetation * 0.35) *
-    Math.max(cell.vegetation, 0.12);
+    cell.vegetation;
   const activated =
     cell.vegetation +
     growthDelta -
