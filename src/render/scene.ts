@@ -41,29 +41,145 @@ function colorForCell(cell: Cell): Color {
   return cool.lerp(warm, cell.state);
 }
 
-const OVERLAY_INSET = 0.08;
 const OVERLAY_LIFT = 0.006;
+const OVERLAY_WIDTH = 0.055;
+const TILE_DEPTH = 0.12;
+const TILE_SURFACE_LIFT = 0.08;
+const TILE_TOP_INSET = 0.04;
+const TILE_BEVEL_DROP = 0.045;
 const HOVER_COLOR = "#fff2a8";
 const SELECTED_COLOR = "#ffffff";
 const HOVER_OPACITY = 0.42;
 const SELECTED_OPACITY = 0.82;
 
-function createCellGeometry(points: Vector3[]): BufferGeometry {
+function createTileSurfaceProfile(
+  points: Vector3[],
+  normal: Vector3,
+  insetRatio: number
+) {
+  const surfacePoints = points.map((point) =>
+    point.clone().add(point.clone().normalize().multiplyScalar(TILE_SURFACE_LIFT))
+  );
+  const topCenter = surfacePoints
+    .reduce((sum, point) => sum.add(point.clone()), new Vector3())
+    .divideScalar(surfacePoints.length);
+  const insetTopPoints = surfacePoints.map((point) =>
+    point
+      .clone()
+      .lerp(topCenter, insetRatio)
+  );
+  const outerTopPoints = surfacePoints.map((point) =>
+    point.clone().sub(normal.clone().multiplyScalar(TILE_BEVEL_DROP))
+  );
+  return {
+    surfacePoints,
+    outerTopPoints,
+    insetTopPoints,
+    topCenter
+  };
+}
+
+function createCellGeometry(
+  points: Vector3[],
+  normal: Vector3,
+  insetRatio: number
+): BufferGeometry {
+  const { outerTopPoints, insetTopPoints } = createTileSurfaceProfile(
+    points,
+    normal,
+    insetRatio
+  );
+  const bottomPoints = outerTopPoints.map((point) =>
+    point.clone().sub(normal.clone().multiplyScalar(TILE_DEPTH))
+  );
   const positions: number[] = [];
 
-  for (let index = 1; index < points.length - 1; index += 1) {
-    const current = points[index];
-    const next = points[index + 1];
+  for (let index = 1; index < insetTopPoints.length - 1; index += 1) {
+    const current = insetTopPoints[index];
+    const next = insetTopPoints[index + 1];
     positions.push(
-      points[0].x,
-      points[0].y,
-      points[0].z,
+      insetTopPoints[0].x,
+      insetTopPoints[0].y,
+      insetTopPoints[0].z,
       current.x,
       current.y,
       current.z,
       next.x,
       next.y,
       next.z
+    );
+  }
+
+  for (let index = 1; index < bottomPoints.length - 1; index += 1) {
+    const current = bottomPoints[index];
+    const next = bottomPoints[index + 1];
+    positions.push(
+      bottomPoints[0].x,
+      bottomPoints[0].y,
+      bottomPoints[0].z,
+      next.x,
+      next.y,
+      next.z,
+      current.x,
+      current.y,
+      current.z
+    );
+  }
+
+  for (let index = 0; index < points.length; index += 1) {
+    const outerTopCurrent = outerTopPoints[index];
+    const outerTopNext = outerTopPoints[(index + 1) % points.length];
+    const insetTopCurrent = insetTopPoints[index];
+    const insetTopNext = insetTopPoints[(index + 1) % points.length];
+    const bottomCurrent = bottomPoints[index];
+    const bottomNext = bottomPoints[(index + 1) % points.length];
+
+    positions.push(
+      outerTopCurrent.x,
+      outerTopCurrent.y,
+      outerTopCurrent.z,
+      outerTopNext.x,
+      outerTopNext.y,
+      outerTopNext.z,
+      insetTopCurrent.x,
+      insetTopCurrent.y,
+      insetTopCurrent.z
+    );
+
+    positions.push(
+      insetTopCurrent.x,
+      insetTopCurrent.y,
+      insetTopCurrent.z,
+      outerTopNext.x,
+      outerTopNext.y,
+      outerTopNext.z,
+      insetTopNext.x,
+      insetTopNext.y,
+      insetTopNext.z
+    );
+
+    positions.push(
+      outerTopCurrent.x,
+      outerTopCurrent.y,
+      outerTopCurrent.z,
+      outerTopNext.x,
+      outerTopNext.y,
+      outerTopNext.z,
+      bottomCurrent.x,
+      bottomCurrent.y,
+      bottomCurrent.z
+    );
+
+    positions.push(
+      bottomCurrent.x,
+      bottomCurrent.y,
+      bottomCurrent.z,
+      outerTopNext.x,
+      outerTopNext.y,
+      outerTopNext.z,
+      bottomNext.x,
+      bottomNext.y,
+      bottomNext.z
     );
   }
 
@@ -74,22 +190,34 @@ function createCellGeometry(points: Vector3[]): BufferGeometry {
 }
 
 function createInsetOverlayGeometry(
-  points: Vector3[],
-  normal: Vector3,
-  center: Vector3,
-  insetRatio: number
+  topPoints: Vector3[],
+  topCenter: Vector3,
+  overlayWidthRatio: number
 ): BufferGeometry {
-  const liftedOuter = points.map((point) => point.clone().add(normal.clone().multiplyScalar(OVERLAY_LIFT)));
-  const inner = points.map((point) =>
-    point.clone().lerp(center, insetRatio).add(normal.clone().multiplyScalar(OVERLAY_LIFT))
+  const liftedOuter = topPoints.map((point) =>
+    point
+      .clone()
+      .add(point.clone().normalize().multiplyScalar(OVERLAY_LIFT))
+  );
+  const inner = topPoints.map((point) =>
+    point
+      .clone()
+      .lerp(topCenter, overlayWidthRatio)
+      .add(
+        point
+          .clone()
+          .lerp(topCenter, overlayWidthRatio)
+          .normalize()
+          .multiplyScalar(OVERLAY_LIFT)
+      )
   );
   const positions: number[] = [];
 
-  for (let index = 0; index < points.length; index += 1) {
+  for (let index = 0; index < topPoints.length; index += 1) {
     const outerCurrent = liftedOuter[index];
-    const outerNext = liftedOuter[(index + 1) % points.length];
+    const outerNext = liftedOuter[(index + 1) % topPoints.length];
     const innerCurrent = inner[index];
-    const innerNext = inner[(index + 1) % points.length];
+    const innerNext = inner[(index + 1) % topPoints.length];
 
     positions.push(
       outerCurrent.x,
@@ -184,7 +312,14 @@ export function createSimulationScene(
   for (const face of meshData.geometry.faces) {
     const cell = cells[face.cellId];
     const polygonPoints = face.vertexIndices.map((vertexId) => geometryVertices[vertexId].clone());
-    const geometry = createCellGeometry(polygonPoints);
+    const faceNormal = new Vector3(...face.normal);
+    const tileInsetRatio = Math.min(TILE_TOP_INSET / face.circumradius, 0.35);
+    const { surfacePoints, topCenter } = createTileSurfaceProfile(
+      polygonPoints,
+      faceNormal,
+      tileInsetRatio
+    );
+    const geometry = createCellGeometry(polygonPoints, faceNormal, tileInsetRatio);
     const material = new MeshStandardMaterial({
       color: colorForCell(cell),
       roughness: 0.5,
@@ -192,25 +327,24 @@ export function createSimulationScene(
     });
     const mesh = new Mesh(geometry, material);
     mesh.userData.cellId = face.cellId;
-    const faceCenter = new Vector3(...face.center);
-    const faceNormal = new Vector3(...face.normal);
-    const insetRatio = Math.min(OVERLAY_INSET / face.circumradius, 0.35);
+    const overlayWidthRatio = Math.min(OVERLAY_WIDTH / face.circumradius, 0.18);
     const overlayMaterial = new MeshBasicMaterial({
       color: HOVER_COLOR,
       transparent: true,
       opacity: 0,
-      depthWrite: false
+      depthWrite: false,
+      depthTest: false
     });
     overlayMaterial.visible = false;
     const overlayMesh = new Mesh(
       createInsetOverlayGeometry(
-        polygonPoints,
-        faceNormal,
-        faceCenter,
-        insetRatio
+        surfacePoints,
+        topCenter,
+        overlayWidthRatio
       ),
       overlayMaterial
     );
+    overlayMesh.renderOrder = 10;
 
     mesh.add(overlayMesh);
     group.add(mesh);
