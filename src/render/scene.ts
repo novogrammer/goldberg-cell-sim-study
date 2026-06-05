@@ -59,7 +59,7 @@ const OVERLAY_WIDTH = 0.055;
 const TILE_DEPTH = 0.12;
 const TILE_SURFACE_LIFT = 0.08;
 const TILE_TOP_INSET = 0.04;
-const TILE_BEVEL_DROP = 0.045;
+const TILE_BEVEL_DROP_RATIO = 0.18;
 const HOVER_COLOR = "#fff2a8";
 const SELECTED_COLOR = "#ffffff";
 const HOVER_OPACITY = 0.42;
@@ -68,7 +68,8 @@ const SELECTED_OPACITY = 0.82;
 function createTileSurfaceProfile(
   points: Vector3[],
   normal: Vector3,
-  insetRatio: number
+  insetRatio: number,
+  bevelDrop: number
 ) {
   const surfacePoints = points.map((point) =>
     point.clone().add(point.clone().normalize().multiplyScalar(TILE_SURFACE_LIFT))
@@ -82,7 +83,7 @@ function createTileSurfaceProfile(
       .lerp(topCenter, insetRatio)
   );
   const outerTopPoints = surfacePoints.map((point) =>
-    point.clone().sub(normal.clone().multiplyScalar(TILE_BEVEL_DROP))
+    point.clone().sub(normal.clone().multiplyScalar(bevelDrop))
   );
   return {
     surfacePoints,
@@ -95,12 +96,14 @@ function createTileSurfaceProfile(
 function createCellGeometry(
   points: Vector3[],
   normal: Vector3,
-  insetRatio: number
+  insetRatio: number,
+  bevelDrop: number
 ): BufferGeometry {
   const { outerTopPoints, insetTopPoints } = createTileSurfaceProfile(
     points,
     normal,
-    insetRatio
+    insetRatio,
+    bevelDrop
   );
   const bottomPoints = outerTopPoints.map((point) =>
     point.clone().sub(normal.clone().multiplyScalar(TILE_DEPTH))
@@ -202,6 +205,12 @@ function createCellGeometry(
   return geometry;
 }
 
+function averageHexagonInradius(meshData: GoldbergMeshData): number {
+  const hexagonFaces = meshData.geometry.faces.filter((face) => !meshData.cells[face.cellId].isPentagon);
+  const total = hexagonFaces.reduce((sum, face) => sum + face.inradius, 0);
+  return total / hexagonFaces.length;
+}
+
 function createInsetOverlayGeometry(
   topPoints: Vector3[],
   topCenter: Vector3,
@@ -292,6 +301,7 @@ export function createSimulationScene(
   let hoveredCellId: number | null = null;
   let selectedCellId: number | null = null;
   const geometryVertices = meshData.geometry.vertices.map((vertex) => new Vector3(...vertex));
+  const bevelDrop = averageHexagonInradius(meshData) * TILE_BEVEL_DROP_RATIO;
 
   const applyOverlayState = (cellId: number) => {
     const visual = cellVisuals.get(cellId);
@@ -330,9 +340,10 @@ export function createSimulationScene(
     const { surfacePoints, topCenter } = createTileSurfaceProfile(
       polygonPoints,
       faceNormal,
-      tileInsetRatio
+      tileInsetRatio,
+      bevelDrop
     );
-    const geometry = createCellGeometry(polygonPoints, faceNormal, tileInsetRatio);
+    const geometry = createCellGeometry(polygonPoints, faceNormal, tileInsetRatio, bevelDrop);
     const material = new MeshStandardMaterial({
       color: colorForCell(cell),
       roughness: roughnessForCell(cell),
