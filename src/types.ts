@@ -69,6 +69,7 @@ export interface CellPlacementTransform {
 }
 
 export interface GoldbergMeshData {
+  frequency: number;
   cells: Cell[];
   geometry: GoldbergPolyhedronGeometry;
   pentagonCount: number;

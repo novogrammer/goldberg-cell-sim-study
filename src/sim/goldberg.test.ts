@@ -5,10 +5,19 @@ import { createGoldbergMesh } from "./goldberg";
 
 describe("createGoldbergMesh", () => {
   const mesh = createGoldbergMesh();
+  const denseMesh = createGoldbergMesh(3);
 
   it("creates the expected number of cells", () => {
     expect(mesh.cells).toHaveLength(42);
     expect(mesh.geometry.faces).toHaveLength(42);
+  });
+
+  it("supports higher frequencies with more cells", () => {
+    expect(denseMesh.frequency).toBe(3);
+    expect(denseMesh.cells).toHaveLength(92);
+    expect(denseMesh.geometry.faces).toHaveLength(92);
+    expect(denseMesh.pentagonCount).toBe(12);
+    expect(denseMesh.hexagonCount).toBe(80);
   });
 
   it("creates both water and land cells", () => {
@@ -36,6 +45,15 @@ describe("createGoldbergMesh", () => {
   it("keeps all non-pentagon cells as 6-neighbor cells", () => {
     const hexagons = mesh.cells.filter((cell) => !cell.isPentagon);
     expect(hexagons).toHaveLength(30);
+    expect(hexagons.every((cell) => cell.neighborCount === 6)).toBe(true);
+  });
+
+  it("keeps higher-frequency non-pentagon cells as 6-neighbor cells", () => {
+    const pentagons = denseMesh.cells.filter((cell) => cell.isPentagon);
+    const hexagons = denseMesh.cells.filter((cell) => !cell.isPentagon);
+    expect(pentagons).toHaveLength(12);
+    expect(pentagons.every((cell) => cell.neighborCount === 5)).toBe(true);
+    expect(hexagons).toHaveLength(80);
     expect(hexagons.every((cell) => cell.neighborCount === 6)).toBe(true);
   });
 

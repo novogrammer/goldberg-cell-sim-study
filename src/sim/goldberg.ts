@@ -4,7 +4,7 @@ import type { Cell, CellFaceGeometry, GoldbergMeshData, GoldbergPolyhedronGeomet
 
 const PHI = (1 + Math.sqrt(5)) / 2;
 const ICO_RADIUS = 1;
-const GOLDBERG_FREQUENCY = 2;
+const DEFAULT_GOLDBERG_FREQUENCY = 2;
 
 const ICOSAHEDRON_VERTICES: [number, number, number][] = [
   [-1, PHI, 0],
@@ -71,7 +71,7 @@ function toKey(vector: Vector3): string {
   return `${vector.x.toFixed(8)}:${vector.y.toFixed(8)}:${vector.z.toFixed(8)}`;
 }
 
-function createTriangulation(frequency = GOLDBERG_FREQUENCY): TriangulationData {
+function createTriangulation(frequency = DEFAULT_GOLDBERG_FREQUENCY): TriangulationData {
   const baseVertices = ICOSAHEDRON_VERTICES.map(createNormalizedVertex);
   const vertexIndexByKey = new Map<string, number>();
   const vertices: Vector3[] = [];
@@ -254,8 +254,8 @@ function createLocalFrame(normal: Vector3, center: Vector3, firstVertex: Vector3
   };
 }
 
-function createGoldbergTopology(): GoldbergTopology {
-  const triangulation = createTriangulation();
+function createGoldbergTopology(frequency = DEFAULT_GOLDBERG_FREQUENCY): GoldbergTopology {
+  const triangulation = createTriangulation(frequency);
   const adjacency = buildAdjacency(triangulation.vertices.length, triangulation.faces);
   const incidentFaces = buildIncidentFaces(
     triangulation.vertices.length,
@@ -399,16 +399,27 @@ export function createInitialPlanetEnvironment(
   });
 }
 
-export function createGoldbergMesh(): GoldbergMeshData {
-  const topology = createGoldbergTopology();
+function expectedCellCountForFrequency(frequency: number): number {
+  return 10 * frequency * frequency + 2;
+}
+
+export function createGoldbergMesh(frequency = DEFAULT_GOLDBERG_FREQUENCY): GoldbergMeshData {
+  if (!Number.isInteger(frequency) || frequency < 1) {
+    throw new Error(`Goldberg mesh frequency must be a positive integer, got ${frequency}.`);
+  }
+
+  const topology = createGoldbergTopology(frequency);
   const geometry = createGoldbergPolyhedronGeometry(topology);
   const cells = createInitialPlanetEnvironment(topology.cells, geometry);
 
   const pentagonCount = cells.filter((cell) => cell.isPentagon).length;
   const hexagonCount = cells.length - pentagonCount;
+  const expectedCellCount = expectedCellCountForFrequency(frequency);
 
-  if (cells.length !== 42) {
-    throw new Error(`Expected 42 cells for frequency-2 Goldberg mesh, got ${cells.length}.`);
+  if (cells.length !== expectedCellCount) {
+    throw new Error(
+      `Expected ${expectedCellCount} cells for frequency-${frequency} Goldberg mesh, got ${cells.length}.`
+    );
   }
 
   if (pentagonCount !== 12) {
@@ -420,6 +431,7 @@ export function createGoldbergMesh(): GoldbergMeshData {
   }
 
   return {
+    frequency,
     cells,
     geometry,
     pentagonCount,
