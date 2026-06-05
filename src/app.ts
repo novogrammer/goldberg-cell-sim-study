@@ -12,6 +12,7 @@ export function mountApp(root: HTMLElement): void {
   let cells = randomizeCellState(meshData.cells);
   let speed = 6;
   let isPlaying = true;
+  let autoRotate = true;
   let lastTick = 0;
   let selectedCellId: number | null = null;
 
@@ -24,6 +25,7 @@ export function mountApp(root: HTMLElement): void {
         </div>
         <div class="controls">
           <button type="button" data-action="toggle">Pause</button>
+          <button type="button" data-action="rotate">Stop Rotation</button>
           <button type="button" data-action="step">Step</button>
           <button type="button" data-action="randomize">Randomize</button>
           <label>
@@ -56,8 +58,10 @@ export function mountApp(root: HTMLElement): void {
   }
 
   const scene = createSimulationScene(viewport, meshData, cells);
+  scene.setAutoRotate(autoRotate);
 
   const toggleButton = root.querySelector<HTMLButtonElement>("[data-action='toggle']");
+  const rotateButton = root.querySelector<HTMLButtonElement>("[data-action='rotate']");
   const stepButton = root.querySelector<HTMLButtonElement>("[data-action='step']");
   const randomizeButton = root.querySelector<HTMLButtonElement>("[data-action='randomize']");
   const speedSlider = root.querySelector<HTMLInputElement>("[data-action='speed']");
@@ -71,6 +75,7 @@ export function mountApp(root: HTMLElement): void {
 
   if (
     !toggleButton ||
+    !rotateButton ||
     !stepButton ||
     !randomizeButton ||
     !speedSlider ||
@@ -106,6 +111,12 @@ export function mountApp(root: HTMLElement): void {
   toggleButton.addEventListener("click", () => {
     isPlaying = !isPlaying;
     toggleButton.textContent = isPlaying ? "Pause" : "Play";
+  });
+
+  rotateButton.addEventListener("click", () => {
+    autoRotate = !autoRotate;
+    scene.setAutoRotate(autoRotate);
+    rotateButton.textContent = autoRotate ? "Stop Rotation" : "Auto Rotate";
   });
 
   stepButton.addEventListener("click", () => {

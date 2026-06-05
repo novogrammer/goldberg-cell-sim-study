@@ -15,6 +15,7 @@ import {
   AmbientLight,
   DirectionalLight
 } from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
 import type { Cell, GoldbergMeshData } from "../types";
 
@@ -29,6 +30,7 @@ export interface SimulationScene {
   resize: () => void;
   render: () => void;
   updateCells: (cells: Cell[]) => void;
+  setAutoRotate: (enabled: boolean) => void;
   pickCellAtClientPoint: (clientX: number, clientY: number) => number | null;
   setHoveredCell: (cellId: number | null) => void;
   setSelectedCell: (cellId: number | null) => void;
@@ -287,7 +289,17 @@ export function createSimulationScene(
 
   const renderer = new WebGLRenderer({ antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.domElement.style.touchAction = "none";
   mount.appendChild(renderer.domElement);
+
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.enablePan = false;
+  controls.minDistance = 2.4;
+  controls.maxDistance = 7.5;
+  controls.autoRotate = true;
+  controls.autoRotateSpeed = 1.1;
 
   const ambientLight = new AmbientLight("#ffffff", 1.2);
   const directionalLight = new DirectionalLight("#d6f0ff", 2.4);
@@ -395,6 +407,10 @@ export function createSimulationScene(
     }
   };
 
+  const setAutoRotate = (enabled: boolean) => {
+    controls.autoRotate = enabled;
+  };
+
   const pickCellAtClientPoint = (clientX: number, clientY: number): number | null => {
     const rect = renderer.domElement.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) {
@@ -440,8 +456,7 @@ export function createSimulationScene(
   };
 
   const render = () => {
-    group.rotation.y += 0.0035;
-    group.rotation.x = Math.sin(performance.now() * 0.00015) * 0.08;
+    controls.update();
     renderer.render(scene, camera);
   };
 
@@ -459,6 +474,7 @@ export function createSimulationScene(
       }
     }
     renderer.dispose();
+    controls.dispose();
     mount.removeChild(renderer.domElement);
   };
 
@@ -469,6 +485,7 @@ export function createSimulationScene(
     resize,
     render,
     updateCells,
+    setAutoRotate,
     pickCellAtClientPoint,
     setHoveredCell,
     setSelectedCell,
