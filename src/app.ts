@@ -5,7 +5,7 @@ import { createGoldbergMesh, randomizeCellState } from "./sim/goldberg";
 import { DEFAULT_RULE_CONFIG, getAdjacentWaterInfluence, stepSimulation } from "./sim/simulation";
 import type { Cell } from "./types";
 
-const DISPLAY_FREQUENCY = 3;
+const DISPLAY_FREQUENCY = 10;
 
 export function mountApp(root: HTMLElement): void {
   const meshData = createGoldbergMesh(DISPLAY_FREQUENCY);
