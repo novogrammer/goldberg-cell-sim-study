@@ -6,6 +6,7 @@ import { DEFAULT_RULE_CONFIG, getAdjacentWaterInfluence, stepSimulation } from "
 import type { Cell } from "./types";
 
 const DISPLAY_FREQUENCY = 10;
+const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
 
 export function mountApp(root: HTMLElement): void {
   const meshData = createGoldbergMesh(DISPLAY_FREQUENCY);
@@ -28,6 +29,13 @@ export function mountApp(root: HTMLElement): void {
           <button type="button" data-action="rotate">Stop Rotation</button>
           <button type="button" data-action="step">Step</button>
           <button type="button" data-action="randomize">Randomize</button>
+          <label>
+            <span>Terrain</span>
+            <select data-action="terrain" disabled>
+              <option value="land">land</option>
+              <option value="water">water</option>
+            </select>
+          </label>
           <label>
             <span>Speed</span>
             <input type="range" min="1" max="24" step="1" value="${speed}" data-action="speed" />
@@ -64,6 +72,7 @@ export function mountApp(root: HTMLElement): void {
   const rotateButton = root.querySelector<HTMLButtonElement>("[data-action='rotate']");
   const stepButton = root.querySelector<HTMLButtonElement>("[data-action='step']");
   const randomizeButton = root.querySelector<HTMLButtonElement>("[data-action='randomize']");
+  const terrainSelect = root.querySelector<HTMLSelectElement>("[data-action='terrain']");
   const speedSlider = root.querySelector<HTMLInputElement>("[data-action='speed']");
   const selectedStat = root.querySelector<HTMLElement>("[data-stat='selected']");
   const terrainStat = root.querySelector<HTMLElement>("[data-stat='terrain']");
@@ -78,6 +87,7 @@ export function mountApp(root: HTMLElement): void {
     !rotateButton ||
     !stepButton ||
     !randomizeButton ||
+    !terrainSelect ||
     !speedSlider ||
     !selectedStat ||
     !terrainStat ||
@@ -90,22 +100,75 @@ export function mountApp(root: HTMLElement): void {
     throw new Error("Control elements were not created.");
   }
 
+  const updateSelectionStats = () => {
+    if (selectedCellId === null) {
+      selectedStat.textContent = "none";
+      terrainStat.textContent = "-";
+      moistureStat.textContent = "-";
+      vegetationStat.textContent = "-";
+      waterAdjStat.textContent = "-";
+      fertilityStat.textContent = "-";
+      geologyStat.textContent = "-";
+      terrainSelect.disabled = true;
+      return;
+    }
+
+    const selectedCell = cells[selectedCellId];
+    if (!selectedCell) {
+      return;
+    }
+
+    const waterAdjacency = getAdjacentWaterInfluence(selectedCell, cells);
+    selectedStat.textContent = `cell ${selectedCellId}`;
+    terrainStat.textContent = selectedCell.terrainKind;
+    moistureStat.textContent = selectedCell.moisture.toFixed(2);
+    vegetationStat.textContent = selectedCell.vegetation.toFixed(2);
+    waterAdjStat.textContent = waterAdjacency.toFixed(2);
+    fertilityStat.textContent = selectedCell.fertility.toFixed(2);
+    geologyStat.textContent = selectedCell.geology.toFixed(2);
+    terrainSelect.value = selectedCell.terrainKind;
+    terrainSelect.disabled = false;
+  };
+
+  const setTerrainKind = (cellId: number, terrainKind: "water" | "land") => {
+    const nextCells = cells.map((cell) =>
+      cell.id === cellId
+        ? { ...cell, terrainKind }
+        : cell
+    );
+    const nextCell = nextCells[cellId];
+    const waterAdjacency = getAdjacentWaterInfluence(nextCell, nextCells);
+    const moisture = terrainKind === "water"
+      ? 1
+      : clamp01(0.08 + waterAdjacency * 0.9 + nextCell.geology * 0.08);
+    const vegetation = terrainKind === "water"
+      ? 0
+      : clamp01(
+        Math.max(0, moisture - DEFAULT_RULE_CONFIG.minimumMoistureForGrowth) * 0.58 +
+        nextCell.fertility * 0.08 +
+        nextCell.geology * 0.04
+      );
+
+    return nextCells.map((cell) => (
+      cell.id === cellId
+        ? {
+          ...cell,
+          terrainKind,
+          moisture,
+          nextMoisture: moisture,
+          vegetation,
+          nextVegetation: vegetation,
+          state: vegetation,
+          nextState: vegetation
+        }
+        : cell
+    ));
+  };
+
   const syncScene = (nextCells: Cell[]) => {
     cells = nextCells;
     scene.updateCells(cells);
-    if (selectedCellId !== null) {
-      const selectedCell = cells[selectedCellId];
-      if (selectedCell) {
-        const waterAdjacency = getAdjacentWaterInfluence(selectedCell, cells);
-        selectedStat.textContent = `cell ${selectedCellId}`;
-        terrainStat.textContent = selectedCell.terrainKind;
-        moistureStat.textContent = selectedCell.moisture.toFixed(2);
-        vegetationStat.textContent = selectedCell.vegetation.toFixed(2);
-        waterAdjStat.textContent = waterAdjacency.toFixed(2);
-        fertilityStat.textContent = selectedCell.fertility.toFixed(2);
-        geologyStat.textContent = selectedCell.geology.toFixed(2);
-      }
-    }
+    updateSelectionStats();
   };
 
   toggleButton.addEventListener("click", () => {
@@ -127,6 +190,15 @@ export function mountApp(root: HTMLElement): void {
     syncScene(randomizeCellState(meshData.cells, Math.random() * 1000));
   });
 
+  terrainSelect.addEventListener("change", () => {
+    if (selectedCellId === null) {
+      terrainSelect.disabled = true;
+      return;
+    }
+
+    syncScene(setTerrainKind(selectedCellId, terrainSelect.value as "water" | "land"));
+  });
+
   speedSlider.addEventListener("input", () => {
     speed = Number(speedSlider.value);
   });
@@ -143,26 +215,7 @@ export function mountApp(root: HTMLElement): void {
     const pickedCellId = scene.pickCellAtClientPoint(event.clientX, event.clientY);
     selectedCellId = selectedCellId === pickedCellId ? null : pickedCellId;
     scene.setSelectedCell(selectedCellId);
-    if (selectedCellId === null) {
-      selectedStat.textContent = "none";
-      terrainStat.textContent = "-";
-      moistureStat.textContent = "-";
-      vegetationStat.textContent = "-";
-      waterAdjStat.textContent = "-";
-      fertilityStat.textContent = "-";
-      geologyStat.textContent = "-";
-      return;
-    }
-
-    const selectedCell = cells[selectedCellId];
-    const waterAdjacency = getAdjacentWaterInfluence(selectedCell, cells);
-    selectedStat.textContent = `cell ${selectedCellId}`;
-    terrainStat.textContent = selectedCell.terrainKind;
-    moistureStat.textContent = selectedCell.moisture.toFixed(2);
-    vegetationStat.textContent = selectedCell.vegetation.toFixed(2);
-    waterAdjStat.textContent = waterAdjacency.toFixed(2);
-    fertilityStat.textContent = selectedCell.fertility.toFixed(2);
-    geologyStat.textContent = selectedCell.geology.toFixed(2);
+    updateSelectionStats();
   });
 
   const onResize = () => scene.resize();

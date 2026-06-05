@@ -27,7 +27,8 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -94,6 +95,17 @@ input {
 
 .controls input[type="range"] {
   width: 120px;
+}
+
+.controls select {
+  min-width: 92px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+}
+
+.controls select:disabled {
+  opacity: 0.55;
 }
 
 .stats {
