@@ -2,7 +2,7 @@
 
 Goldberg多面体上でセルシミュレーションを行う最小構成のブラウザ実装です。
 
-現在は icosphere 細分化から dual セルを組み立てる可変 `frequency` メッシュを使います。デフォルトのブラウザ表示は `frequency=3` で、各 face ではなく dual 側の各セルを 1 単位として扱います。`frequency=2` なら 42 セル、`frequency=3` なら 92 セルで、そのうち 12 個は常に五角形セルです。現在のシミュレーションは `水場 + 土地 + 植生` の局所環境モデルです。
+現在は icosphere 細分化から dual セルを組み立てる可変 `frequency` メッシュを使います。現在のブラウザ表示は `frequency=10` で、各 face ではなく dual 側の各セルを 1 単位として扱います。`createGoldbergMesh(frequency)` により表示解像度は今後も変更可能です。`frequency=2` なら 42 セル、`frequency=3` なら 92 セルで、そのうち 12 個は常に五角形セルです。現在のシミュレーションは `水場 + 土地 + 植生` の局所環境モデルです。
 
 ## モデル概要
 
@@ -49,5 +49,5 @@ npm run build
 
 ## 現状の制約
 
-- 現在のアプリ表示は `frequency=3` 固定ですが、生成器自体は `createGoldbergMesh(frequency)` で可変です。
+- 現在のアプリ表示は `frequency=10` ですが、生成器自体は `createGoldbergMesh(frequency)` で可変です。
 - 水場は固定セルで、まだ移動や拡散はしません。
