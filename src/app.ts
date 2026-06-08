@@ -24,7 +24,7 @@ declare global {
   }
 }
 
-export function mountApp(root: HTMLElement): void {
+export function mountApp(root: HTMLElement): () => void {
   const meshData = createGoldbergMesh(DISPLAY_FREQUENCY);
   let cells = randomizeCellState(meshData.cells);
   let speed = 6;
@@ -224,8 +224,15 @@ export function mountApp(root: HTMLElement): void {
   const onResize = () => scene.resize();
   window.addEventListener("resize", onResize);
 
+  let animationFrameId = 0;
+  let isDisposed = false;
+
   const animate = (timestamp: number) => {
-    requestAnimationFrame(animate);
+    if (isDisposed) {
+      return;
+    }
+
+    animationFrameId = requestAnimationFrame(animate);
     const interval = 1000 / speed;
 
     if (isPlaying && timestamp - lastTick >= interval) {
@@ -237,16 +244,18 @@ export function mountApp(root: HTMLElement): void {
   };
 
   refreshHud();
-  requestAnimationFrame(animate);
+  animationFrameId = requestAnimationFrame(animate);
 
-  window.addEventListener(
-    "beforeunload",
-    () => {
-      cleanupEvents();
-      window.removeEventListener("resize", onResize);
-      delete window.__goldbergTestState;
-      scene.dispose();
-    },
-    { once: true }
-  );
+  return () => {
+    if (isDisposed) {
+      return;
+    }
+
+    isDisposed = true;
+    cancelAnimationFrame(animationFrameId);
+    cleanupEvents();
+    window.removeEventListener("resize", onResize);
+    delete window.__goldbergTestState;
+    scene.dispose();
+  };
 }
