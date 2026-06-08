@@ -333,7 +333,8 @@ select {
   align-self: flex-start;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
+  padding: 12px 14px;
 }
 
 .viewport-selection-card[data-state="empty"] .viewport-selection-grid {
@@ -343,32 +344,39 @@ select {
 .viewport-selection-title {
   margin: 0;
   color: #f3fbff;
-  font-size: 0.94rem;
+  font-size: 0.9rem;
   font-weight: 600;
 }
 
 .viewport-selection-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px 14px;
   margin: 0;
 }
 
 .viewport-selection-grid div {
-  padding: 10px 12px;
-  border-radius: 14px;
-  background: rgba(10, 28, 44, 0.88);
+  display: grid;
+  grid-column: span 2;
+  grid-template-columns: 1fr 1fr;
+  align-items: baseline;
+  column-gap: 6px;
+  min-width: 0;
 }
 
 .viewport-selection-grid dt {
   color: #8dbed8;
-  font-size: 0.76rem;
+  font-size: 0.75rem;
+  white-space: nowrap;
 }
 
 .viewport-selection-grid dd {
-  margin: 4px 0 0;
-  font-size: 1rem;
-  font-weight: 700;
+  margin: 0;
+  min-width: 0;
+  color: #f3fbff;
+  font-size: 0.88rem;
+  font-weight: 600;
+  word-break: break-word;
 }
 
 .viewport {
@@ -414,6 +422,10 @@ select {
   .viewport-guide,
   .viewport-selection-card {
     max-width: 100%;
+  }
+
+  .viewport-selection-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .panel-header {
