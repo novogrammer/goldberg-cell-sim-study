@@ -16,6 +16,7 @@ import {
   DirectionalLight
 } from "three";
 
+import { GoldbergCameraControls } from "./GoldbergCameraControls";
 import type { Cell, GoldbergMeshData } from "../types";
 
 interface CellVisual {
@@ -67,12 +68,6 @@ const HOVER_COLOR = "#fff2a8";
 const SELECTED_COLOR = "#ffffff";
 const HOVER_OPACITY = 0.42;
 const SELECTED_OPACITY = 0.82;
-const MIN_CAMERA_DISTANCE = 2.4;
-const MAX_CAMERA_DISTANCE = 7.5;
-const ROTATION_SENSITIVITY = 0.005;
-const ZOOM_SENSITIVITY = 0.0012;
-const CAMERA_DAMPING = 0.16;
-const AUTO_ROTATE_SPEED = 0.6;
 
 function createTileSurfaceProfile(
   points: Vector3[],
@@ -298,7 +293,7 @@ export function createSimulationScene(
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.domElement.style.touchAction = "none";
   mount.appendChild(renderer.domElement);
-  const controlElement = renderer.domElement;
+  const controls = new GoldbergCameraControls(camera, renderer.domElement);
 
   const ambientLight = new AmbientLight("#ffffff", 1.2);
   const directionalLight = new DirectionalLight("#d6f0ff", 2.4);
@@ -311,18 +306,6 @@ export function createSimulationScene(
   const cellVisuals = new Map<number, CellVisual>();
   let hoveredCellId: number | null = null;
   let selectedCellId: number | null = null;
-  let controlsEnabled = true;
-  let autoRotateEnabled = true;
-  let currentAzimuth = 0;
-  let targetAzimuth = 0;
-  let currentPolar = Math.PI / 2;
-  let targetPolar = Math.PI / 2;
-  let currentRadius = 4.4;
-  let targetRadius = 4.4;
-  let activePointerId: number | null = null;
-  let lastPointerX = 0;
-  let lastPointerY = 0;
-  let isDraggingCamera = false;
   let lastRenderTimestamp = performance.now();
   const geometryVertices = meshData.geometry.vertices.map((vertex) => new Vector3(...vertex));
   const bevelDrop = averageHexagonInradius(meshData) * TILE_BEVEL_DROP_RATIO;
@@ -420,22 +403,14 @@ export function createSimulationScene(
   };
 
   const setAutoRotate = (enabled: boolean) => {
-    autoRotateEnabled = enabled;
+    controls.autoRotate = enabled;
   };
 
   const setControlsEnabled = (enabled: boolean) => {
-    controlsEnabled = enabled;
-    if (!enabled) {
-      isDraggingCamera = false;
-      activePointerId = null;
-    }
+    controls.setEnabled(enabled);
   };
 
-  const getCameraPosition = (): [number, number, number] => [
-    camera.position.x,
-    camera.position.y,
-    camera.position.z
-  ];
+  const getCameraPosition = () => controls.getCameraPosition();
 
   const pickCellAtClientPoint = (clientX: number, clientY: number): number | null => {
     const rect = renderer.domElement.getBoundingClientRect();
@@ -485,95 +460,12 @@ export function createSimulationScene(
     const now = performance.now();
     const deltaSeconds = Math.min(0.05, (now - lastRenderTimestamp) / 1000);
     lastRenderTimestamp = now;
-
-    if (controlsEnabled) {
-      if (autoRotateEnabled && !isDraggingCamera) {
-        targetAzimuth += AUTO_ROTATE_SPEED * deltaSeconds;
-      }
-
-      currentAzimuth += (targetAzimuth - currentAzimuth) * CAMERA_DAMPING;
-      currentPolar += (targetPolar - currentPolar) * CAMERA_DAMPING;
-      currentRadius += (targetRadius - currentRadius) * CAMERA_DAMPING;
-
-      const sinPolar = Math.sin(currentPolar);
-      camera.position.set(
-        Math.sin(currentAzimuth) * sinPolar * currentRadius,
-        Math.cos(currentPolar) * currentRadius,
-        Math.cos(currentAzimuth) * sinPolar * currentRadius
-      );
-      camera.lookAt(0, 0, 0);
-    }
-
+    controls.update(deltaSeconds);
     renderer.render(scene, camera);
   };
 
-  const clampPolar = (value: number) => Math.max(0.12, Math.min(Math.PI - 0.12, value));
-  const clampRadius = (value: number) => Math.max(MIN_CAMERA_DISTANCE, Math.min(MAX_CAMERA_DISTANCE, value));
-
-  const onPointerDown = (event: PointerEvent) => {
-    if (!controlsEnabled || event.button !== 0) {
-      return;
-    }
-
-    activePointerId = event.pointerId;
-    isDraggingCamera = true;
-    lastPointerX = event.clientX;
-    lastPointerY = event.clientY;
-    controlElement.setPointerCapture(event.pointerId);
-  };
-
-  const onPointerMove = (event: PointerEvent) => {
-    if (!controlsEnabled || !isDraggingCamera || activePointerId !== event.pointerId) {
-      return;
-    }
-
-    const deltaX = event.clientX - lastPointerX;
-    const deltaY = event.clientY - lastPointerY;
-    lastPointerX = event.clientX;
-    lastPointerY = event.clientY;
-    targetAzimuth -= deltaX * ROTATION_SENSITIVITY;
-    targetPolar = clampPolar(targetPolar - deltaY * ROTATION_SENSITIVITY);
-  };
-
-  const finishPointerInteraction = (event: PointerEvent) => {
-    if (activePointerId !== event.pointerId) {
-      return;
-    }
-
-    if (controlElement.hasPointerCapture(event.pointerId)) {
-      controlElement.releasePointerCapture(event.pointerId);
-    }
-    activePointerId = null;
-    isDraggingCamera = false;
-  };
-
-  const onWheel = (event: WheelEvent) => {
-    if (!controlsEnabled) {
-      return;
-    }
-
-    event.preventDefault();
-    targetRadius = clampRadius(targetRadius * Math.exp(event.deltaY * ZOOM_SENSITIVITY));
-  };
-
-  const onContextMenu = (event: MouseEvent) => {
-    event.preventDefault();
-  };
-
-  controlElement.addEventListener("pointerdown", onPointerDown);
-  controlElement.addEventListener("pointermove", onPointerMove);
-  controlElement.addEventListener("pointerup", finishPointerInteraction);
-  controlElement.addEventListener("pointercancel", finishPointerInteraction);
-  controlElement.addEventListener("wheel", onWheel, { passive: false });
-  controlElement.addEventListener("contextmenu", onContextMenu);
-
   const dispose = () => {
-    controlElement.removeEventListener("pointerdown", onPointerDown);
-    controlElement.removeEventListener("pointermove", onPointerMove);
-    controlElement.removeEventListener("pointerup", finishPointerInteraction);
-    controlElement.removeEventListener("pointercancel", finishPointerInteraction);
-    controlElement.removeEventListener("wheel", onWheel);
-    controlElement.removeEventListener("contextmenu", onContextMenu);
+    controls.dispose();
     for (const visual of cellVisuals.values()) {
       visual.mesh.geometry.dispose();
       visual.material.dispose();
