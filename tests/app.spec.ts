@@ -21,6 +21,10 @@ async function getCameraPosition(page: Page) {
   return page.evaluate(() => window.__goldbergTestState?.getCameraPosition() ?? null);
 }
 
+function getVectorLength(position: [number, number, number]) {
+  return Math.sqrt(position[0] ** 2 + position[1] ** 2 + position[2] ** 2);
+}
+
 test('Goldberg シミュレーション画面が表示される', async ({ page }) => {
   await page.goto('/');
 
@@ -60,6 +64,76 @@ test('一時停止と回転のコントロールを切り替えられる', async
   await expect(page.getByRole('button', { name: 'Auto Rotate' })).toBeVisible();
   await page.getByRole('button', { name: 'Auto Rotate' }).click();
   await expect(page.getByRole('button', { name: 'Stop Rotation' })).toBeVisible();
+});
+
+test('閲覧モードではドラッグしてカメラを回転できる', async ({ page }) => {
+  await page.goto('/');
+
+  await page.getByRole('button', { name: 'Stop Rotation' }).click();
+  const { centerX, centerY } = await getCanvasCenter(page);
+  const before = await getCameraPosition(page);
+  if (!before) {
+    throw new Error('Camera position hook was not available.');
+  }
+
+  await page.mouse.move(centerX, centerY);
+  await page.mouse.down();
+  await page.mouse.move(centerX + 140, centerY + 30, { steps: 20 });
+  await page.mouse.up();
+  await page.waitForTimeout(150);
+
+  const after = await getCameraPosition(page);
+  if (!after) {
+    throw new Error('Camera position hook was not available after dragging.');
+  }
+
+  expect(after).not.toEqual(before);
+});
+
+test('閲覧モードで下方向にドラッグするとカメラは上方向へ回る', async ({ page }) => {
+  await page.goto('/');
+
+  await page.getByRole('button', { name: 'Stop Rotation' }).click();
+  const { centerX, centerY } = await getCanvasCenter(page);
+  const before = await getCameraPosition(page);
+  if (!before) {
+    throw new Error('Camera position hook was not available.');
+  }
+
+  await page.mouse.move(centerX, centerY);
+  await page.mouse.down();
+  await page.mouse.move(centerX, centerY + 120, { steps: 20 });
+  await page.mouse.up();
+  await page.waitForTimeout(150);
+
+  const after = await getCameraPosition(page);
+  if (!after) {
+    throw new Error('Camera position hook was not available after vertical dragging.');
+  }
+
+  expect(after[1]).toBeGreaterThan(before[1]);
+});
+
+test('閲覧モードではホイールでズームできる', async ({ page }) => {
+  await page.goto('/');
+
+  await page.getByRole('button', { name: 'Stop Rotation' }).click();
+  const { centerX, centerY } = await getCanvasCenter(page);
+  const before = await getCameraPosition(page);
+  if (!before) {
+    throw new Error('Camera position hook was not available.');
+  }
+
+  await page.mouse.move(centerX, centerY);
+  await page.mouse.wheel(0, 320);
+  await page.waitForTimeout(150);
+
+  const after = await getCameraPosition(page);
+  if (!after) {
+    throw new Error('Camera position hook was not available after zooming.');
+  }
+
+  expect(getVectorLength(after)).toBeGreaterThan(getVectorLength(before));
 });
 
 test('canvas 上のセルを選択すると terrain 編集が有効になる', async ({ page }) => {
