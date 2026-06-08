@@ -27,8 +27,11 @@ export function updateHud(elements: AppElements, hudState: HudState) {
   elements.viewModeButton.setAttribute("aria-pressed", String(!isPaintMode));
   elements.paintModeButton.setAttribute("aria-pressed", String(isPaintMode));
   elements.modePanel.dataset.mode = isPaintMode ? "paint" : "view";
-  elements.simulationPanel.dataset.emphasis = isPaintMode ? "muted" : "normal";
-  elements.cameraPanel.dataset.emphasis = isPaintMode ? "muted" : "normal";
+  elements.simulationPanel.hidden = isPaintMode;
+  elements.cameraPanel.hidden = isPaintMode;
+  elements.paintPanel.hidden = !isPaintMode;
+  elements.simulationPanel.dataset.emphasis = "normal";
+  elements.cameraPanel.dataset.emphasis = "normal";
   elements.paintPanel.dataset.active = String(isPaintMode);
   elements.toggleButton.disabled = isPaintMode;
   elements.rotateButton.disabled = isPaintMode;

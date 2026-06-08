@@ -49,7 +49,9 @@ test('セル未選択時は主要コントロールが表示される', async ({
   await expect(page.getByRole('button', { name: 'Paint' })).toHaveAttribute('aria-pressed', 'false');
   await expect(page.getByRole('button', { name: 'Step' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Randomize' })).toBeVisible();
-  await expect(page.locator('[data-action="brush"]')).toHaveValue('land');
+  await expect(page.locator('[data-panel="simulation"]')).toBeVisible();
+  await expect(page.locator('[data-panel="camera"]')).toBeVisible();
+  await expect(page.locator('[data-panel="paint"]')).toBeHidden();
   await expect(page.locator('[data-action="terrain"]')).toHaveCount(0);
   await expect(page.locator('[data-stat="selected"]')).toHaveText('none');
   await expect(page.locator('[data-stat="mode-label"]')).toHaveText('View mode');
@@ -63,16 +65,22 @@ test('モード切り替えに応じて viewport のガイドと操作状態が�
 
   await page.getByRole('button', { name: 'Paint' }).click();
 
-  await expect(page.getByRole('button', { name: 'Play' })).toBeVisible();
+  await expect(page.locator('[data-panel="simulation"]')).toBeHidden();
+  await expect(page.locator('[data-panel="camera"]')).toBeHidden();
+  await expect(page.locator('[data-panel="paint"]')).toBeVisible();
+  await expect(page.locator('[data-action="brush"]')).toHaveValue('land');
   await expect(page.locator('[data-stat="viewport-mode"]')).toHaveText('Paint mode');
   await expect(page.locator('[data-stat="viewport-hint"]')).toContainText('Brush land.');
   await expect(page.locator('[data-stat="camera-state"]')).toHaveText('Camera locked for painting');
-  await expect(page.getByRole('button', { name: 'Auto Rotate' })).toBeDisabled();
-  await expect(page.locator('[data-action="speed"]')).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Auto Rotate' })).toBeHidden();
+  await expect(page.locator('[data-action="speed"]')).toBeHidden();
 
   await page.getByRole('button', { name: 'View' }).click();
 
   await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible();
+  await expect(page.locator('[data-panel="simulation"]')).toBeVisible();
+  await expect(page.locator('[data-panel="camera"]')).toBeVisible();
+  await expect(page.locator('[data-panel="paint"]')).toBeHidden();
   await expect(page.locator('[data-stat="viewport-mode"]')).toHaveText('View mode');
   await expect(page.locator('[data-stat="viewport-hint"]')).toHaveText('Drag to orbit and scroll to zoom.');
   await expect(page.getByRole('button', { name: 'Auto Rotate' })).toBeEnabled();
@@ -191,10 +199,10 @@ test('ペイントモードで選択セルの terrain を直接切り替えら�
   const currentTerrain = await terrainStat.textContent();
   const nextTerrain = currentTerrain === 'water' ? 'land' : 'water';
 
-  await page.locator('[data-action="brush"]').selectOption(nextTerrain);
   await page.getByRole('button', { name: 'Paint' }).click();
   await expect(page.getByRole('button', { name: 'Paint' })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('[data-stat="paint-state"]')).toHaveText('Active');
+  await page.locator('[data-action="brush"]').selectOption(nextTerrain);
 
   await page.mouse.click(target.x, target.y);
 
@@ -211,8 +219,8 @@ test('ペイントモードではドラッグして複数セルにまたがる�
     throw new Error('Interactive canvas point was not available.');
   }
 
-  await page.locator('[data-action="brush"]').selectOption('land');
   await page.getByRole('button', { name: 'Paint' }).click();
+  await page.locator('[data-action="brush"]').selectOption('land');
 
   await page.mouse.move(target.x, target.y);
   await page.mouse.down();
