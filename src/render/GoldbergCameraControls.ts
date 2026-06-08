@@ -7,6 +7,7 @@ const ZOOM_SENSITIVITY = 0.0012;
 const CAMERA_DAMPING = 0.16;
 const AUTO_ROTATE_SPEED = 0.6;
 const POLAR_EPSILON = 0.32;
+const DRAG_START_THRESHOLD = 4;
 
 function clampPolar(value: number) {
   return Math.max(POLAR_EPSILON, Math.min(Math.PI - POLAR_EPSILON, value));
@@ -27,6 +28,8 @@ export class GoldbergCameraControls {
   private currentRadius = 4.4;
   private targetRadius = 4.4;
   private activePointerId: number | null = null;
+  private pointerDownX = 0;
+  private pointerDownY = 0;
   private lastPointerX = 0;
   private lastPointerY = 0;
   private isDragging = false;
@@ -79,8 +82,22 @@ export class GoldbergCameraControls {
   setEnabled(enabled: boolean) {
     this.enabled = enabled;
     if (!enabled) {
+      this.syncTargetsToCurrentState();
+      if (
+        this.activePointerId !== null &&
+        this.domElement.hasPointerCapture(this.activePointerId)
+      ) {
+        this.domElement.releasePointerCapture(this.activePointerId);
+      }
       this.isDragging = false;
       this.activePointerId = null;
+    }
+  }
+
+  setAutoRotate(enabled: boolean) {
+    this.autoRotate = enabled;
+    if (!enabled) {
+      this.syncTargetsToCurrentState();
     }
   }
 
@@ -90,6 +107,15 @@ export class GoldbergCameraControls {
       this.camera.position.y,
       this.camera.position.z
     ];
+  }
+
+  rotateByPointerDelta(deltaX: number, deltaY: number) {
+    this.targetAzimuth -= deltaX * ROTATION_SENSITIVITY;
+    this.targetPolar = clampPolar(this.targetPolar - deltaY * ROTATION_SENSITIVITY);
+  }
+
+  zoomByWheelDelta(deltaY: number) {
+    this.targetRadius = clampRadius(this.targetRadius * Math.exp(deltaY * ZOOM_SENSITIVITY));
   }
 
   dispose() {
@@ -107,14 +133,31 @@ export class GoldbergCameraControls {
     }
 
     this.activePointerId = event.pointerId;
-    this.isDragging = true;
+    this.pointerDownX = event.clientX;
+    this.pointerDownY = event.clientY;
     this.lastPointerX = event.clientX;
     this.lastPointerY = event.clientY;
-    this.domElement.setPointerCapture(event.pointerId);
+    this.isDragging = false;
   }
 
   private onPointerMove(event: PointerEvent) {
-    if (!this.enabled || !this.isDragging || this.activePointerId !== event.pointerId) {
+    if (!this.enabled || this.activePointerId !== event.pointerId) {
+      return;
+    }
+
+    if (!this.isDragging) {
+      const dragDistance = Math.hypot(
+        event.clientX - this.pointerDownX,
+        event.clientY - this.pointerDownY
+      );
+      if (dragDistance < DRAG_START_THRESHOLD) {
+        return;
+      }
+
+      this.isDragging = true;
+      this.lastPointerX = event.clientX;
+      this.lastPointerY = event.clientY;
+      this.domElement.setPointerCapture(event.pointerId);
       return;
     }
 
@@ -122,8 +165,7 @@ export class GoldbergCameraControls {
     const deltaY = event.clientY - this.lastPointerY;
     this.lastPointerX = event.clientX;
     this.lastPointerY = event.clientY;
-    this.targetAzimuth -= deltaX * ROTATION_SENSITIVITY;
-    this.targetPolar = clampPolar(this.targetPolar - deltaY * ROTATION_SENSITIVITY);
+    this.rotateByPointerDelta(deltaX, deltaY);
   }
 
   private finishPointerInteraction(event: PointerEvent) {
@@ -131,7 +173,7 @@ export class GoldbergCameraControls {
       return;
     }
 
-    if (this.domElement.hasPointerCapture(event.pointerId)) {
+    if (this.isDragging && this.domElement.hasPointerCapture(event.pointerId)) {
       this.domElement.releasePointerCapture(event.pointerId);
     }
 
@@ -145,10 +187,16 @@ export class GoldbergCameraControls {
     }
 
     event.preventDefault();
-    this.targetRadius = clampRadius(this.targetRadius * Math.exp(event.deltaY * ZOOM_SENSITIVITY));
+    this.zoomByWheelDelta(event.deltaY);
   }
 
   private onContextMenu(event: MouseEvent) {
     event.preventDefault();
+  }
+
+  private syncTargetsToCurrentState() {
+    this.targetAzimuth = this.currentAzimuth;
+    this.targetPolar = this.currentPolar;
+    this.targetRadius = this.currentRadius;
   }
 }

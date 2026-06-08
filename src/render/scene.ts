@@ -33,6 +33,8 @@ export interface SimulationScene {
   setAutoRotate: (enabled: boolean) => void;
   setControlsEnabled: (enabled: boolean) => void;
   getCameraPosition: () => [number, number, number];
+  rotateCameraByPixels: (deltaX: number, deltaY: number) => void;
+  zoomCameraByDelta: (deltaY: number) => void;
   pickCellAtClientPoint: (clientX: number, clientY: number) => number | null;
   setHoveredCell: (cellId: number | null) => void;
   setSelectedCell: (cellId: number | null) => void;
@@ -403,7 +405,7 @@ export function createSimulationScene(
   };
 
   const setAutoRotate = (enabled: boolean) => {
-    controls.autoRotate = enabled;
+    controls.setAutoRotate(enabled);
   };
 
   const setControlsEnabled = (enabled: boolean) => {
@@ -411,6 +413,8 @@ export function createSimulationScene(
   };
 
   const getCameraPosition = () => controls.getCameraPosition();
+  const rotateCameraByPixels = (deltaX: number, deltaY: number) => controls.rotateByPointerDelta(deltaX, deltaY);
+  const zoomCameraByDelta = (deltaY: number) => controls.zoomByWheelDelta(deltaY);
 
   const pickCellAtClientPoint = (clientX: number, clientY: number): number | null => {
     const rect = renderer.domElement.getBoundingClientRect();
@@ -492,6 +496,8 @@ export function createSimulationScene(
     setAutoRotate,
     setControlsEnabled,
     getCameraPosition,
+    rotateCameraByPixels,
+    zoomCameraByDelta,
     pickCellAtClientPoint,
     setHoveredCell,
     setSelectedCell,
