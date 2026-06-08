@@ -1,9 +1,8 @@
 import "./style.css";
 
 import type { AppState } from "./appState";
-import { findInteractiveCanvasPoint } from "./editor/findInteractiveCanvasPoint";
 import { paintAtPickedPoint, setCellTerrainKind, toggleSelectedCell } from "./editor/planetEditor";
-import { createSimulationScene } from "./render/scene";
+import { createSimulationView } from "./render/createSimulationView";
 import { createGoldbergMesh, randomizeCellState } from "./sim/goldberg";
 import { DEFAULT_RULE_CONFIG, stepSimulation } from "./sim/simulation";
 import { bindAppEvents } from "./ui/bindAppEvents";
@@ -58,28 +57,24 @@ export function mountApp(root: HTMLElement): () => void {
     speed: appState.speed
   }, buildHudState());
 
-  const scene = createSimulationScene(elements.viewport, meshData, appState.cells);
-  scene.setAutoRotate(appState.autoRotate);
-  const canvasElement = scene.renderer.domElement;
+  const view = createSimulationView(elements.viewport, meshData, appState.cells);
+  view.setAutoRotate(appState.autoRotate);
   window.__goldbergTestState = {
-    getCameraPosition: () => scene.getCameraPosition(),
+    getCameraPosition: () => view.getCameraPosition(),
     rotateCameraByPixels: (deltaX, deltaY) => {
-      scene.rotateCameraByPixels(deltaX, deltaY);
+      view.rotateCameraByPixels(deltaX, deltaY);
     },
     zoomCameraByDelta: (deltaY) => {
-      scene.zoomCameraByDelta(deltaY);
+      view.zoomCameraByDelta(deltaY);
     },
-    getInteractiveCanvasPoint: () => findInteractiveCanvasPoint(
-      canvasElement,
-      scene.pickCellAtClientPoint
-    )
+    getInteractiveCanvasPoint: () => view.getInteractiveCanvasPoint()
   };
 
   const refreshHud = () => updateHud(elements, buildHudState());
 
   const syncScene = (nextCells: AppState["cells"]) => {
     appState.cells = nextCells;
-    scene.updateCells(appState.cells);
+    view.syncCells(appState.cells);
     refreshHud();
   };
 
@@ -91,7 +86,7 @@ export function mountApp(root: HTMLElement): () => void {
         lastPaintedCellId: appState.lastPaintedCellId
       },
       appState.brushTerrainKind,
-      scene.pickCellAtClientPoint(clientX, clientY)
+      view.pickCellAtClientPoint(clientX, clientY)
     );
     if (nextState.cells === appState.cells) {
       return;
@@ -100,12 +95,12 @@ export function mountApp(root: HTMLElement): () => void {
     appState.cells = nextState.cells;
     appState.selectedCellId = nextState.selectedCellId;
     appState.lastPaintedCellId = nextState.lastPaintedCellId;
-    scene.setSelectedCell(appState.selectedCellId);
-    scene.updateCells(appState.cells);
+    view.setSelectedCell(appState.selectedCellId);
+    view.syncCells(appState.cells);
     refreshHud();
   };
 
-  const cleanupEvents = bindAppEvents(elements, canvasElement, {
+  const cleanupEvents = bindAppEvents(elements, view.canvasElement, {
     onTogglePlay: () => {
       appState.isPlaying = !appState.isPlaying;
       refreshHud();
@@ -113,12 +108,12 @@ export function mountApp(root: HTMLElement): () => void {
     onSetMode: (mode) => {
       appState.isPaintMode = mode === "paint";
       appState.lastPaintedCellId = null;
-      scene.setControlsEnabled(!appState.isPaintMode);
+      view.setControlsEnabled(!appState.isPaintMode);
       refreshHud();
     },
     onToggleAutoRotate: () => {
       appState.autoRotate = !appState.autoRotate;
-      scene.setAutoRotate(appState.autoRotate);
+      view.setAutoRotate(appState.autoRotate);
       refreshHud();
     },
     onStep: () => {
@@ -143,10 +138,10 @@ export function mountApp(root: HTMLElement): () => void {
       refreshHud();
     },
     onCanvasHover: (clientX, clientY) => {
-      scene.setHoveredCell(scene.pickCellAtClientPoint(clientX, clientY));
+      view.setHoveredFromClientPoint(clientX, clientY);
     },
     onCanvasLeave: () => {
-      scene.setHoveredCell(null);
+      view.clearHoveredCell();
     },
     onCanvasPaintStart: (clientX, clientY) => {
       appState.lastPaintedCellId = null;
@@ -159,14 +154,14 @@ export function mountApp(root: HTMLElement): () => void {
       appState.lastPaintedCellId = null;
     },
     onCanvasSelect: (clientX, clientY) => {
-      const pickedCellId = scene.pickCellAtClientPoint(clientX, clientY);
+      const pickedCellId = view.pickCellAtClientPoint(clientX, clientY);
       appState.selectedCellId = toggleSelectedCell(appState.selectedCellId, pickedCellId);
-      scene.setSelectedCell(appState.selectedCellId);
+      view.setSelectedCell(appState.selectedCellId);
       refreshHud();
     }
   });
 
-  const onResize = () => scene.resize();
+  const onResize = () => view.resize();
   window.addEventListener("resize", onResize);
 
   let animationFrameId = 0;
@@ -185,7 +180,7 @@ export function mountApp(root: HTMLElement): () => void {
       appState.lastTick = timestamp;
     }
 
-    scene.render();
+    view.render();
   };
 
   refreshHud();
@@ -201,6 +196,6 @@ export function mountApp(root: HTMLElement): () => void {
     cleanupEvents();
     window.removeEventListener("resize", onResize);
     delete window.__goldbergTestState;
-    scene.dispose();
+    view.dispose();
   };
 }
