@@ -1,8 +1,10 @@
 import "./style.css";
 
+import { findInteractiveCanvasPoint } from "./editor/findInteractiveCanvasPoint";
+import { paintAtPickedPoint, setCellTerrainKind, toggleSelectedCell } from "./editor/planetEditor";
 import { createSimulationScene } from "./render/scene";
 import { createGoldbergMesh, randomizeCellState } from "./sim/goldberg";
-import { DEFAULT_RULE_CONFIG, getAdjacentWaterInfluence, stepSimulation } from "./sim/simulation";
+import { DEFAULT_RULE_CONFIG, stepSimulation } from "./sim/simulation";
 import type { Cell } from "./types";
 import { bindAppEvents } from "./ui/bindAppEvents";
 import { buildSelectedCellSummary } from "./ui/buildSelectedCellSummary";
@@ -11,7 +13,6 @@ import type { HudState } from "./ui/types";
 import { updateHud } from "./ui/updateHud";
 
 const DISPLAY_FREQUENCY = 10;
-const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
 
 declare global {
   interface Window {
@@ -58,35 +59,6 @@ export function mountApp(root: HTMLElement): () => void {
   const scene = createSimulationScene(elements.viewport, meshData, cells);
   scene.setAutoRotate(autoRotate);
   const canvasElement = scene.renderer.domElement;
-  const findInteractiveCanvasPoint = () => {
-    const rect = scene.renderer.domElement.getBoundingClientRect();
-    const probes: Array<[number, number]> = [
-      [0.5, 0.5],
-      [0.46, 0.5],
-      [0.54, 0.5],
-      [0.5, 0.44],
-      [0.5, 0.56],
-      [0.42, 0.46],
-      [0.58, 0.54],
-      [0.38, 0.5],
-      [0.62, 0.5]
-    ];
-
-    for (const [u, v] of probes) {
-      const clientX = rect.left + rect.width * u;
-      const clientY = rect.top + rect.height * v;
-      const targetElement = document.elementFromPoint(clientX, clientY);
-      if (targetElement !== canvasElement) {
-        continue;
-      }
-      const cellId = scene.pickCellAtClientPoint(clientX, clientY);
-      if (cellId !== null) {
-        return { x: clientX, y: clientY, cellId };
-      }
-    }
-
-    return null;
-  };
   window.__goldbergTestState = {
     getCameraPosition: () => scene.getCameraPosition(),
     rotateCameraByPixels: (deltaX, deltaY) => {
@@ -95,45 +67,13 @@ export function mountApp(root: HTMLElement): () => void {
     zoomCameraByDelta: (deltaY) => {
       scene.zoomCameraByDelta(deltaY);
     },
-    getInteractiveCanvasPoint: () => findInteractiveCanvasPoint()
+    getInteractiveCanvasPoint: () => findInteractiveCanvasPoint(
+      canvasElement,
+      scene.pickCellAtClientPoint
+    )
   };
 
   const refreshHud = () => updateHud(elements, buildHudState());
-
-  const setTerrainKind = (cellId: number, terrainKind: "water" | "land") => {
-    const nextCells = cells.map((cell) =>
-      cell.id === cellId
-        ? { ...cell, terrainKind }
-        : cell
-    );
-    const nextCell = nextCells[cellId];
-    const waterAdjacency = getAdjacentWaterInfluence(nextCell, nextCells);
-    const moisture = terrainKind === "water"
-      ? 1
-      : clamp01(0.08 + waterAdjacency * 0.9 + nextCell.geology * 0.08);
-    const vegetation = terrainKind === "water"
-      ? 0
-      : clamp01(
-        Math.max(0, moisture - DEFAULT_RULE_CONFIG.minimumMoistureForGrowth) * 0.58 +
-        nextCell.fertility * 0.08 +
-        nextCell.geology * 0.04
-      );
-
-    return nextCells.map((cell) => (
-      cell.id === cellId
-        ? {
-          ...cell,
-          terrainKind,
-          moisture,
-          nextMoisture: moisture,
-          vegetation,
-          nextVegetation: vegetation,
-          state: vegetation,
-          nextState: vegetation
-        }
-        : cell
-    ));
-  };
 
   const syncScene = (nextCells: Cell[]) => {
     cells = nextCells;
@@ -141,23 +81,26 @@ export function mountApp(root: HTMLElement): () => void {
     refreshHud();
   };
 
-  const applyTerrainToCell = (cellId: number, terrainKind: "water" | "land") => {
-    if (lastPaintedCellId === cellId) {
-      return;
-    }
-    lastPaintedCellId = cellId;
-    selectedCellId = cellId;
-    scene.setSelectedCell(selectedCellId);
-    syncScene(setTerrainKind(cellId, terrainKind));
-  };
-
   const paintAtClientPoint = (clientX: number, clientY: number) => {
-    const pickedCellId = scene.pickCellAtClientPoint(clientX, clientY);
-    if (pickedCellId === null) {
+    const nextState = paintAtPickedPoint(
+      {
+        cells,
+        selectedCellId,
+        lastPaintedCellId
+      },
+      brushTerrainKind,
+      scene.pickCellAtClientPoint(clientX, clientY)
+    );
+    if (nextState.cells === cells) {
       return;
     }
 
-    applyTerrainToCell(pickedCellId, brushTerrainKind);
+    cells = nextState.cells;
+    selectedCellId = nextState.selectedCellId;
+    lastPaintedCellId = nextState.lastPaintedCellId;
+    scene.setSelectedCell(selectedCellId);
+    scene.updateCells(cells);
+    refreshHud();
   };
 
   const cleanupEvents = bindAppEvents(elements, canvasElement, {
@@ -191,7 +134,7 @@ export function mountApp(root: HTMLElement): () => void {
         refreshHud();
         return;
       }
-      syncScene(setTerrainKind(selectedCellId, terrainKind));
+      syncScene(setCellTerrainKind(cells, selectedCellId, terrainKind));
     },
     onSetSpeed: (nextSpeed) => {
       speed = nextSpeed;
@@ -215,7 +158,7 @@ export function mountApp(root: HTMLElement): () => void {
     },
     onCanvasSelect: (clientX, clientY) => {
       const pickedCellId = scene.pickCellAtClientPoint(clientX, clientY);
-      selectedCellId = selectedCellId === pickedCellId ? null : pickedCellId;
+      selectedCellId = toggleSelectedCell(selectedCellId, pickedCellId);
       scene.setSelectedCell(selectedCellId);
       refreshHud();
     }
