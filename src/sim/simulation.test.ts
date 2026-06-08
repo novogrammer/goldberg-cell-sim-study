@@ -144,6 +144,24 @@ describe("simulation", () => {
     expect(next[2].moisture).toBeGreaterThan(cells[2].moisture);
   });
 
+  it("vegetation が多いセルほど moisture を少し消費する", () => {
+    const sparse = createCell(0, [1], 0.05, false, "land", 0.5, 0.5, 0.42);
+    const lush = createCell(0, [1], 0.85, false, "land", 0.5, 0.5, 0.42);
+    const sparseCells = [
+      sparse,
+      createCell(1, [0], 0.1, false, "land", 0.5, 0.5, 0.42)
+    ];
+    const lushCells = [
+      lush,
+      createCell(1, [0], 0.1, false, "land", 0.5, 0.5, 0.42)
+    ];
+
+    const sparseNext = updateMoisture(sparseCells[0], sparseCells, { config: DEFAULT_RULE_CONFIG });
+    const lushNext = updateMoisture(lushCells[0], lushCells, { config: DEFAULT_RULE_CONFIG });
+
+    expect(lushNext).toBeLessThan(sparseNext);
+  });
+
   it("moisture が不足すると vegetation を 0 方向へ乾燥させる", () => {
     const cells = [
       createCell(0, [1, 2], 0.75, false, "land", 0.2, 0.2, 0.02),

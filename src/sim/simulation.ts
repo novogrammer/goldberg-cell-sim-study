@@ -5,6 +5,7 @@ export const DEFAULT_RULE_CONFIG: SimulationRuleConfig = {
   moistureSpread: 0.28,
   moistureDecay: 0.1,
   moistureRetentionFromGeology: 0.12,
+  vegetationMoistureConsumption: 0.06,
   vegetationGrowthFromMoisture: 0.32,
   minimumMoistureForGrowth: 0.1,
   fertilityThresholdRelief: 0.1,
@@ -76,7 +77,8 @@ export function updateMoisture(
     waterSourceStrength,
     moistureSpread,
     moistureDecay,
-    moistureRetentionFromGeology
+    moistureRetentionFromGeology,
+    vegetationMoistureConsumption
   } = context.config;
   const adjacentWaterInfluence = getAdjacentWaterInfluence(cell, cells);
   const neighborMoisture = getNeighborMoistureAverage(cell, cells);
@@ -86,8 +88,9 @@ export function updateMoisture(
     cell.moisture *
     moistureDecay *
     Math.max(0.12, 1 - cell.geology * moistureRetentionFromGeology);
+  const vegetationConsumption = cell.vegetation * vegetationMoistureConsumption * cell.moisture;
 
-  return clamp01(cell.moisture + sourceGain + diffusion - evaporation);
+  return clamp01(cell.moisture + sourceGain + diffusion - evaporation - vegetationConsumption);
 }
 
 export function updateVegetation(
