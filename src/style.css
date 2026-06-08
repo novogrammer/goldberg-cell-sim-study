@@ -46,6 +46,7 @@ select {
 .hud {
   display: flex;
   flex-direction: column;
+  align-content: start;
   gap: 18px;
   height: calc(100vh - var(--app-shell-padding) * 2);
   padding: 24px;

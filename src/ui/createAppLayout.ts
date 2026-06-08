@@ -44,6 +44,56 @@ export function createAppLayout(
           </div>
         </section>
 
+        <section class="panel panel-selection" data-panel="selection">
+          <div class="panel-header">
+            <div>
+              <p class="panel-eyebrow">Selection</p>
+              <h2>Selected cell</h2>
+            </div>
+            <span class="panel-status" data-stat="selection-state"></span>
+          </div>
+          <div class="controls">
+            <label>
+              <span>Apply terrain</span>
+              <select data-action="terrain" disabled>
+                <option value="land">land</option>
+                <option value="water">water</option>
+              </select>
+            </label>
+          </div>
+          <dl class="stat-grid">
+            <div><dt>Selected</dt><dd data-stat="selected"></dd></div>
+            <div><dt>Terrain</dt><dd data-stat="terrain"></dd></div>
+            <div><dt>Moisture</dt><dd data-stat="moisture"></dd></div>
+            <div><dt>Vegetation</dt><dd data-stat="vegetation"></dd></div>
+            <div><dt>Water Adj.</dt><dd data-stat="water-adj"></dd></div>
+            <div><dt>Fertility</dt><dd data-stat="fertility"></dd></div>
+            <div><dt>Geology</dt><dd data-stat="geology"></dd></div>
+          </dl>
+        </section>
+
+        <section class="panel panel-paint" data-panel="paint">
+          <div class="panel-header">
+            <div>
+              <p class="panel-eyebrow">Paint</p>
+              <h2>Brush</h2>
+            </div>
+            <span class="panel-status" data-stat="paint-state"></span>
+          </div>
+          <p class="panel-copy">
+            Paint mode changes how the sphere responds. Pick the active terrain, then click or drag directly on the planet.
+          </p>
+          <div class="controls">
+            <label>
+              <span>Brush</span>
+              <select data-action="brush">
+                <option value="land">land</option>
+                <option value="water">water</option>
+              </select>
+            </label>
+          </div>
+        </section>
+
         <section class="panel" data-panel="simulation">
           <div class="panel-header">
             <div>
@@ -80,56 +130,6 @@ export function createAppLayout(
           <div class="controls">
             <button type="button" data-action="rotate"></button>
           </div>
-        </section>
-
-        <section class="panel panel-paint" data-panel="paint">
-          <div class="panel-header">
-            <div>
-              <p class="panel-eyebrow">Paint</p>
-              <h2>Brush tools</h2>
-            </div>
-            <span class="panel-status" data-stat="paint-state"></span>
-          </div>
-          <p class="panel-copy">
-            In paint mode, click or drag across the sphere to apply the selected terrain.
-          </p>
-          <div class="controls">
-            <label>
-              <span>Brush</span>
-              <select data-action="brush">
-                <option value="land">land</option>
-                <option value="water">water</option>
-              </select>
-            </label>
-          </div>
-        </section>
-
-        <section class="panel" data-panel="selection">
-          <div class="panel-header">
-            <div>
-              <p class="panel-eyebrow">Selection</p>
-              <h2>Cell detail</h2>
-            </div>
-            <span class="panel-status" data-stat="selection-state"></span>
-          </div>
-          <div class="controls">
-            <label>
-              <span>Terrain</span>
-              <select data-action="terrain" disabled>
-                <option value="land">land</option>
-                <option value="water">water</option>
-              </select>
-            </label>
-          </div>
-          <dl class="stat-grid">
-            <div><dt>Selected</dt><dd data-stat="selected"></dd></div>
-            <div><dt>Terrain</dt><dd data-stat="terrain"></dd></div>
-            <div><dt>Moisture</dt><dd data-stat="moisture"></dd></div>
-            <div><dt>Vegetation</dt><dd data-stat="vegetation"></dd></div>
-            <div><dt>Water Adj.</dt><dd data-stat="water-adj"></dd></div>
-            <div><dt>Fertility</dt><dd data-stat="fertility"></dd></div>
-            <div><dt>Geology</dt><dd data-stat="geology"></dd></div>
-          </dl>
         </section>
       </div>
       <div class="viewport-frame">

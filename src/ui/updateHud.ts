@@ -14,8 +14,8 @@ export function updateHud(elements: AppElements, hudState: HudState) {
   elements.modeLabelStat.textContent = isPaintMode ? "Paint mode" : "View mode";
   elements.modeBadgeStat.textContent = isPaintMode ? "Editing terrain" : "Orbit camera";
   elements.modeDetailStat.textContent = isPaintMode
-    ? "Click or drag across the sphere to paint the active terrain without moving the camera."
-    : "Drag to orbit, scroll to zoom, and inspect the current simulation state.";
+    ? "Switch the sphere into editing mode, then paint water or land directly without moving the camera."
+    : "Use the sphere as a viewer: orbit, zoom, and inspect whichever cell you select.";
   elements.cameraStateStat.textContent = isPaintMode ? "Camera locked for painting" : "Camera unlocked";
   elements.brushStateStat.textContent = `Brush: ${brushTerrainKind}`;
   elements.rotationStateStat.textContent = autoRotate ? "Auto rotate on" : "Auto rotate off";
@@ -40,11 +40,11 @@ export function updateHud(elements: AppElements, hudState: HudState) {
 
   if (!selectedCellSummary) {
     elements.selectedStat.textContent = "none";
-    elements.selectionStateStat.textContent = "No cell selected";
+    elements.selectionStateStat.textContent = isPaintMode ? "Pick a cell or drag to paint" : "Pick a cell to inspect";
     elements.selectionPanel.dataset.emphasis = "normal";
     elements.viewportSelectionStat.textContent = isPaintMode
-      ? "Pick a cell to start painting terrain."
-      : "No cell selected";
+      ? "Pick a cell or drag across the sphere to paint terrain."
+      : "Click a cell to inspect it.";
     elements.terrainStat.textContent = "-";
     elements.moistureStat.textContent = "-";
     elements.vegetationStat.textContent = "-";
@@ -56,7 +56,9 @@ export function updateHud(elements: AppElements, hudState: HudState) {
   }
 
   elements.selectedStat.textContent = `cell ${selectedCellSummary.cellId}`;
-  elements.selectionStateStat.textContent = `Selected cell ${selectedCellSummary.cellId}`;
+  elements.selectionStateStat.textContent = isPaintMode
+    ? `Painting cell ${selectedCellSummary.cellId}`
+    : `Inspecting cell ${selectedCellSummary.cellId}`;
   elements.viewportSelectionStat.textContent = `Selected cell ${selectedCellSummary.cellId} · ${selectedCellSummary.terrainKind}`;
   elements.terrainStat.textContent = selectedCellSummary.terrainKind;
   elements.moistureStat.textContent = selectedCellSummary.moisture;
