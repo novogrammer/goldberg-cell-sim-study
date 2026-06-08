@@ -35,6 +35,18 @@ describe("planetEditor", () => {
     expect(nextCells[0].vegetation).toBe(0);
   });
 
+  it("land に塗ると moisture と vegetation を 0 にする", () => {
+    const cells = [
+      createCell({ id: 0, terrainKind: "water", moisture: 1, vegetation: 0.6 }),
+      createCell({ id: 1, terrainKind: "land" })
+    ];
+
+    const nextCells = setCellTerrainKind(cells, 0, "land");
+    expect(nextCells[0].terrainKind).toBe("land");
+    expect(nextCells[0].moisture).toBe(0);
+    expect(nextCells[0].vegetation).toBe(0);
+  });
+
   it("同じセルを連続で塗ると state を再計算しない", () => {
     const state = {
       cells: [createCell({ id: 0 })],
