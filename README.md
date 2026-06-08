@@ -14,6 +14,13 @@ Goldberg多面体上でセルシミュレーションを行うブラウザ実装
 詳細は [docs/simulation-model.md](/Users/novo/Documents/aptanastudio3workspace/goldberg-cell-sim-study/docs/simulation-model.md:1) を参照してください。
 エージェント向けの変更ガイドは [AGENTS.md](/Users/novo/Documents/aptanastudio3workspace/goldberg-cell-sim-study/AGENTS.md:1) にあります。
 
+## 構成メモ
+
+- `app`: アプリ全体の進行役です。state を持ち、UI と 3D 表示を結線します。
+- `ui`: HUD と `viewport` などの DOM UI を扱います。`viewport` は 3D を表示するための UI 領域です。
+- `editor`: セル状態の変更やペイント適用など、データ更新ロジックを扱います。
+- `render`: Three.js による描画を扱います。`simulationScene` は 3D の中身、`createSimulationView` は app から見た薄い橋渡しです。
+
 ## セットアップ
 
 ```bash
