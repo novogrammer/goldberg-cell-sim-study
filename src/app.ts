@@ -14,6 +14,10 @@ export function mountApp(root: HTMLElement): void {
   let speed = 6;
   let isPlaying = true;
   let autoRotate = true;
+  let isPaintMode = false;
+  let brushTerrainKind: "water" | "land" = "land";
+  let isPointerPainting = false;
+  let lastPaintedCellId: number | null = null;
   let lastTick = 0;
   let selectedCellId: number | null = null;
 
@@ -27,8 +31,16 @@ export function mountApp(root: HTMLElement): void {
         <div class="controls">
           <button type="button" data-action="toggle">Pause</button>
           <button type="button" data-action="rotate">Stop Rotation</button>
+          <button type="button" data-action="paint-mode">Paint Mode: Off</button>
           <button type="button" data-action="step">Step</button>
           <button type="button" data-action="randomize">Randomize</button>
+          <label>
+            <span>Brush</span>
+            <select data-action="brush">
+              <option value="land">land</option>
+              <option value="water">water</option>
+            </select>
+          </label>
           <label>
             <span>Terrain</span>
             <select data-action="terrain" disabled>
@@ -70,8 +82,10 @@ export function mountApp(root: HTMLElement): void {
 
   const toggleButton = root.querySelector<HTMLButtonElement>("[data-action='toggle']");
   const rotateButton = root.querySelector<HTMLButtonElement>("[data-action='rotate']");
+  const paintModeButton = root.querySelector<HTMLButtonElement>("[data-action='paint-mode']");
   const stepButton = root.querySelector<HTMLButtonElement>("[data-action='step']");
   const randomizeButton = root.querySelector<HTMLButtonElement>("[data-action='randomize']");
+  const brushSelect = root.querySelector<HTMLSelectElement>("[data-action='brush']");
   const terrainSelect = root.querySelector<HTMLSelectElement>("[data-action='terrain']");
   const speedSlider = root.querySelector<HTMLInputElement>("[data-action='speed']");
   const selectedStat = root.querySelector<HTMLElement>("[data-stat='selected']");
@@ -85,8 +99,10 @@ export function mountApp(root: HTMLElement): void {
   if (
     !toggleButton ||
     !rotateButton ||
+    !paintModeButton ||
     !stepButton ||
     !randomizeButton ||
+    !brushSelect ||
     !terrainSelect ||
     !speedSlider ||
     !selectedStat ||
@@ -171,6 +187,25 @@ export function mountApp(root: HTMLElement): void {
     updateSelectionStats();
   };
 
+  const applyTerrainToCell = (cellId: number, terrainKind: "water" | "land") => {
+    if (lastPaintedCellId === cellId) {
+      return;
+    }
+    lastPaintedCellId = cellId;
+    selectedCellId = cellId;
+    scene.setSelectedCell(selectedCellId);
+    syncScene(setTerrainKind(cellId, terrainKind));
+  };
+
+  const paintAtClientPoint = (clientX: number, clientY: number) => {
+    const pickedCellId = scene.pickCellAtClientPoint(clientX, clientY);
+    if (pickedCellId === null) {
+      return;
+    }
+
+    applyTerrainToCell(pickedCellId, brushTerrainKind);
+  };
+
   toggleButton.addEventListener("click", () => {
     isPlaying = !isPlaying;
     toggleButton.textContent = isPlaying ? "Pause" : "Play";
@@ -182,12 +217,23 @@ export function mountApp(root: HTMLElement): void {
     rotateButton.textContent = autoRotate ? "Stop Rotation" : "Auto Rotate";
   });
 
+  paintModeButton.addEventListener("click", () => {
+    isPaintMode = !isPaintMode;
+    isPointerPainting = false;
+    lastPaintedCellId = null;
+    paintModeButton.textContent = isPaintMode ? "Paint Mode: On" : "Paint Mode: Off";
+  });
+
   stepButton.addEventListener("click", () => {
     syncScene(stepSimulation(cells, DEFAULT_RULE_CONFIG));
   });
 
   randomizeButton.addEventListener("click", () => {
     syncScene(randomizeCellState(meshData.cells, Math.random() * 1000));
+  });
+
+  brushSelect.addEventListener("change", () => {
+    brushTerrainKind = brushSelect.value as "water" | "land";
   });
 
   terrainSelect.addEventListener("change", () => {
@@ -205,13 +251,54 @@ export function mountApp(root: HTMLElement): void {
 
   viewport.addEventListener("pointermove", (event) => {
     scene.setHoveredCell(scene.pickCellAtClientPoint(event.clientX, event.clientY));
+
+    if (!isPaintMode || !isPointerPainting || (event.buttons & 1) === 0) {
+      return;
+    }
+
+    paintAtClientPoint(event.clientX, event.clientY);
   });
 
   viewport.addEventListener("pointerleave", () => {
     scene.setHoveredCell(null);
   });
 
+  viewport.addEventListener("pointerdown", (event) => {
+    if (!isPaintMode || event.button !== 0) {
+      return;
+    }
+
+    isPointerPainting = true;
+    lastPaintedCellId = null;
+    viewport.setPointerCapture(event.pointerId);
+    paintAtClientPoint(event.clientX, event.clientY);
+  });
+
+  viewport.addEventListener("pointerup", (event) => {
+    if (!isPaintMode) {
+      return;
+    }
+
+    isPointerPainting = false;
+    lastPaintedCellId = null;
+    if (viewport.hasPointerCapture(event.pointerId)) {
+      viewport.releasePointerCapture(event.pointerId);
+    }
+  });
+
+  viewport.addEventListener("pointercancel", (event) => {
+    isPointerPainting = false;
+    lastPaintedCellId = null;
+    if (viewport.hasPointerCapture(event.pointerId)) {
+      viewport.releasePointerCapture(event.pointerId);
+    }
+  });
+
   viewport.addEventListener("click", (event) => {
+    if (isPaintMode) {
+      return;
+    }
+
     const pickedCellId = scene.pickCellAtClientPoint(event.clientX, event.clientY);
     selectedCellId = selectedCellId === pickedCellId ? null : pickedCellId;
     scene.setSelectedCell(selectedCellId);
@@ -219,7 +306,12 @@ export function mountApp(root: HTMLElement): void {
   });
 
   const onResize = () => scene.resize();
+  const onWindowPointerUp = () => {
+    isPointerPainting = false;
+    lastPaintedCellId = null;
+  };
   window.addEventListener("resize", onResize);
+  window.addEventListener("pointerup", onWindowPointerUp);
 
   const animate = (timestamp: number) => {
     requestAnimationFrame(animate);
@@ -239,6 +331,7 @@ export function mountApp(root: HTMLElement): void {
     "beforeunload",
     () => {
       window.removeEventListener("resize", onResize);
+      window.removeEventListener("pointerup", onWindowPointerUp);
       scene.dispose();
     },
     { once: true }

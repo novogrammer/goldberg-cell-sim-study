@@ -1,4 +1,21 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
+
+async function getCanvasCenter(page: Page) {
+  const canvas = page.locator('canvas');
+  await expect(canvas).toBeVisible();
+
+  const box = await canvas.boundingBox();
+  if (!box) {
+    throw new Error('Canvas bounding box was not available.');
+  }
+
+  return {
+    canvas,
+    centerX: box.x + box.width / 2,
+    centerY: box.y + box.height / 2,
+    box,
+  };
+}
 
 test('Goldberg シミュレーション画面が表示される', async ({ page }) => {
   await page.goto('/');
@@ -16,8 +33,10 @@ test('セル未選択時は主要コントロールが表示され terrain 編�
 
   await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Stop Rotation' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Paint Mode: Off' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Step' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Randomize' })).toBeVisible();
+  await expect(page.locator('[data-action="brush"]')).toHaveValue('land');
   await expect(page.locator('[data-action="terrain"]')).toBeDisabled();
   await expect(page.locator('[data-stat="selected"]')).toHaveText('none');
 });
@@ -43,16 +62,51 @@ test('canvas 上のセルを選択すると terrain 編集が有効になる', a
   await page.goto('/');
 
   await page.getByRole('button', { name: 'Stop Rotation' }).click();
-  const canvas = page.locator('canvas');
-  await expect(canvas).toBeVisible();
+  const { centerX, centerY } = await getCanvasCenter(page);
 
-  const box = await canvas.boundingBox();
-  if (!box) {
-    throw new Error('Canvas bounding box was not available.');
-  }
-
-  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.click(centerX, centerY);
 
   await expect(page.locator('[data-stat="selected"]')).not.toHaveText('none');
   await expect(page.locator('[data-action="terrain"]')).toBeEnabled();
+});
+
+test('ペイントモードで選択セルの terrain を直接切り替えられる', async ({ page }) => {
+  await page.goto('/');
+
+  await page.getByRole('button', { name: 'Stop Rotation' }).click();
+  const { centerX, centerY } = await getCanvasCenter(page);
+
+  await page.mouse.click(centerX, centerY);
+  const terrainStat = page.locator('[data-stat="terrain"]');
+  const currentTerrain = await terrainStat.textContent();
+  const nextTerrain = currentTerrain === 'water' ? 'land' : 'water';
+
+  await page.locator('[data-action="brush"]').selectOption(nextTerrain);
+  await page.getByRole('button', { name: 'Paint Mode: Off' }).click();
+  await expect(page.getByRole('button', { name: 'Paint Mode: On' })).toBeVisible();
+
+  await page.mouse.click(centerX, centerY);
+
+  await expect(terrainStat).toHaveText(nextTerrain);
+});
+
+test('ペイントモードではドラッグして複数セルにまたがる操作ができる', async ({ page }) => {
+  await page.goto('/');
+
+  await page.getByRole('button', { name: 'Stop Rotation' }).click();
+  const { centerX, centerY, box } = await getCanvasCenter(page);
+
+  await page.locator('[data-action="brush"]').selectOption('land');
+  await page.getByRole('button', { name: 'Paint Mode: Off' }).click();
+
+  await page.mouse.move(centerX, centerY);
+  await page.mouse.down();
+  await expect(page.locator('[data-stat="selected"]')).not.toHaveText('none');
+  const firstSelected = await page.locator('[data-stat="selected"]').textContent();
+
+  await page.mouse.move(box.x + box.width * 0.72, centerY, { steps: 16 });
+  await page.mouse.up();
+
+  await expect(page.locator('[data-stat="selected"]')).not.toHaveText(firstSelected ?? 'none');
+  await expect(page.locator('[data-stat="terrain"]')).toHaveText('land');
 });
