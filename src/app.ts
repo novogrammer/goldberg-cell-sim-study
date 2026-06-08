@@ -1,11 +1,11 @@
 import "./style.css";
 
+import type { AppState } from "./appState";
 import { findInteractiveCanvasPoint } from "./editor/findInteractiveCanvasPoint";
 import { paintAtPickedPoint, setCellTerrainKind, toggleSelectedCell } from "./editor/planetEditor";
 import { createSimulationScene } from "./render/scene";
 import { createGoldbergMesh, randomizeCellState } from "./sim/goldberg";
 import { DEFAULT_RULE_CONFIG, stepSimulation } from "./sim/simulation";
-import type { Cell } from "./types";
 import { bindAppEvents } from "./ui/bindAppEvents";
 import { buildSelectedCellSummary } from "./ui/buildSelectedCellSummary";
 import { createAppLayout } from "./ui/createAppLayout";
@@ -27,37 +27,39 @@ declare global {
 
 export function mountApp(root: HTMLElement): () => void {
   const meshData = createGoldbergMesh(DISPLAY_FREQUENCY);
-  let cells = randomizeCellState(meshData.cells);
-  let speed = 6;
-  let isPlaying = true;
-  let autoRotate = false;
-  let isPaintMode = false;
-  let brushTerrainKind: "water" | "land" = "land";
-  let lastPaintedCellId: number | null = null;
-  let lastTick = 0;
-  let selectedCellId: number | null = null;
+  const appState: AppState = {
+    cells: randomizeCellState(meshData.cells),
+    speed: 6,
+    isPlaying: true,
+    autoRotate: false,
+    isPaintMode: false,
+    brushTerrainKind: "land",
+    lastPaintedCellId: null,
+    lastTick: 0,
+    selectedCellId: null
+  };
 
   const buildHudState = (): HudState => {
     return {
-      isPaintMode,
-      isPlaying,
-      autoRotate,
-      speed,
-      brushTerrainKind,
-      selectedCellSummary: buildSelectedCellSummary(cells, selectedCellId)
+      isPaintMode: appState.isPaintMode,
+      isPlaying: appState.isPlaying,
+      autoRotate: appState.autoRotate,
+      speed: appState.speed,
+      brushTerrainKind: appState.brushTerrainKind,
+      selectedCellSummary: buildSelectedCellSummary(appState.cells, appState.selectedCellId)
     };
   };
 
   const elements = createAppLayout(root, {
-    cellCount: cells.length,
+    cellCount: appState.cells.length,
     pentagonCount: meshData.pentagonCount,
     hexagonCount: meshData.hexagonCount,
     frequency: meshData.frequency,
-    speed
+    speed: appState.speed
   }, buildHudState());
 
-  const scene = createSimulationScene(elements.viewport, meshData, cells);
-  scene.setAutoRotate(autoRotate);
+  const scene = createSimulationScene(elements.viewport, meshData, appState.cells);
+  scene.setAutoRotate(appState.autoRotate);
   const canvasElement = scene.renderer.domElement;
   window.__goldbergTestState = {
     getCameraPosition: () => scene.getCameraPosition(),
@@ -75,69 +77,69 @@ export function mountApp(root: HTMLElement): () => void {
 
   const refreshHud = () => updateHud(elements, buildHudState());
 
-  const syncScene = (nextCells: Cell[]) => {
-    cells = nextCells;
-    scene.updateCells(cells);
+  const syncScene = (nextCells: AppState["cells"]) => {
+    appState.cells = nextCells;
+    scene.updateCells(appState.cells);
     refreshHud();
   };
 
   const paintAtClientPoint = (clientX: number, clientY: number) => {
     const nextState = paintAtPickedPoint(
       {
-        cells,
-        selectedCellId,
-        lastPaintedCellId
+        cells: appState.cells,
+        selectedCellId: appState.selectedCellId,
+        lastPaintedCellId: appState.lastPaintedCellId
       },
-      brushTerrainKind,
+      appState.brushTerrainKind,
       scene.pickCellAtClientPoint(clientX, clientY)
     );
-    if (nextState.cells === cells) {
+    if (nextState.cells === appState.cells) {
       return;
     }
 
-    cells = nextState.cells;
-    selectedCellId = nextState.selectedCellId;
-    lastPaintedCellId = nextState.lastPaintedCellId;
-    scene.setSelectedCell(selectedCellId);
-    scene.updateCells(cells);
+    appState.cells = nextState.cells;
+    appState.selectedCellId = nextState.selectedCellId;
+    appState.lastPaintedCellId = nextState.lastPaintedCellId;
+    scene.setSelectedCell(appState.selectedCellId);
+    scene.updateCells(appState.cells);
     refreshHud();
   };
 
   const cleanupEvents = bindAppEvents(elements, canvasElement, {
     onTogglePlay: () => {
-      isPlaying = !isPlaying;
+      appState.isPlaying = !appState.isPlaying;
       refreshHud();
     },
     onSetMode: (mode) => {
-      isPaintMode = mode === "paint";
-      lastPaintedCellId = null;
-      scene.setControlsEnabled(!isPaintMode);
+      appState.isPaintMode = mode === "paint";
+      appState.lastPaintedCellId = null;
+      scene.setControlsEnabled(!appState.isPaintMode);
       refreshHud();
     },
     onToggleAutoRotate: () => {
-      autoRotate = !autoRotate;
-      scene.setAutoRotate(autoRotate);
+      appState.autoRotate = !appState.autoRotate;
+      scene.setAutoRotate(appState.autoRotate);
       refreshHud();
     },
     onStep: () => {
-      syncScene(stepSimulation(cells, DEFAULT_RULE_CONFIG));
+      syncScene(stepSimulation(appState.cells, DEFAULT_RULE_CONFIG));
     },
     onRandomize: () => {
       syncScene(randomizeCellState(meshData.cells, Math.random() * 1000));
     },
     onSetBrush: (terrainKind) => {
-      brushTerrainKind = terrainKind;
+      appState.brushTerrainKind = terrainKind;
       refreshHud();
     },
     onSetTerrain: (terrainKind) => {
-      if (selectedCellId === null) {
+      if (appState.selectedCellId === null) {
         refreshHud();
         return;
       }
-      syncScene(setCellTerrainKind(cells, selectedCellId, terrainKind));
+      syncScene(setCellTerrainKind(appState.cells, appState.selectedCellId, terrainKind));
     },
     onSetSpeed: (nextSpeed) => {
-      speed = nextSpeed;
+      appState.speed = nextSpeed;
       refreshHud();
     },
     onCanvasHover: (clientX, clientY) => {
@@ -147,19 +149,19 @@ export function mountApp(root: HTMLElement): () => void {
       scene.setHoveredCell(null);
     },
     onCanvasPaintStart: (clientX, clientY) => {
-      lastPaintedCellId = null;
+      appState.lastPaintedCellId = null;
       paintAtClientPoint(clientX, clientY);
     },
     onCanvasPaintMove: (clientX, clientY) => {
       paintAtClientPoint(clientX, clientY);
     },
     onCanvasPaintEnd: () => {
-      lastPaintedCellId = null;
+      appState.lastPaintedCellId = null;
     },
     onCanvasSelect: (clientX, clientY) => {
       const pickedCellId = scene.pickCellAtClientPoint(clientX, clientY);
-      selectedCellId = toggleSelectedCell(selectedCellId, pickedCellId);
-      scene.setSelectedCell(selectedCellId);
+      appState.selectedCellId = toggleSelectedCell(appState.selectedCellId, pickedCellId);
+      scene.setSelectedCell(appState.selectedCellId);
       refreshHud();
     }
   });
@@ -176,11 +178,11 @@ export function mountApp(root: HTMLElement): () => void {
     }
 
     animationFrameId = requestAnimationFrame(animate);
-    const interval = 1000 / speed;
+    const interval = 1000 / appState.speed;
 
-    if (isPlaying && timestamp - lastTick >= interval) {
-      syncScene(stepSimulation(cells, DEFAULT_RULE_CONFIG));
-      lastTick = timestamp;
+    if (appState.isPlaying && timestamp - appState.lastTick >= interval) {
+      syncScene(stepSimulation(appState.cells, DEFAULT_RULE_CONFIG));
+      appState.lastTick = timestamp;
     }
 
     scene.render();
