@@ -44,7 +44,7 @@ test('セル未選択時は主要コントロールが表示され terrain 編�
   await page.goto('/');
 
   await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Stop Rotation' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Auto Rotate' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'View' })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByRole('button', { name: 'Paint' })).toHaveAttribute('aria-pressed', 'false');
   await expect(page.getByRole('button', { name: 'Step' })).toBeVisible();
@@ -66,14 +66,14 @@ test('モード切り替えに応じて viewport のガイドと操作状態が�
   await expect(page.locator('[data-stat="viewport-mode"]')).toHaveText('Paint mode');
   await expect(page.locator('[data-stat="viewport-hint"]')).toContainText('Brush land.');
   await expect(page.locator('[data-stat="camera-state"]')).toHaveText('Camera locked for painting');
-  await expect(page.getByRole('button', { name: 'Stop Rotation' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Auto Rotate' })).toBeDisabled();
   await expect(page.locator('[data-action="speed"]')).toBeDisabled();
 
   await page.getByRole('button', { name: 'View' }).click();
 
   await expect(page.locator('[data-stat="viewport-mode"]')).toHaveText('View mode');
   await expect(page.locator('[data-stat="viewport-hint"]')).toHaveText('Drag to orbit and scroll to zoom.');
-  await expect(page.getByRole('button', { name: 'Stop Rotation' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Auto Rotate' })).toBeEnabled();
   await expect(page.locator('[data-action="speed"]')).toBeEnabled();
 });
 
@@ -81,7 +81,7 @@ test('一時停止と回転のコントロールを切り替えられる', async
   await page.goto('/');
 
   const pauseButton = page.getByRole('button', { name: 'Pause' });
-  const rotateButton = page.getByRole('button', { name: 'Stop Rotation' });
+  const rotateButton = page.getByRole('button', { name: 'Auto Rotate' });
 
   await pauseButton.click();
   await expect(page.getByRole('button', { name: 'Play' })).toBeVisible();
@@ -89,15 +89,15 @@ test('一時停止と回転のコントロールを切り替えられる', async
   await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible();
 
   await rotateButton.click();
-  await expect(page.getByRole('button', { name: 'Auto Rotate' })).toBeVisible();
-  await page.getByRole('button', { name: 'Auto Rotate' }).click();
   await expect(page.getByRole('button', { name: 'Stop Rotation' })).toBeVisible();
+  await page.getByRole('button', { name: 'Stop Rotation' }).click();
+  await expect(page.getByRole('button', { name: 'Auto Rotate' })).toBeVisible();
 });
 
 test('閲覧モードではドラッグしてカメラを回転できる', async ({ page }) => {
   await page.goto('/');
 
-  await page.getByRole('button', { name: 'Stop Rotation' }).click();
+  await page.getByRole('button', { name: 'Auto Rotate' }).click();
   const before = await getCameraPosition(page);
   if (!before) {
     throw new Error('Camera position hook was not available.');
@@ -119,7 +119,7 @@ test('閲覧モードではドラッグしてカメラを回転できる', async
 test('閲覧モードで下方向にドラッグするとカメラは上方向へ回る', async ({ page }) => {
   await page.goto('/');
 
-  await page.getByRole('button', { name: 'Stop Rotation' }).click();
+  await page.getByRole('button', { name: 'Auto Rotate' }).click();
   const before = await getCameraPosition(page);
   if (!before) {
     throw new Error('Camera position hook was not available.');
@@ -141,7 +141,7 @@ test('閲覧モードで下方向にドラッグするとカメラは上方向�
 test('閲覧モードではホイールでズームできる', async ({ page }) => {
   await page.goto('/');
 
-  await page.getByRole('button', { name: 'Stop Rotation' }).click();
+  await page.getByRole('button', { name: 'Auto Rotate' }).click();
   const before = await getCameraPosition(page);
   if (!before) {
     throw new Error('Camera position hook was not available.');
@@ -163,7 +163,7 @@ test('閲覧モードではホイールでズームできる', async ({ page }) 
 test('canvas 上のセルを選択すると terrain 編集が有効になる', async ({ page }) => {
   await page.goto('/');
 
-  await page.getByRole('button', { name: 'Stop Rotation' }).click();
+  await page.getByRole('button', { name: 'Auto Rotate' }).click();
   const target = await getInteractiveCanvasPoint(page);
   if (!target) {
     throw new Error('Interactive canvas point was not available.');
@@ -178,7 +178,7 @@ test('canvas 上のセルを選択すると terrain 編集が有効になる', a
 test('ペイントモードで選択セルの terrain を直接切り替えられる', async ({ page }) => {
   await page.goto('/');
 
-  await page.getByRole('button', { name: 'Stop Rotation' }).click();
+  await page.getByRole('button', { name: 'Auto Rotate' }).click();
   const target = await getInteractiveCanvasPoint(page);
   if (!target) {
     throw new Error('Interactive canvas point was not available.');
@@ -202,7 +202,7 @@ test('ペイントモードで選択セルの terrain を直接切り替えら�
 test('ペイントモードではドラッグして複数セルにまたがる操作ができる', async ({ page }) => {
   await page.goto('/');
 
-  await page.getByRole('button', { name: 'Stop Rotation' }).click();
+  await page.getByRole('button', { name: 'Auto Rotate' }).click();
   const { box } = await getCanvasCenter(page);
   const target = await getInteractiveCanvasPoint(page);
   if (!target) {
@@ -227,7 +227,6 @@ test('ペイントモードではドラッグして複数セルにまたがる�
 test('ペイントモード中のドラッグではカメラが回転しない', async ({ page }) => {
   await page.goto('/');
 
-  await page.getByRole('button', { name: 'Stop Rotation' }).click();
   await expect(page.getByRole('button', { name: 'Auto Rotate' })).toBeVisible();
   const target = await getInteractiveCanvasPoint(page);
   if (!target) {

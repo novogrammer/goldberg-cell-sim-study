@@ -71,10 +71,10 @@ export function createAppLayout(root: HTMLElement, data: AppLayoutData): AppElem
               <p class="panel-eyebrow">Camera</p>
               <h2>Movement</h2>
             </div>
-            <span class="panel-status" data-stat="rotation-state">Auto rotate on</span>
+            <span class="panel-status" data-stat="rotation-state">Auto rotate off</span>
           </div>
           <div class="controls">
-            <button type="button" data-action="rotate">Stop Rotation</button>
+            <button type="button" data-action="rotate">Auto Rotate</button>
           </div>
         </section>
 

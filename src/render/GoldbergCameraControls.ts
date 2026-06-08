@@ -19,7 +19,7 @@ function clampRadius(value: number) {
 
 export class GoldbergCameraControls {
   enabled = true;
-  autoRotate = true;
+  autoRotate = false;
 
   private currentAzimuth = 0;
   private targetAzimuth = 0;
