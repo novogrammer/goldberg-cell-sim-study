@@ -17,6 +17,10 @@ async function getCanvasCenter(page: Page) {
   };
 }
 
+async function getCameraPosition(page: Page) {
+  return page.evaluate(() => window.__goldbergTestState?.getCameraPosition() ?? null);
+}
+
 test('Goldberg シミュレーション画面が表示される', async ({ page }) => {
   await page.goto('/');
 
@@ -109,4 +113,33 @@ test('ペイントモードではドラッグして複数セルにまたがる�
 
   await expect(page.locator('[data-stat="selected"]')).not.toHaveText(firstSelected ?? 'none');
   await expect(page.locator('[data-stat="terrain"]')).toHaveText('land');
+});
+
+test('ペイントモード中のドラッグではカメラが回転しない', async ({ page }) => {
+  await page.goto('/');
+
+  await page.getByRole('button', { name: 'Stop Rotation' }).click();
+  await expect(page.getByRole('button', { name: 'Auto Rotate' })).toBeVisible();
+  const { centerX, centerY } = await getCanvasCenter(page);
+
+  await page.getByRole('button', { name: 'Paint Mode: Off' }).click();
+  await expect(page.getByRole('button', { name: 'Paint Mode: On' })).toBeVisible();
+  await page.waitForTimeout(250);
+  const before = await getCameraPosition(page);
+  if (!before) {
+    throw new Error('Camera position hook was not available.');
+  }
+
+  await page.mouse.move(centerX, centerY);
+  await page.mouse.down();
+  await page.mouse.move(centerX + 160, centerY, { steps: 20 });
+  await page.mouse.up();
+  await page.waitForTimeout(50);
+
+  const after = await getCameraPosition(page);
+  if (!after) {
+    throw new Error('Camera position hook was not available after dragging.');
+  }
+
+  expect(after).toEqual(before);
 });

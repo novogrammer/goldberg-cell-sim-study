@@ -8,6 +8,14 @@ import type { Cell } from "./types";
 const DISPLAY_FREQUENCY = 10;
 const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
 
+declare global {
+  interface Window {
+    __goldbergTestState?: {
+      getCameraPosition: () => [number, number, number];
+    };
+  }
+}
+
 export function mountApp(root: HTMLElement): void {
   const meshData = createGoldbergMesh(DISPLAY_FREQUENCY);
   let cells = randomizeCellState(meshData.cells);
@@ -79,6 +87,10 @@ export function mountApp(root: HTMLElement): void {
 
   const scene = createSimulationScene(viewport, meshData, cells);
   scene.setAutoRotate(autoRotate);
+  window.__goldbergTestState = {
+    getCameraPosition: () => scene.getCameraPosition()
+  };
+  const canvasElement = scene.renderer.domElement;
 
   const toggleButton = root.querySelector<HTMLButtonElement>("[data-action='toggle']");
   const rotateButton = root.querySelector<HTMLButtonElement>("[data-action='rotate']");
@@ -221,6 +233,7 @@ export function mountApp(root: HTMLElement): void {
     isPaintMode = !isPaintMode;
     isPointerPainting = false;
     lastPaintedCellId = null;
+    scene.setControlsEnabled(!isPaintMode);
     paintModeButton.textContent = isPaintMode ? "Paint Mode: On" : "Paint Mode: Off";
   });
 
@@ -249,7 +262,7 @@ export function mountApp(root: HTMLElement): void {
     speed = Number(speedSlider.value);
   });
 
-  viewport.addEventListener("pointermove", (event) => {
+  canvasElement.addEventListener("pointermove", (event) => {
     scene.setHoveredCell(scene.pickCellAtClientPoint(event.clientX, event.clientY));
 
     if (!isPaintMode || !isPointerPainting || (event.buttons & 1) === 0) {
@@ -259,42 +272,42 @@ export function mountApp(root: HTMLElement): void {
     paintAtClientPoint(event.clientX, event.clientY);
   });
 
-  viewport.addEventListener("pointerleave", () => {
+  canvasElement.addEventListener("pointerleave", () => {
     scene.setHoveredCell(null);
   });
 
-  viewport.addEventListener("pointerdown", (event) => {
+  canvasElement.addEventListener("pointerdown", (event) => {
     if (!isPaintMode || event.button !== 0) {
       return;
     }
 
     isPointerPainting = true;
     lastPaintedCellId = null;
-    viewport.setPointerCapture(event.pointerId);
+    canvasElement.setPointerCapture(event.pointerId);
     paintAtClientPoint(event.clientX, event.clientY);
   });
 
-  viewport.addEventListener("pointerup", (event) => {
+  canvasElement.addEventListener("pointerup", (event) => {
     if (!isPaintMode) {
       return;
     }
 
     isPointerPainting = false;
     lastPaintedCellId = null;
-    if (viewport.hasPointerCapture(event.pointerId)) {
-      viewport.releasePointerCapture(event.pointerId);
+    if (canvasElement.hasPointerCapture(event.pointerId)) {
+      canvasElement.releasePointerCapture(event.pointerId);
     }
   });
 
-  viewport.addEventListener("pointercancel", (event) => {
+  canvasElement.addEventListener("pointercancel", (event) => {
     isPointerPainting = false;
     lastPaintedCellId = null;
-    if (viewport.hasPointerCapture(event.pointerId)) {
-      viewport.releasePointerCapture(event.pointerId);
+    if (canvasElement.hasPointerCapture(event.pointerId)) {
+      canvasElement.releasePointerCapture(event.pointerId);
     }
   });
 
-  viewport.addEventListener("click", (event) => {
+  canvasElement.addEventListener("click", (event) => {
     if (isPaintMode) {
       return;
     }
@@ -332,6 +345,7 @@ export function mountApp(root: HTMLElement): void {
     () => {
       window.removeEventListener("resize", onResize);
       window.removeEventListener("pointerup", onWindowPointerUp);
+      delete window.__goldbergTestState;
       scene.dispose();
     },
     { once: true }
