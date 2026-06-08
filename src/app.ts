@@ -77,6 +77,10 @@ export function mountApp(root: HTMLElement): void {
             <button type="button" data-action="toggle">Pause</button>
             <button type="button" data-action="step">Step</button>
             <button type="button" data-action="randomize">Randomize</button>
+            <label>
+              <span>Steps / sec</span>
+              <input type="range" min="1" max="24" step="1" value="${speed}" data-action="speed" />
+            </label>
           </div>
           <dl class="stat-grid stat-grid-compact">
             <div><dt>Rule</dt><dd>Water + vegetation locality</dd></div>
@@ -97,10 +101,6 @@ export function mountApp(root: HTMLElement): void {
           </div>
           <div class="controls">
             <button type="button" data-action="rotate">Stop Rotation</button>
-            <label>
-              <span>Speed</span>
-              <input type="range" min="1" max="24" step="1" value="${speed}" data-action="speed" />
-            </label>
           </div>
         </section>
 
