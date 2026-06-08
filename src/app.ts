@@ -1,7 +1,7 @@
 import "./style.css";
 
 import type { AppState } from "./appState";
-import { paintAtPickedPoint, setCellTerrainKind, toggleSelectedCell } from "./editor/planetEditor";
+import { paintAtPickedPoint, toggleSelectedCell } from "./editor/planetEditor";
 import { createSimulationView } from "./render/createSimulationView";
 import { createGoldbergMesh, randomizeCellState } from "./sim/goldberg";
 import { DEFAULT_RULE_CONFIG, stepSimulation } from "./sim/simulation";
@@ -129,13 +129,6 @@ export function mountApp(root: HTMLElement): () => void {
     onSetBrush: (terrainKind) => {
       appState.brushTerrainKind = terrainKind;
       refreshHud();
-    },
-    onSetTerrain: (terrainKind) => {
-      if (appState.selectedCellId === null) {
-        refreshHud();
-        return;
-      }
-      syncScene(setCellTerrainKind(appState.cells, appState.selectedCellId, terrainKind));
     },
     onSetSpeed: (nextSpeed) => {
       appState.speed = nextSpeed;

@@ -22,7 +22,7 @@ export function createAppLayout(
           <p class="eyebrow">Goldberg Polyhedron Cell Simulation</p>
           <h1>Water basins drive vegetation across the planet</h1>
           <p class="hero-copy">
-            Watch the planet drift in view mode, then switch to paint mode to edit water and land directly on the sphere.
+            Orbit the planet, then paint water or land directly on the sphere.
           </p>
         </div>
         <section class="panel panel-mode" data-panel="mode">
@@ -42,34 +42,6 @@ export function createAppLayout(
             <span class="state-chip" data-stat="camera-state"></span>
             <span class="state-chip" data-stat="brush-state"></span>
           </div>
-        </section>
-
-        <section class="panel panel-selection" data-panel="selection">
-          <div class="panel-header">
-            <div>
-              <p class="panel-eyebrow">Selection</p>
-              <h2>Selected cell</h2>
-            </div>
-            <span class="panel-status" data-stat="selection-state"></span>
-          </div>
-          <div class="controls">
-            <label>
-              <span>Apply terrain</span>
-              <select data-action="terrain" disabled>
-                <option value="land">land</option>
-                <option value="water">water</option>
-              </select>
-            </label>
-          </div>
-          <dl class="stat-grid">
-            <div><dt>Selected</dt><dd data-stat="selected"></dd></div>
-            <div><dt>Terrain</dt><dd data-stat="terrain"></dd></div>
-            <div><dt>Moisture</dt><dd data-stat="moisture"></dd></div>
-            <div><dt>Vegetation</dt><dd data-stat="vegetation"></dd></div>
-            <div><dt>Water Adj.</dt><dd data-stat="water-adj"></dd></div>
-            <div><dt>Fertility</dt><dd data-stat="fertility"></dd></div>
-            <div><dt>Geology</dt><dd data-stat="geology"></dd></div>
-          </dl>
         </section>
 
         <section class="panel panel-paint" data-panel="paint">
@@ -138,7 +110,18 @@ export function createAppLayout(
             <span class="viewport-guide-badge" data-stat="viewport-mode"></span>
             <p class="viewport-guide-text" data-stat="viewport-hint"></p>
           </div>
-          <div class="viewport-selection-card" data-stat="viewport-selection"></div>
+          <div class="viewport-selection-card" data-state="empty">
+            <p class="viewport-selection-title" data-stat="selection-state"></p>
+            <dl class="viewport-selection-grid">
+              <div><dt>Selected</dt><dd data-stat="selected"></dd></div>
+              <div><dt>Terrain</dt><dd data-stat="terrain"></dd></div>
+              <div><dt>Moisture</dt><dd data-stat="moisture"></dd></div>
+              <div><dt>Vegetation</dt><dd data-stat="vegetation"></dd></div>
+              <div><dt>Water Adj.</dt><dd data-stat="water-adj"></dd></div>
+              <div><dt>Fertility</dt><dd data-stat="fertility"></dd></div>
+              <div><dt>Geology</dt><dd data-stat="geology"></dd></div>
+            </dl>
+          </div>
         </div>
         <div class="viewport" data-role="viewport"></div>
       </div>
@@ -154,13 +137,12 @@ export function createAppLayout(
   const stepButton = root.querySelector<HTMLButtonElement>("[data-action='step']");
   const randomizeButton = root.querySelector<HTMLButtonElement>("[data-action='randomize']");
   const brushSelect = root.querySelector<HTMLSelectElement>("[data-action='brush']");
-  const terrainSelect = root.querySelector<HTMLSelectElement>("[data-action='terrain']");
   const speedSlider = root.querySelector<HTMLInputElement>("[data-action='speed']");
   const modePanel = root.querySelector<HTMLElement>("[data-panel='mode']");
   const simulationPanel = root.querySelector<HTMLElement>("[data-panel='simulation']");
   const cameraPanel = root.querySelector<HTMLElement>("[data-panel='camera']");
   const paintPanel = root.querySelector<HTMLElement>("[data-panel='paint']");
-  const selectionPanel = root.querySelector<HTMLElement>("[data-panel='selection']");
+  const viewportSelectionCard = root.querySelector<HTMLElement>(".viewport-selection-card");
   const selectedStat = root.querySelector<HTMLElement>("[data-stat='selected']");
   const modeLabelStat = root.querySelector<HTMLElement>("[data-stat='mode-label']");
   const modeBadgeStat = root.querySelector<HTMLElement>("[data-stat='mode-badge']");
@@ -172,7 +154,6 @@ export function createAppLayout(
   const selectionStateStat = root.querySelector<HTMLElement>("[data-stat='selection-state']");
   const viewportModeStat = root.querySelector<HTMLElement>("[data-stat='viewport-mode']");
   const viewportHintStat = root.querySelector<HTMLElement>("[data-stat='viewport-hint']");
-  const viewportSelectionStat = root.querySelector<HTMLElement>("[data-stat='viewport-selection']");
   const terrainStat = root.querySelector<HTMLElement>("[data-stat='terrain']");
   const moistureStat = root.querySelector<HTMLElement>("[data-stat='moisture']");
   const vegetationStat = root.querySelector<HTMLElement>("[data-stat='vegetation']");
@@ -190,13 +171,12 @@ export function createAppLayout(
     !stepButton ||
     !randomizeButton ||
     !brushSelect ||
-    !terrainSelect ||
     !speedSlider ||
     !modePanel ||
     !simulationPanel ||
     !cameraPanel ||
     !paintPanel ||
-    !selectionPanel ||
+    !viewportSelectionCard ||
     !selectedStat ||
     !modeLabelStat ||
     !modeBadgeStat ||
@@ -208,7 +188,6 @@ export function createAppLayout(
     !selectionStateStat ||
     !viewportModeStat ||
     !viewportHintStat ||
-    !viewportSelectionStat ||
     !terrainStat ||
     !moistureStat ||
     !vegetationStat ||
@@ -229,13 +208,12 @@ export function createAppLayout(
     stepButton,
     randomizeButton,
     brushSelect,
-    terrainSelect,
     speedSlider,
     modePanel,
     simulationPanel,
     cameraPanel,
     paintPanel,
-    selectionPanel,
+    viewportSelectionCard,
     selectedStat,
     modeLabelStat,
     modeBadgeStat,
@@ -247,7 +225,6 @@ export function createAppLayout(
     selectionStateStat,
     viewportModeStat,
     viewportHintStat,
-    viewportSelectionStat,
     terrainStat,
     moistureStat,
     vegetationStat,

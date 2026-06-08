@@ -29,7 +29,6 @@ export function bindAppEvents(
   const onStep = () => handlers.onStep();
   const onRandomize = () => handlers.onRandomize();
   const onBrushChange = () => handlers.onSetBrush(elements.brushSelect.value as "water" | "land");
-  const onTerrainChange = () => handlers.onSetTerrain(elements.terrainSelect.value as "water" | "land");
   const onSpeedInput = () => handlers.onSetSpeed(Number(elements.speedSlider.value));
   const onPointerMove = (event: PointerEvent) => {
     handlers.onCanvasHover(event.clientX, event.clientY);
@@ -94,7 +93,6 @@ export function bindAppEvents(
   elements.stepButton.addEventListener("click", onStep);
   elements.randomizeButton.addEventListener("click", onRandomize);
   elements.brushSelect.addEventListener("change", onBrushChange);
-  elements.terrainSelect.addEventListener("change", onTerrainChange);
   elements.speedSlider.addEventListener("input", onSpeedInput);
   canvasElement.addEventListener("pointermove", onPointerMove);
   canvasElement.addEventListener("pointerleave", onPointerLeave);
@@ -111,7 +109,6 @@ export function bindAppEvents(
     elements.stepButton.removeEventListener("click", onStep);
     elements.randomizeButton.removeEventListener("click", onRandomize);
     elements.brushSelect.removeEventListener("change", onBrushChange);
-    elements.terrainSelect.removeEventListener("change", onTerrainChange);
     elements.speedSlider.removeEventListener("input", onSpeedInput);
     canvasElement.removeEventListener("pointermove", onPointerMove);
     canvasElement.removeEventListener("pointerleave", onPointerLeave);

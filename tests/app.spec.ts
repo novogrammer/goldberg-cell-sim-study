@@ -40,7 +40,7 @@ test('Goldberg シミュレーション画面が表示される', async ({ page 
   await expect(page.locator('[data-stat="frequency"]')).toHaveText('10');
 });
 
-test('セル未選択時は主要コントロールが表示され terrain 編集が無効になっている', async ({ page }) => {
+test('セル未選択時は主要コントロールが表示される', async ({ page }) => {
   await page.goto('/');
 
   await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible();
@@ -50,7 +50,7 @@ test('セル未選択時は主要コントロールが表示され terrain 編�
   await expect(page.getByRole('button', { name: 'Step' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Randomize' })).toBeVisible();
   await expect(page.locator('[data-action="brush"]')).toHaveValue('land');
-  await expect(page.locator('[data-action="terrain"]')).toBeDisabled();
+  await expect(page.locator('[data-action="terrain"]')).toHaveCount(0);
   await expect(page.locator('[data-stat="selected"]')).toHaveText('none');
   await expect(page.locator('[data-stat="mode-label"]')).toHaveText('View mode');
   await expect(page.locator('[data-stat="camera-state"]')).toHaveText('Camera unlocked');
@@ -162,7 +162,7 @@ test('閲覧モードではホイールでズームできる', async ({ page }) 
   expect(getVectorLength(after)).toBeGreaterThan(getVectorLength(before));
 });
 
-test('canvas 上のセルを選択すると terrain 編集が有効になる', async ({ page }) => {
+test('canvas 上のセルを選択すると selection detail が更新される', async ({ page }) => {
   await page.goto('/');
 
   await page.getByRole('button', { name: 'Auto Rotate' }).click();
@@ -174,7 +174,7 @@ test('canvas 上のセルを選択すると terrain 編集が有効になる', a
   await page.mouse.click(target.x, target.y);
 
   await expect(page.locator('[data-stat="selected"]')).not.toHaveText('none');
-  await expect(page.locator('[data-action="terrain"]')).toBeEnabled();
+  await expect(page.locator('[data-stat="terrain"]')).not.toHaveText('-');
 });
 
 test('ペイントモードで選択セルの terrain を直接切り替えられる', async ({ page }) => {

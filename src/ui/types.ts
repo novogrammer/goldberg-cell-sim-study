@@ -29,13 +29,12 @@ export interface AppElements {
   stepButton: HTMLButtonElement;
   randomizeButton: HTMLButtonElement;
   brushSelect: HTMLSelectElement;
-  terrainSelect: HTMLSelectElement;
   speedSlider: HTMLInputElement;
   modePanel: HTMLElement;
   simulationPanel: HTMLElement;
   cameraPanel: HTMLElement;
   paintPanel: HTMLElement;
-  selectionPanel: HTMLElement;
+  viewportSelectionCard: HTMLElement;
   selectedStat: HTMLElement;
   modeLabelStat: HTMLElement;
   modeBadgeStat: HTMLElement;
@@ -47,7 +46,6 @@ export interface AppElements {
   selectionStateStat: HTMLElement;
   viewportModeStat: HTMLElement;
   viewportHintStat: HTMLElement;
-  viewportSelectionStat: HTMLElement;
   terrainStat: HTMLElement;
   moistureStat: HTMLElement;
   vegetationStat: HTMLElement;
@@ -63,7 +61,6 @@ export interface AppEventHandlers {
   onStep: () => void;
   onRandomize: () => void;
   onSetBrush: (terrainKind: Cell["terrainKind"]) => void;
-  onSetTerrain: (terrainKind: Cell["terrainKind"]) => void;
   onSetSpeed: (speed: number) => void;
   onCanvasHover: (clientX: number, clientY: number) => void;
   onCanvasLeave: () => void;

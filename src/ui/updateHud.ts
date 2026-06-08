@@ -14,8 +14,8 @@ export function updateHud(elements: AppElements, hudState: HudState) {
   elements.modeLabelStat.textContent = isPaintMode ? "Paint mode" : "View mode";
   elements.modeBadgeStat.textContent = isPaintMode ? "Editing terrain" : "Orbit camera";
   elements.modeDetailStat.textContent = isPaintMode
-    ? "Switch the sphere into editing mode, then paint water or land directly without moving the camera."
-    : "Use the sphere as a viewer: orbit, zoom, and inspect whichever cell you select.";
+    ? "Paint water or land directly on the sphere."
+    : "Orbit, zoom, and inspect selected cells.";
   elements.cameraStateStat.textContent = isPaintMode ? "Camera locked for painting" : "Camera unlocked";
   elements.brushStateStat.textContent = `Brush: ${brushTerrainKind}`;
   elements.rotationStateStat.textContent = autoRotate ? "Auto rotate on" : "Auto rotate off";
@@ -39,11 +39,10 @@ export function updateHud(elements: AppElements, hudState: HudState) {
   elements.brushSelect.value = brushTerrainKind;
 
   if (!selectedCellSummary) {
+    elements.viewportSelectionCard.dataset.state = "empty";
     elements.selectedStat.textContent = "none";
-    elements.selectionStateStat.textContent = isPaintMode ? "Pick a cell or drag to paint" : "Pick a cell to inspect";
-    elements.selectionPanel.dataset.emphasis = "normal";
-    elements.viewportSelectionStat.textContent = isPaintMode
-      ? "Pick a cell or drag across the sphere to paint terrain."
+    elements.selectionStateStat.textContent = isPaintMode
+      ? "Pick a cell or drag to paint"
       : "Click a cell to inspect it.";
     elements.terrainStat.textContent = "-";
     elements.moistureStat.textContent = "-";
@@ -51,22 +50,18 @@ export function updateHud(elements: AppElements, hudState: HudState) {
     elements.waterAdjStat.textContent = "-";
     elements.fertilityStat.textContent = "-";
     elements.geologyStat.textContent = "-";
-    elements.terrainSelect.disabled = true;
     return;
   }
 
+  elements.viewportSelectionCard.dataset.state = "active";
   elements.selectedStat.textContent = `cell ${selectedCellSummary.cellId}`;
   elements.selectionStateStat.textContent = isPaintMode
     ? `Painting cell ${selectedCellSummary.cellId}`
     : `Inspecting cell ${selectedCellSummary.cellId}`;
-  elements.viewportSelectionStat.textContent = `Selected cell ${selectedCellSummary.cellId} · ${selectedCellSummary.terrainKind}`;
   elements.terrainStat.textContent = selectedCellSummary.terrainKind;
   elements.moistureStat.textContent = selectedCellSummary.moisture;
   elements.vegetationStat.textContent = selectedCellSummary.vegetation;
   elements.waterAdjStat.textContent = selectedCellSummary.waterAdjacency;
   elements.fertilityStat.textContent = selectedCellSummary.fertility;
   elements.geologyStat.textContent = selectedCellSummary.geology;
-  elements.terrainSelect.value = selectedCellSummary.terrainKind;
-  elements.terrainSelect.disabled = false;
-  elements.selectionPanel.dataset.emphasis = "active";
 }

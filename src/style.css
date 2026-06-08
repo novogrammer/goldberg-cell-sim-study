@@ -61,11 +61,11 @@ select {
 .hero-block {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
 }
 
 .eyebrow {
-  margin: 0 0 8px;
+  margin: 0 0 4px;
   color: #8dbed8;
   text-transform: uppercase;
   letter-spacing: 0.14em;
@@ -75,14 +75,14 @@ select {
 .hud h1 {
   margin: 0;
   font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
-  font-size: clamp(2rem, 5vw, 3rem);
+  font-size: clamp(1.8rem, 4.4vw, 2.6rem);
   line-height: 0.98;
 }
 
 .hero-copy {
   margin: 0;
   color: #b8d8ea;
-  font-size: 0.98rem;
+  font-size: 0.92rem;
 }
 
 .panel {
@@ -327,6 +327,44 @@ select {
 
 .viewport-selection-card {
   align-self: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.viewport-selection-card[data-state="empty"] .viewport-selection-grid {
+  display: none;
+}
+
+.viewport-selection-title {
+  margin: 0;
+  color: #f3fbff;
+  font-size: 0.94rem;
+  font-weight: 600;
+}
+
+.viewport-selection-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.viewport-selection-grid div {
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(10, 28, 44, 0.88);
+}
+
+.viewport-selection-grid dt {
+  color: #8dbed8;
+  font-size: 0.76rem;
+}
+
+.viewport-selection-grid dd {
+  margin: 4px 0 0;
+  font-size: 1rem;
+  font-weight: 700;
 }
 
 .viewport {
