@@ -7,7 +7,6 @@ import type { Cell } from "./types";
 import { bindAppEvents } from "./ui/bindAppEvents";
 import { buildSelectedCellSummary } from "./ui/buildSelectedCellSummary";
 import { createAppLayout } from "./ui/createAppLayout";
-import { getAppElements } from "./ui/getAppElements";
 import type { HudState } from "./ui/types";
 import { updateHud } from "./ui/updateHud";
 
@@ -37,15 +36,13 @@ export function mountApp(root: HTMLElement): void {
   let lastTick = 0;
   let selectedCellId: number | null = null;
 
-  createAppLayout(root, {
+  const elements = createAppLayout(root, {
     cellCount: cells.length,
     pentagonCount: meshData.pentagonCount,
     hexagonCount: meshData.hexagonCount,
     frequency: meshData.frequency,
     speed
   });
-
-  const elements = getAppElements(root);
 
   const scene = createSimulationScene(elements.viewport, meshData, cells);
   scene.setAutoRotate(autoRotate);
