@@ -272,6 +272,7 @@ function createGoldbergTopology(frequency = DEFAULT_GOLDBERG_FREQUENCY): Goldber
       neighborCount,
       isPentagon: neighborCount === 5,
       terrainKind: "land",
+      baseFertility: 0,
       fertility: 0,
       geology: 0,
       moisture: 0,
@@ -387,6 +388,7 @@ export function createInitialPlanetEnvironment(
     return {
       ...cell,
       terrainKind,
+      baseFertility: fertility,
       fertility,
       geology,
       moisture,

@@ -29,8 +29,11 @@ describe("createGoldbergMesh", () => {
 
   it("全セルの fertility と geology を初期化する", () => {
     for (const cell of mesh.cells) {
+      expect(cell.baseFertility).toBeGreaterThanOrEqual(0);
+      expect(cell.baseFertility).toBeLessThanOrEqual(1);
       expect(cell.fertility).toBeGreaterThanOrEqual(0);
       expect(cell.fertility).toBeLessThanOrEqual(1);
+      expect(cell.fertility).toBeCloseTo(cell.baseFertility);
       expect(cell.geology).toBeGreaterThanOrEqual(0);
       expect(cell.geology).toBeLessThanOrEqual(1);
     }

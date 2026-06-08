@@ -4,6 +4,7 @@ export interface Cell {
   neighborCount: number;
   isPentagon: boolean;
   terrainKind: "water" | "land";
+  baseFertility: number;
   fertility: number;
   geology: number;
   moisture: number;
@@ -25,6 +26,11 @@ export interface SimulationRuleConfig {
   neighborVegetationInfluence: number;
   fertilityInfluence: number;
   geologyMoistureSupport: number;
+  fertilityRecoveryFromVegetation: number;
+  fertilityErosionFromDryness: number;
+  fertilityLeachingFromWetness: number;
+  fertilityWaterloggingFromAdjacency: number;
+  fertilityBaseRecovery: number;
   baselineVegetationDecay: number;
   dryVegetationDecay: number;
   growthCap: number;

@@ -7,6 +7,7 @@ import {
   stepSimulation,
   updateMoisture,
   updateVegetation,
+  updateFertility,
   DEFAULT_RULE_CONFIG
 } from "./simulation";
 import type { Cell } from "../types";
@@ -27,6 +28,7 @@ function createCell(
     neighborCount: neighbors.length,
     isPentagon,
     terrainKind,
+    baseFertility: fertility,
     fertility,
     geology,
     moisture,
@@ -213,5 +215,56 @@ describe("simulation", () => {
     const fertileNext = updateVegetation(highFertilityCells[0], highFertilityCells, { config: DEFAULT_RULE_CONFIG });
 
     expect(fertileNext).toBeGreaterThan(sparseNext);
+  });
+
+  it("vegetation があるセルは fertility を少し回復する", () => {
+    const cell = createCell(0, [1], 0.8, false, "land", 0.3, 0.5, 0.55);
+    const staged = [
+      { ...cell, nextMoisture: 0.55, nextVegetation: 0.82 },
+      { ...createCell(1, [0], 0.1, false, "land", 0.3, 0.5, 0.55), nextMoisture: 0.55, nextVegetation: 0.1 }
+    ];
+
+    const next = updateFertility(staged[0], staged, { config: DEFAULT_RULE_CONFIG });
+
+    expect(next).toBeGreaterThan(cell.fertility);
+  });
+
+  it("乾燥した裸地は fertility を少し失う", () => {
+    const cell = createCell(0, [1], 0.02, false, "land", 0.6, 0.5, 0.04);
+    const staged = [
+      { ...cell, nextMoisture: 0.04, nextVegetation: 0.01 },
+      { ...createCell(1, [0], 0.01, false, "land", 0.6, 0.5, 0.04), nextMoisture: 0.04, nextVegetation: 0.01 }
+    ];
+
+    const next = updateFertility(staged[0], staged, { config: DEFAULT_RULE_CONFIG });
+
+    expect(next).toBeLessThan(cell.fertility);
+  });
+
+  it("過湿なセルは fertility をより強く失う", () => {
+    const cell = createCell(0, [1], 0.2, false, "land", 0.6, 0.5, 0.96);
+    const staged = [
+      { ...cell, nextMoisture: 0.96, nextVegetation: 0.18 },
+      { ...createCell(1, [0], 0.15, false, "land", 0.6, 0.5, 0.96), nextMoisture: 0.96, nextVegetation: 0.15 }
+    ];
+
+    const next = updateFertility(staged[0], staged, { config: DEFAULT_RULE_CONFIG });
+
+    expect(next).toBeLessThan(cell.fertility);
+  });
+
+  it("周囲が water の land は fertility を失う", () => {
+    const cell = createCell(0, [1, 2, 3, 4], 0.14, false, "land", 0.6, 0.5, 0.72);
+    const staged = [
+      { ...cell, nextMoisture: 0.72, nextVegetation: 0.12 },
+      { ...createCell(1, [0], 0, false, "water"), nextMoisture: 1, nextVegetation: 0 },
+      { ...createCell(2, [0], 0, false, "water"), nextMoisture: 1, nextVegetation: 0 },
+      { ...createCell(3, [0], 0, false, "water"), nextMoisture: 1, nextVegetation: 0 },
+      { ...createCell(4, [0], 0, false, "water"), nextMoisture: 1, nextVegetation: 0 }
+    ];
+
+    const next = updateFertility(staged[0], staged, { config: DEFAULT_RULE_CONFIG });
+
+    expect(next).toBeLessThan(cell.fertility);
   });
 });

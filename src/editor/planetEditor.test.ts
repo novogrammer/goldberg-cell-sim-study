@@ -10,6 +10,7 @@ function createCell(overrides: Partial<Cell>): Cell {
     neighborCount: 0,
     isPentagon: false,
     terrainKind: "land",
+    baseFertility: 0.5,
     fertility: 0.5,
     geology: 0.5,
     moisture: 0.5,

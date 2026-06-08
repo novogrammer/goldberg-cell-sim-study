@@ -11,6 +11,11 @@ export const DEFAULT_RULE_CONFIG: SimulationRuleConfig = {
   neighborVegetationInfluence: 0.5,
   fertilityInfluence: 0.14,
   geologyMoistureSupport: 0.12,
+  fertilityRecoveryFromVegetation: 0.012,
+  fertilityErosionFromDryness: 0.008,
+  fertilityLeachingFromWetness: 0.03,
+  fertilityWaterloggingFromAdjacency: 0.01,
+  fertilityBaseRecovery: 0.002,
   baselineVegetationDecay: 0.05,
   dryVegetationDecay: 0.08,
   growthCap: 0.22,
@@ -141,6 +146,34 @@ export function updateVegetation(
   return clamp01(activated);
 }
 
+export function updateFertility(
+  cell: Cell,
+  nextCells: Cell[],
+  context: SimulationStepContext
+): number {
+  if (cell.terrainKind === "water") {
+    return cell.fertility;
+  }
+
+  const {
+    fertilityRecoveryFromVegetation,
+    fertilityErosionFromDryness,
+    fertilityLeachingFromWetness,
+    fertilityWaterloggingFromAdjacency,
+    fertilityBaseRecovery
+  } = context.config;
+  const moisture = nextCells[cell.id].nextMoisture;
+  const vegetation = nextCells[cell.id].nextVegetation;
+  const adjacentWaterInfluence = getAdjacentWaterInfluence(cell, nextCells);
+  const recovery = vegetation * (1 - cell.fertility) * fertilityRecoveryFromVegetation;
+  const erosion = (1 - vegetation) * (1 - moisture) * fertilityErosionFromDryness;
+  const leaching = Math.max(0, moisture - 0.8) * fertilityLeachingFromWetness;
+  const waterlogging = adjacentWaterInfluence * moisture * fertilityWaterloggingFromAdjacency;
+  const baseRecovery = (cell.baseFertility - cell.fertility) * fertilityBaseRecovery;
+
+  return clamp01(cell.fertility + recovery - erosion - leaching - waterlogging + baseRecovery);
+}
+
 export function stepSimulation(
   cells: Cell[],
   config: SimulationRuleConfig = DEFAULT_RULE_CONFIG
@@ -166,6 +199,7 @@ export function stepSimulation(
 
   return vegetationStaged.map((cell) => ({
     ...cell,
+    fertility: updateFertility(cell, vegetationStaged, context),
     moisture: cell.nextMoisture,
     vegetation: cell.nextVegetation,
     state: cell.nextVegetation
