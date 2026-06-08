@@ -6,9 +6,10 @@ const ROTATION_SENSITIVITY = 0.005;
 const ZOOM_SENSITIVITY = 0.0012;
 const CAMERA_DAMPING = 0.16;
 const AUTO_ROTATE_SPEED = 0.6;
+const POLAR_EPSILON = 0.32;
 
 function clampPolar(value: number) {
-  return Math.max(0.12, Math.min(Math.PI - 0.12, value));
+  return Math.max(POLAR_EPSILON, Math.min(Math.PI - POLAR_EPSILON, value));
 }
 
 function clampRadius(value: number) {
