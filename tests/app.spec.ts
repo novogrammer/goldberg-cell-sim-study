@@ -63,6 +63,7 @@ test('モード切り替えに応じて viewport のガイドと操作状態が�
 
   await page.getByRole('button', { name: 'Paint' }).click();
 
+  await expect(page.getByRole('button', { name: 'Play' })).toBeVisible();
   await expect(page.locator('[data-stat="viewport-mode"]')).toHaveText('Paint mode');
   await expect(page.locator('[data-stat="viewport-hint"]')).toContainText('Brush land.');
   await expect(page.locator('[data-stat="camera-state"]')).toHaveText('Camera locked for painting');
@@ -71,6 +72,7 @@ test('モード切り替えに応じて viewport のガイドと操作状態が�
 
   await page.getByRole('button', { name: 'View' }).click();
 
+  await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible();
   await expect(page.locator('[data-stat="viewport-mode"]')).toHaveText('View mode');
   await expect(page.locator('[data-stat="viewport-hint"]')).toHaveText('Drag to orbit and scroll to zoom.');
   await expect(page.getByRole('button', { name: 'Auto Rotate' })).toBeEnabled();

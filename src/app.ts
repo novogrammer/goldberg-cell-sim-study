@@ -29,7 +29,8 @@ export function mountApp(root: HTMLElement): () => void {
   const appState: AppState = {
     cells: randomizeCellState(meshData.cells),
     speed: 6,
-    isPlaying: true,
+    pausedByUser: false,
+    pausedByPaint: false,
     autoRotate: false,
     isPaintMode: false,
     brushTerrainKind: "land",
@@ -39,9 +40,11 @@ export function mountApp(root: HTMLElement): () => void {
   };
 
   const buildHudState = (): HudState => {
+    const isPlaying = !appState.pausedByUser && !appState.pausedByPaint;
+
     return {
       isPaintMode: appState.isPaintMode,
-      isPlaying: appState.isPlaying,
+      isPlaying,
       autoRotate: appState.autoRotate,
       speed: appState.speed,
       brushTerrainKind: appState.brushTerrainKind,
@@ -102,11 +105,12 @@ export function mountApp(root: HTMLElement): () => void {
 
   const cleanupEvents = bindAppEvents(elements, view.canvasElement, {
     onTogglePlay: () => {
-      appState.isPlaying = !appState.isPlaying;
+      appState.pausedByUser = !appState.pausedByUser;
       refreshHud();
     },
     onSetMode: (mode) => {
       appState.isPaintMode = mode === "paint";
+      appState.pausedByPaint = appState.isPaintMode;
       appState.lastPaintedCellId = null;
       view.setControlsEnabled(!appState.isPaintMode);
       refreshHud();
@@ -174,8 +178,9 @@ export function mountApp(root: HTMLElement): () => void {
 
     animationFrameId = requestAnimationFrame(animate);
     const interval = 1000 / appState.speed;
+    const isPlaying = !appState.pausedByUser && !appState.pausedByPaint;
 
-    if (appState.isPlaying && timestamp - appState.lastTick >= interval) {
+    if (isPlaying && timestamp - appState.lastTick >= interval) {
       syncScene(stepSimulation(appState.cells, DEFAULT_RULE_CONFIG));
       appState.lastTick = timestamp;
     }
