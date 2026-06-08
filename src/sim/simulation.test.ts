@@ -190,4 +190,28 @@ describe("simulation", () => {
     expect(dryNext).toBeLessThan(cell.vegetation);
     expect(wetNext).toBeGreaterThan(dryNext);
   });
+
+  it("同じ moisture でも fertility が高いセルの方が先に vegetation を伸ばしやすい", () => {
+    const lowFertility = createCell(0, [1], 0.18, false, "land", 0.1, 0.4, 0.03);
+    const highFertility = createCell(0, [1], 0.18, false, "land", 0.9, 0.4, 0.03);
+    const lowFertilityCells = [
+      lowFertility,
+      createCell(1, [0], 0.02, false, "land", 0.1, 0.4, 0.03)
+    ].map((cell) => ({
+      ...cell,
+      nextMoisture: 0.03
+    }));
+    const highFertilityCells = [
+      highFertility,
+      createCell(1, [0], 0.02, false, "land", 0.9, 0.4, 0.03)
+    ].map((cell) => ({
+      ...cell,
+      nextMoisture: 0.03
+    }));
+
+    const sparseNext = updateVegetation(lowFertilityCells[0], lowFertilityCells, { config: DEFAULT_RULE_CONFIG });
+    const fertileNext = updateVegetation(highFertilityCells[0], highFertilityCells, { config: DEFAULT_RULE_CONFIG });
+
+    expect(fertileNext).toBeGreaterThan(sparseNext);
+  });
 });

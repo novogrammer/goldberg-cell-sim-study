@@ -6,7 +6,8 @@ export const DEFAULT_RULE_CONFIG: SimulationRuleConfig = {
   moistureDecay: 0.1,
   moistureRetentionFromGeology: 0.12,
   vegetationGrowthFromMoisture: 0.32,
-  minimumMoistureForGrowth: 0.01,
+  minimumMoistureForGrowth: 0.1,
+  fertilityThresholdRelief: 0.1,
   neighborVegetationInfluence: 0.5,
   fertilityInfluence: 0.14,
   geologyMoistureSupport: 0.12,
@@ -96,6 +97,7 @@ export function updateVegetation(
   const {
     vegetationGrowthFromMoisture,
     minimumMoistureForGrowth,
+    fertilityThresholdRelief,
     neighborVegetationInfluence,
     fertilityInfluence,
     geologyMoistureSupport,
@@ -106,10 +108,13 @@ export function updateVegetation(
   } = context.config;
   const moisture = nextMoistureCells[cell.id].nextMoisture;
   const neighboringVegetation = getNeighborVegetationInfluence(cell, nextMoistureCells);
-  const usableMoisture = Math.max(0, moisture - minimumMoistureForGrowth);
+  const effectiveMinimumMoisture = clamp01(
+    Math.max(0, minimumMoistureForGrowth - cell.fertility * fertilityThresholdRelief)
+  );
+  const usableMoisture = Math.max(0, moisture - effectiveMinimumMoisture);
   const moistureSuitability = usableMoisture <= 0
     ? 0
-    : clamp01(usableMoisture / Math.max(0.001, 1 - minimumMoistureForGrowth));
+    : clamp01(usableMoisture / Math.max(0.001, 1 - effectiveMinimumMoisture));
   const fertilitySupport = 1 + cell.fertility * fertilityInfluence;
   const geologySupport = 1 + cell.geology * geologyMoistureSupport;
   const growthPotential = clamp01(

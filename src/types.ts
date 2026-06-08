@@ -21,6 +21,7 @@ export interface SimulationRuleConfig {
   moistureRetentionFromGeology: number;
   vegetationGrowthFromMoisture: number;
   minimumMoistureForGrowth: number;
+  fertilityThresholdRelief: number;
   neighborVegetationInfluence: number;
   fertilityInfluence: number;
   geologyMoistureSupport: number;
