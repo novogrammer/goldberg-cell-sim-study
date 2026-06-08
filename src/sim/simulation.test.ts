@@ -188,7 +188,7 @@ describe("simulation", () => {
     expect(cells[0].vegetation).toBeLessThan(0.05);
   });
 
-  it("最低 moisture 閾値未満では moisture 起因の growth を抑える", () => {
+  it("最適 moisture 帯域から外れると moisture 起因の growth を抑える", () => {
     const cell = createCell(0, [1, 2], 0.25, false, "land", 0.4, 0.4, 0.1);
     const cells = [
       cell,
@@ -233,6 +233,30 @@ describe("simulation", () => {
     const fertileNext = updateVegetation(highFertilityCells[0], highFertilityCells, { config: DEFAULT_RULE_CONFIG });
 
     expect(fertileNext).toBeGreaterThan(sparseNext);
+  });
+
+  it("最適帯域より乾いていても fertility と geology が高い方が伸びやすい", () => {
+    const sparse = createCell(0, [1], 0.12, false, "land", 0.1, 0.1, 0.05);
+    const rich = createCell(0, [1], 0.12, false, "land", 0.9, 0.9, 0.05);
+    const sparseCells = [
+      sparse,
+      createCell(1, [0], 0.02, false, "land", 0.1, 0.1, 0.05)
+    ].map((cell) => ({
+      ...cell,
+      nextMoisture: 0.05
+    }));
+    const richCells = [
+      rich,
+      createCell(1, [0], 0.02, false, "land", 0.9, 0.9, 0.05)
+    ].map((cell) => ({
+      ...cell,
+      nextMoisture: 0.05
+    }));
+
+    const sparseNext = updateVegetation(sparseCells[0], sparseCells, { config: DEFAULT_RULE_CONFIG });
+    const richNext = updateVegetation(richCells[0], richCells, { config: DEFAULT_RULE_CONFIG });
+
+    expect(richNext).toBeGreaterThan(sparseNext);
   });
 
   it("vegetation があるセルは fertility を少し回復する", () => {
