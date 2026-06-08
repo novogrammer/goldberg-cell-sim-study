@@ -36,13 +36,24 @@ export function mountApp(root: HTMLElement): () => void {
   let lastTick = 0;
   let selectedCellId: number | null = null;
 
+  const buildHudState = (): HudState => {
+    return {
+      isPaintMode,
+      isPlaying,
+      autoRotate,
+      speed,
+      brushTerrainKind,
+      selectedCellSummary: buildSelectedCellSummary(cells, selectedCellId)
+    };
+  };
+
   const elements = createAppLayout(root, {
     cellCount: cells.length,
     pentagonCount: meshData.pentagonCount,
     hexagonCount: meshData.hexagonCount,
     frequency: meshData.frequency,
     speed
-  });
+  }, buildHudState());
 
   const scene = createSimulationScene(elements.viewport, meshData, cells);
   scene.setAutoRotate(autoRotate);
@@ -85,17 +96,6 @@ export function mountApp(root: HTMLElement): () => void {
       scene.zoomCameraByDelta(deltaY);
     },
     getInteractiveCanvasPoint: () => findInteractiveCanvasPoint()
-  };
-
-  const buildHudState = (): HudState => {
-    return {
-      isPaintMode,
-      isPlaying,
-      autoRotate,
-      speed,
-      brushTerrainKind,
-      selectedCellSummary: buildSelectedCellSummary(cells, selectedCellId)
-    };
   };
 
   const refreshHud = () => updateHud(elements, buildHudState());

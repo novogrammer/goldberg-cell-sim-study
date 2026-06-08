@@ -1,4 +1,6 @@
 import type { AppElements } from "./types";
+import type { HudState } from "./types";
+import { updateHud } from "./updateHud";
 
 export interface AppLayoutData {
   cellCount: number;
@@ -8,7 +10,11 @@ export interface AppLayoutData {
   speed: number;
 }
 
-export function createAppLayout(root: HTMLElement, data: AppLayoutData): AppElements {
+export function createAppLayout(
+  root: HTMLElement,
+  data: AppLayoutData,
+  initialHudState: HudState
+): AppElements {
   root.innerHTML = `
     <div class="app-shell" data-mode="view">
       <div class="hud">
@@ -23,20 +29,18 @@ export function createAppLayout(root: HTMLElement, data: AppLayoutData): AppElem
           <div class="panel-header">
             <div>
               <p class="panel-eyebrow">Mode</p>
-              <h2 data-stat="mode-label">View mode</h2>
+              <h2 data-stat="mode-label"></h2>
             </div>
-            <span class="mode-badge" data-stat="mode-badge">Orbit camera</span>
+            <span class="mode-badge" data-stat="mode-badge"></span>
           </div>
-          <p class="panel-copy" data-stat="mode-detail">
-            Drag to orbit, scroll to zoom, and inspect the current simulation state.
-          </p>
+          <p class="panel-copy" data-stat="mode-detail"></p>
           <div class="segmented" role="group" aria-label="Mode switch">
             <button type="button" data-action="view-mode" aria-pressed="true">View</button>
             <button type="button" data-action="paint-mode" aria-pressed="false">Paint</button>
           </div>
           <div class="state-row">
-            <span class="state-chip" data-stat="camera-state">Camera unlocked</span>
-            <span class="state-chip" data-stat="brush-state">Brush: land</span>
+            <span class="state-chip" data-stat="camera-state"></span>
+            <span class="state-chip" data-stat="brush-state"></span>
           </div>
         </section>
 
@@ -71,10 +75,10 @@ export function createAppLayout(root: HTMLElement, data: AppLayoutData): AppElem
               <p class="panel-eyebrow">Camera</p>
               <h2>Movement</h2>
             </div>
-            <span class="panel-status" data-stat="rotation-state">Auto rotate off</span>
+            <span class="panel-status" data-stat="rotation-state"></span>
           </div>
           <div class="controls">
-            <button type="button" data-action="rotate">Auto Rotate</button>
+            <button type="button" data-action="rotate"></button>
           </div>
         </section>
 
@@ -84,7 +88,7 @@ export function createAppLayout(root: HTMLElement, data: AppLayoutData): AppElem
               <p class="panel-eyebrow">Paint</p>
               <h2>Brush tools</h2>
             </div>
-            <span class="panel-status" data-stat="paint-state">Inactive</span>
+            <span class="panel-status" data-stat="paint-state"></span>
           </div>
           <p class="panel-copy">
             In paint mode, click or drag across the sphere to apply the selected terrain.
@@ -106,7 +110,7 @@ export function createAppLayout(root: HTMLElement, data: AppLayoutData): AppElem
               <p class="panel-eyebrow">Selection</p>
               <h2>Cell detail</h2>
             </div>
-            <span class="panel-status" data-stat="selection-state">No cell selected</span>
+            <span class="panel-status" data-stat="selection-state"></span>
           </div>
           <div class="controls">
             <label>
@@ -118,27 +122,23 @@ export function createAppLayout(root: HTMLElement, data: AppLayoutData): AppElem
             </label>
           </div>
           <dl class="stat-grid">
-            <div><dt>Selected</dt><dd data-stat="selected">none</dd></div>
-            <div><dt>Terrain</dt><dd data-stat="terrain">-</dd></div>
-            <div><dt>Moisture</dt><dd data-stat="moisture">-</dd></div>
-            <div><dt>Vegetation</dt><dd data-stat="vegetation">-</dd></div>
-            <div><dt>Water Adj.</dt><dd data-stat="water-adj">-</dd></div>
-            <div><dt>Fertility</dt><dd data-stat="fertility">-</dd></div>
-            <div><dt>Geology</dt><dd data-stat="geology">-</dd></div>
+            <div><dt>Selected</dt><dd data-stat="selected"></dd></div>
+            <div><dt>Terrain</dt><dd data-stat="terrain"></dd></div>
+            <div><dt>Moisture</dt><dd data-stat="moisture"></dd></div>
+            <div><dt>Vegetation</dt><dd data-stat="vegetation"></dd></div>
+            <div><dt>Water Adj.</dt><dd data-stat="water-adj"></dd></div>
+            <div><dt>Fertility</dt><dd data-stat="fertility"></dd></div>
+            <div><dt>Geology</dt><dd data-stat="geology"></dd></div>
           </dl>
         </section>
       </div>
       <div class="viewport-frame">
         <div class="viewport-overlay" aria-hidden="true">
           <div class="viewport-guide">
-            <span class="viewport-guide-badge" data-stat="viewport-mode">View mode</span>
-            <p class="viewport-guide-text" data-stat="viewport-hint">
-              Drag to orbit and scroll to zoom.
-            </p>
+            <span class="viewport-guide-badge" data-stat="viewport-mode"></span>
+            <p class="viewport-guide-text" data-stat="viewport-hint"></p>
           </div>
-          <div class="viewport-selection-card" data-stat="viewport-selection">
-            No cell selected
-          </div>
+          <div class="viewport-selection-card" data-stat="viewport-selection"></div>
         </div>
         <div class="viewport" data-role="viewport"></div>
       </div>
@@ -219,7 +219,7 @@ export function createAppLayout(root: HTMLElement, data: AppLayoutData): AppElem
     throw new Error("Control elements were not created.");
   }
 
-  return {
+  const elements = {
     appShell,
     viewport,
     toggleButton,
@@ -255,4 +255,7 @@ export function createAppLayout(root: HTMLElement, data: AppLayoutData): AppElem
     fertilityStat,
     geologyStat
   };
+
+  updateHud(elements, initialHudState);
+  return elements;
 }
