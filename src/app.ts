@@ -21,7 +21,7 @@ export function mountApp(root: HTMLElement): void {
     <div class="app-shell">
       <div class="hud">
         <div>
-          <p class="eyebrow">Goldberg多面体セルシミュレーション</p>
+          <p class="eyebrow">Goldberg Polyhedron Cell Simulation</p>
           <h1>Water basins drive vegetation across the planet</h1>
         </div>
         <div class="controls">
