@@ -7,7 +7,7 @@ import { createCellPlacementTransform, getCellFaceGeometry } from "./placement";
 describe("placement", () => {
   const mesh = createGoldbergMesh();
 
-  it("creates an orthonormal local frame for each cell face", () => {
+  it("各セル face に直交正規なローカル座標系を作る", () => {
     for (const face of mesh.geometry.faces) {
       const normal = new Vector3(...face.normal);
       const tangent = new Vector3(...face.tangent);
@@ -22,7 +22,7 @@ describe("placement", () => {
     }
   });
 
-  it("places an object above the selected cell face", () => {
+  it("選択したセル face の上にオブジェクトを配置する", () => {
     const face = getCellFaceGeometry(mesh, 0);
     const transform = createCellPlacementTransform(mesh, {
       cellId: 0,

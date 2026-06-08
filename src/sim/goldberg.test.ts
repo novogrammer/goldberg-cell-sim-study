@@ -7,12 +7,12 @@ describe("createGoldbergMesh", () => {
   const mesh = createGoldbergMesh();
   const denseMesh = createGoldbergMesh(3);
 
-  it("creates the expected number of cells", () => {
+  it("期待されるセル数を生成する", () => {
     expect(mesh.cells).toHaveLength(42);
     expect(mesh.geometry.faces).toHaveLength(42);
   });
 
-  it("supports higher frequencies with more cells", () => {
+  it("frequency を上げるとより多いセル数を生成できる", () => {
     expect(denseMesh.frequency).toBe(3);
     expect(denseMesh.cells).toHaveLength(92);
     expect(denseMesh.geometry.faces).toHaveLength(92);
@@ -20,14 +20,14 @@ describe("createGoldbergMesh", () => {
     expect(denseMesh.hexagonCount).toBe(80);
   });
 
-  it("creates both water and land cells", () => {
+  it("water セルと land セルの両方を生成する", () => {
     const waterCells = mesh.cells.filter((cell) => cell.terrainKind === "water");
     const landCells = mesh.cells.filter((cell) => cell.terrainKind === "land");
     expect(waterCells.length).toBeGreaterThan(0);
     expect(landCells.length).toBeGreaterThan(0);
   });
 
-  it("initializes fertility and geology for every cell", () => {
+  it("全セルの fertility と geology を初期化する", () => {
     for (const cell of mesh.cells) {
       expect(cell.fertility).toBeGreaterThanOrEqual(0);
       expect(cell.fertility).toBeLessThanOrEqual(1);
@@ -36,19 +36,19 @@ describe("createGoldbergMesh", () => {
     }
   });
 
-  it("keeps all 12 pentagons as 5-neighbor cells", () => {
+  it("12 個すべての五角形セルを 5 近傍として維持する", () => {
     const pentagons = mesh.cells.filter((cell) => cell.isPentagon);
     expect(pentagons).toHaveLength(12);
     expect(pentagons.every((cell) => cell.neighborCount === 5)).toBe(true);
   });
 
-  it("keeps all non-pentagon cells as 6-neighbor cells", () => {
+  it("非五角形セルを 6 近傍として維持する", () => {
     const hexagons = mesh.cells.filter((cell) => !cell.isPentagon);
     expect(hexagons).toHaveLength(30);
     expect(hexagons.every((cell) => cell.neighborCount === 6)).toBe(true);
   });
 
-  it("keeps higher-frequency non-pentagon cells as 6-neighbor cells", () => {
+  it("高 frequency でも非五角形セルを 6 近傍として維持する", () => {
     const pentagons = denseMesh.cells.filter((cell) => cell.isPentagon);
     const hexagons = denseMesh.cells.filter((cell) => !cell.isPentagon);
     expect(pentagons).toHaveLength(12);
@@ -57,7 +57,7 @@ describe("createGoldbergMesh", () => {
     expect(hexagons.every((cell) => cell.neighborCount === 6)).toBe(true);
   });
 
-  it("builds symmetric adjacency", () => {
+  it("隣接関係を双方向に保つ", () => {
     for (const cell of mesh.cells) {
       for (const neighborId of cell.neighbors) {
         expect(mesh.cells[neighborId].neighbors).toContain(cell.id);
@@ -65,14 +65,14 @@ describe("createGoldbergMesh", () => {
     }
   });
 
-  it("creates face polygons that match the neighbor count", () => {
+  it("各 face の頂点数をセルの近傍数に一致させる", () => {
     for (const face of mesh.geometry.faces) {
       const cell = mesh.cells[face.cellId];
       expect(face.vertexIndices).toHaveLength(cell.neighborCount);
     }
   });
 
-  it("keeps every cell face planar", () => {
+  it("各セル face を平面に保つ", () => {
     const vertices = mesh.geometry.vertices.map((vertex) => new Vector3(...vertex));
 
     for (const face of mesh.geometry.faces) {
@@ -86,7 +86,7 @@ describe("createGoldbergMesh", () => {
     }
   });
 
-  it("shares exactly one edge between adjacent cells", () => {
+  it("隣接セル同士がちょうど 1 辺を共有する", () => {
     const faceMap = new Map(mesh.geometry.faces.map((face) => [face.cellId, face]));
 
     for (const cell of mesh.cells) {

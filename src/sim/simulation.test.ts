@@ -39,7 +39,7 @@ function createCell(
 }
 
 describe("simulation", () => {
-  it("computes adjacent water influence from local neighbors", () => {
+  it("局所近傍から隣接 water の影響を計算する", () => {
     const cells = [
       createCell(0, [1, 2, 3, 4, 5], 0.3, true),
       createCell(1, [0], 0, false, "water"),
@@ -52,7 +52,7 @@ describe("simulation", () => {
     expect(getAdjacentWaterInfluence(cells[0], cells)).toBeCloseTo(2 / 5);
   });
 
-  it("grows vegetation faster next to water than in dry cells", () => {
+  it("乾燥セルより water 近傍の方が vegetation が速く成長する", () => {
     const cells = [
       createCell(0, [1, 2], 0.12, false, "land", 0.55, 0.55, 0.4),
       createCell(1, [0], 0, false, "water"),
@@ -74,7 +74,7 @@ describe("simulation", () => {
     expect(wetNext).toBeGreaterThan(dryNext);
   });
 
-  it("keeps water cells fixed at zero vegetation", () => {
+  it("water セルの vegetation を常に 0 に保つ", () => {
     const next = updateVegetation(
       createCell(0, [1, 2, 3, 4, 5], 0, true, "water"),
       [
@@ -91,7 +91,7 @@ describe("simulation", () => {
     expect(next).toBe(0);
   });
 
-  it("commits nextVegetation into vegetation and state on each step", () => {
+  it("各ステップで nextVegetation を vegetation と state に反映する", () => {
     const cells = [
       createCell(0, [1], 0.2, false, "land", 0.6, 0.6),
       createCell(1, [0], 0, false, "water")
@@ -105,7 +105,7 @@ describe("simulation", () => {
     expect(next[0].nextVegetation).toBeCloseTo(next[0].vegetation);
   });
 
-  it("uses neighboring vegetation as a local influence signal", () => {
+  it("近傍 vegetation を局所影響シグナルとして使う", () => {
     const cells = [
       createCell(0, [1, 2, 3], 0.1),
       createCell(1, [0], 0.9),
@@ -116,7 +116,7 @@ describe("simulation", () => {
     expect(getNeighborVegetationInfluence(cells[0], cells)).toBeCloseTo((0.9 + 0.6 + 0) / 3);
   });
 
-  it("uses neighboring moisture as a local influence signal", () => {
+  it("近傍 moisture を局所影響シグナルとして使う", () => {
     const cells = [
       createCell(0, [1, 2, 3], 0.1, false, "land", 0.4, 0.5, 0.2),
       createCell(1, [0], 0.3, false, "land", 0.4, 0.5, 0.9),
@@ -127,7 +127,7 @@ describe("simulation", () => {
     expect(getNeighborMoistureAverage(cells[0], cells)).toBeCloseTo((0.9 + 0.6 + 0.1) / 3);
   });
 
-  it("propagates moisture beyond the first ring from water", () => {
+  it("water から 1 リング先にも moisture を伝播させる", () => {
     const cells = [
       createCell(0, [1], 0, false, "water"),
       createCell(1, [0, 2], 0.15, false, "land", 0.5, 0.6, 0.25),
@@ -142,7 +142,7 @@ describe("simulation", () => {
     expect(next[2].moisture).toBeGreaterThan(cells[2].moisture);
   });
 
-  it("dries vegetation toward zero when moisture is missing", () => {
+  it("moisture が不足すると vegetation を 0 方向へ乾燥させる", () => {
     const cells = [
       createCell(0, [1, 2], 0.75, false, "land", 0.2, 0.2, 0.02),
       createCell(1, [0], 0.05, false, "land", 0.2, 0.2, 0.01),
@@ -154,7 +154,7 @@ describe("simulation", () => {
     expect(next[0].vegetation).toBeLessThan(cells[0].vegetation);
   });
 
-  it("keeps drying sparse land close to zero over repeated dry steps", () => {
+  it("乾燥ステップを繰り返すと疎な land を 0 近くに保つ", () => {
     let cells = [
       createCell(0, [1, 2], 0.28, false, "land", 0.15, 0.15, 0.01),
       createCell(1, [0], 0.01, false, "land", 0.15, 0.15, 0.01),
@@ -168,7 +168,7 @@ describe("simulation", () => {
     expect(cells[0].vegetation).toBeLessThan(0.05);
   });
 
-  it("blocks moisture-driven growth below the minimum moisture threshold", () => {
+  it("最低 moisture 閾値未満では moisture 起因の growth を抑える", () => {
     const cell = createCell(0, [1, 2], 0.25, false, "land", 0.4, 0.4, 0.1);
     const cells = [
       cell,
