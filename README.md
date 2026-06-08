@@ -4,6 +4,9 @@ Goldberg多面体上でセルシミュレーションを行うブラウザ実装
 
 現在は icosphere 細分化から dual セルを組み立てる可変 `frequency` メッシュを使います。現在のブラウザ表示は `frequency=10` で、各 face ではなく dual 側の各セルを 1 単位として扱います。`createGoldbergMesh(frequency)` により表示解像度は今後も変更可能です。`frequency=2` なら 42 セル、`frequency=3` なら 92 セルで、そのうち 12 個は常に五角形セルです。現在のシミュレーションは `水場 + 土地 + 植生` の局所環境モデルです。
 
+公開ページ:
+https://novogrammer.github.io/goldberg-cell-sim-study/
+
 ## モデル概要
 
 - 五角形セルは除外せず、通常セルと同じ配列に含めて扱います。
