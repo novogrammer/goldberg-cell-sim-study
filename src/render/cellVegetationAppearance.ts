@@ -12,7 +12,7 @@ import {
 import type { Cell, CellFaceGeometry } from "../types";
 
 export interface VegetationIndicatorState {
-  visibleSproutCount: number;
+  visibleTreeCount: number;
   heightScale: number;
   radiusScale: number;
   tint: Color;
@@ -21,7 +21,7 @@ export interface VegetationIndicatorState {
 export interface CellVegetationVisual {
   group: Group;
   material: MeshStandardMaterial;
-  sprouts: Mesh[];
+  trees: Mesh[];
   weeds: Mesh[];
   sizeUnit: number;
 }
@@ -29,11 +29,11 @@ export interface CellVegetationVisual {
 const SURFACE_LIFT = 0.102;
 const PENTAGON_SCALE = 0.9;
 const MIN_VEGETATION_THRESHOLD = 0.01;
-const SPROUT_VEGETATION_THRESHOLD = 0.22;
-const MAX_SPROUTS = 5;
+const TREE_VEGETATION_THRESHOLD = 0.22;
+const MAX_TREES = 5;
 const localUp = new Vector3(0, 1, 0);
 
-const SPROUT_LAYOUTS: ReadonlyArray<{ x: number; z: number }> = [
+const TREE_LAYOUTS: ReadonlyArray<{ x: number; z: number }> = [
   { x: 0, z: 0 },
   { x: 0.4, z: 0.2 },
   { x: -0.37, z: 0.26 },
@@ -62,7 +62,7 @@ export interface VegetationSizeMetrics {
 export function getVegetationIndicatorState(cell: Cell): VegetationIndicatorState {
   if (cell.terrainKind === "water" || cell.vegetation < MIN_VEGETATION_THRESHOLD) {
     return {
-      visibleSproutCount: 0,
+      visibleTreeCount: 0,
       heightScale: 0,
       radiusScale: 0,
       tint: new Color("#000000")
@@ -70,14 +70,14 @@ export function getVegetationIndicatorState(cell: Cell): VegetationIndicatorStat
   }
 
   const vegetation = Math.max(0, Math.min(1, cell.vegetation));
-  const visibleSproutCount = Math.min(
-    MAX_SPROUTS,
-    1 + Math.floor(Math.pow((vegetation - MIN_VEGETATION_THRESHOLD) / (1 - MIN_VEGETATION_THRESHOLD), 0.9) * (MAX_SPROUTS - 0.0001))
+  const visibleTreeCount = Math.min(
+    MAX_TREES,
+    1 + Math.floor(Math.pow((vegetation - MIN_VEGETATION_THRESHOLD) / (1 - MIN_VEGETATION_THRESHOLD), 0.9) * (MAX_TREES - 0.0001))
   );
   const vigor = Math.pow(vegetation, 0.72);
 
   return {
-    visibleSproutCount,
+    visibleTreeCount,
     heightScale: 0.48 + vigor * 0.78,
     radiusScale: 0.62 + vigor * 0.36,
     tint: new Color("#698a49").lerp(new Color("#6acb72"), vigor * 0.9)
@@ -95,7 +95,7 @@ export function getVegetationSizeMetrics(face: CellFaceGeometry): VegetationSize
 export function createCellVegetationVisual(
   face: CellFaceGeometry,
   cell: Cell,
-  sproutGeometry: ConeGeometry,
+  treeGeometry: ConeGeometry,
   weedGeometry: BoxGeometry
 ): CellVegetationVisual {
   const material = new MeshStandardMaterial({
@@ -113,15 +113,15 @@ export function createCellVegetationVisual(
   group.quaternion.copy(new Quaternion().setFromUnitVectors(localUp, normal));
   group.scale.setScalar(cellScale);
 
-  const sprouts = SPROUT_LAYOUTS.map(({ x, z }) => {
-    const sprout = new Mesh(sproutGeometry, material);
-    sprout.position.set(
+  const trees = TREE_LAYOUTS.map(({ x, z }) => {
+    const tree = new Mesh(treeGeometry, material);
+    tree.position.set(
       x * sizeMetrics.layoutScale,
       0,
       z * sizeMetrics.layoutScale
     );
-    group.add(sprout);
-    return sprout;
+    group.add(tree);
+    return tree;
   });
 
   const weeds = WEED_LAYOUTS.map(({ x, z }) => {
@@ -135,7 +135,7 @@ export function createCellVegetationVisual(
     return weed;
   });
 
-  const visual = { group, material, sprouts, weeds, sizeUnit: face.inradius };
+  const visual = { group, material, trees, weeds, sizeUnit: face.inradius };
   updateCellVegetationVisual(visual, cell);
   return visual;
 }
@@ -143,32 +143,32 @@ export function createCellVegetationVisual(
 export function updateCellVegetationVisual(visual: CellVegetationVisual, cell: Cell) {
   const state = getVegetationIndicatorState(cell);
   visual.material.color.copy(state.tint);
-  visual.group.visible = state.visibleSproutCount > 0;
-  const sproutBaseHeight = visual.sizeUnit * 1.28;
-  const sproutBaseRadius = visual.sizeUnit * 0.22;
+  visual.group.visible = state.visibleTreeCount > 0;
+  const treeBaseHeight = visual.sizeUnit * 1.28;
+  const treeBaseRadius = visual.sizeUnit * 0.22;
   const weedBaseHeight = visual.sizeUnit * 0.62;
   const weedBaseRadius = visual.sizeUnit * 0.05;
   const layoutScale = visual.sizeUnit * 1.18;
 
-  for (let index = 0; index < visual.sprouts.length; index += 1) {
-    const sprout = visual.sprouts[index];
-    const layout = SPROUT_LAYOUTS[index];
-    const isVisible = cell.vegetation >= SPROUT_VEGETATION_THRESHOLD && index < state.visibleSproutCount;
-    sprout.visible = isVisible;
+  for (let index = 0; index < visual.trees.length; index += 1) {
+    const tree = visual.trees[index];
+    const layout = TREE_LAYOUTS[index];
+    const isVisible = cell.vegetation >= TREE_VEGETATION_THRESHOLD && index < state.visibleTreeCount;
+    tree.visible = isVisible;
     if (!isVisible) {
       continue;
     }
 
-    const height = sproutBaseHeight * state.heightScale * (1 - index * 0.08);
-    const radius = sproutBaseRadius * state.radiusScale * (1 - index * 0.06);
+    const height = treeBaseHeight * state.heightScale * (1 - index * 0.08);
+    const radius = treeBaseRadius * state.radiusScale * (1 - index * 0.06);
     const yaw = Math.atan2(layout.x, layout.z);
-    sprout.position.set(
+    tree.position.set(
       layout.x * layoutScale,
       height * 0.5,
       layout.z * layoutScale
     );
-    sprout.scale.set(radius, height, radius);
-    sprout.rotation.set(0, yaw, 0);
+    tree.scale.set(radius, height, radius);
+    tree.rotation.set(0, yaw, 0);
   }
 
   for (let index = 0; index < visual.weeds.length; index += 1) {
@@ -176,7 +176,7 @@ export function updateCellVegetationVisual(visual: CellVegetationVisual, cell: C
     const layout = WEED_LAYOUTS[index];
     const visibleWeedCount = Math.min(
       visual.weeds.length,
-      Math.max(2, state.visibleSproutCount * 2)
+      Math.max(2, state.visibleTreeCount * 2)
     );
     const isVisible = index < visibleWeedCount;
     weed.visible = isVisible;

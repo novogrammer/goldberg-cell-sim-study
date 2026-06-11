@@ -89,7 +89,7 @@ export function createSimulationScene(
   let lastRenderTimestamp = performance.now();
   const geometryVertices = meshData.geometry.vertices.map((vertex) => new Vector3(...vertex));
   const bevelDrop = getTileBevelDrop(meshData);
-  const sproutGeometry = new ConeGeometry(1, 1, 5);
+  const treeGeometry = new ConeGeometry(1, 1, 5);
   const weedGeometry = new BoxGeometry(1, 1, 0.2);
 
   const applyOverlayState = (cellId: number) => {
@@ -123,7 +123,7 @@ export function createSimulationScene(
     overlayMaterial.visible = false;
     const overlayMesh = new Mesh(overlayGeometry, overlayMaterial);
     overlayMesh.renderOrder = 10;
-    const vegetationVisual = createCellVegetationVisual(face, cell, sproutGeometry, weedGeometry);
+    const vegetationVisual = createCellVegetationVisual(face, cell, treeGeometry, weedGeometry);
 
     mesh.add(overlayMesh);
     group.add(mesh);
@@ -234,7 +234,7 @@ export function createSimulationScene(
         visual.overlayMesh.material.dispose();
       }
     }
-    sproutGeometry.dispose();
+    treeGeometry.dispose();
     weedGeometry.dispose();
     renderer.dispose();
     mount.removeChild(renderer.domElement);
