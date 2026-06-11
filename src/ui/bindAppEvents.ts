@@ -49,6 +49,10 @@ class AppEventController {
     }
   }
 
+  private capturePointerIfPossible(pointerId: number) {
+    this.canvasElement.setPointerCapture(pointerId);
+  }
+
   private onTogglePlay() {
     this.handlers.onTogglePlay();
   }
@@ -106,7 +110,7 @@ class AppEventController {
     }
 
     this.isPointerPainting = true;
-    this.canvasElement.setPointerCapture(event.pointerId);
+    this.capturePointerIfPossible(event.pointerId);
     this.handlers.onCanvasPaintStart(event.clientX, event.clientY);
   }
 

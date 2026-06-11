@@ -18,6 +18,7 @@ export interface SimulationView {
   getCameraPosition: () => [number, number, number];
   rotateCameraByPixels: (deltaX: number, deltaY: number) => void;
   zoomCameraByDelta: (deltaY: number) => void;
+  syncCameraImmediately: () => void;
   getInteractiveCanvasPoint: () => { x: number; y: number; cellId: number } | null;
 }
 
@@ -82,6 +83,10 @@ class SimulationViewAdapter implements SimulationView {
 
   zoomCameraByDelta(deltaY: number) {
     this.scene.zoomCameraByDelta(deltaY);
+  }
+
+  syncCameraImmediately() {
+    this.scene.syncCameraImmediately();
   }
 
   getInteractiveCanvasPoint() {

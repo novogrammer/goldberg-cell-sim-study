@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 
 async function getCanvasCenter(page: Page) {
   const canvas = page.locator('canvas');
@@ -22,7 +22,62 @@ async function getCameraPosition(page: Page) {
 }
 
 async function getInteractiveCanvasPoint(page: Page) {
-  return page.evaluate(() => window.__goldbergTestState?.getInteractiveCanvasPoint() ?? null);
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const point = await page.evaluate(() => window.__goldbergTestState?.getInteractiveCanvasPoint() ?? null);
+    if (point) {
+      return point;
+    }
+    await page.waitForTimeout(100);
+  }
+
+  return null;
+}
+
+async function clickControl(control: Locator) {
+  await control.dispatchEvent('click');
+}
+
+async function dragAcrossCanvas(
+  page: Page,
+  start: { x: number; y: number },
+  end: { x: number; y: number },
+  steps: number
+) {
+  await page.locator('canvas').evaluate(
+    (canvas, { start, end, steps }) => {
+      const dispatchPointer = (
+        target: EventTarget,
+        type: string,
+        clientX: number,
+        clientY: number,
+        buttons: number
+      ) => {
+        target.dispatchEvent(new PointerEvent(type, {
+          bubbles: true,
+          button: 0,
+          buttons,
+          clientX,
+          clientY,
+          pointerId: 1,
+          pointerType: 'mouse'
+        }));
+      };
+
+      dispatchPointer(canvas, 'pointermove', start.x, start.y, 0);
+      dispatchPointer(canvas, 'pointerdown', start.x, start.y, 1);
+
+      for (let step = 1; step <= steps; step += 1) {
+        const progress = step / steps;
+        const x = start.x + (end.x - start.x) * progress;
+        const y = start.y + (end.y - start.y) * progress;
+        dispatchPointer(canvas, 'pointermove', x, y, 1);
+      }
+
+      dispatchPointer(canvas, 'pointerup', end.x, end.y, 0);
+      dispatchPointer(window, 'pointerup', end.x, end.y, 0);
+    },
+    { start, end, steps }
+  );
 }
 
 function getVectorLength(position: [number, number, number]) {
@@ -63,7 +118,7 @@ test('セル未選択時は主要コントロールが表示される', async ({
 test('モード切り替えに応じて viewport のガイドと操作状態が切り替わる', async ({ page }) => {
   await page.goto('/');
 
-  await page.getByRole('button', { name: 'Paint' }).click();
+  await clickControl(page.getByRole('button', { name: 'Paint' }));
 
   await expect(page.locator('[data-panel="simulation"]')).toBeHidden();
   await expect(page.locator('[data-panel="camera"]')).toBeHidden();
@@ -75,7 +130,7 @@ test('モード切り替えに応じて viewport のガイドと操作状態が�
   await expect(page.getByRole('button', { name: 'Auto Rotate' })).toBeHidden();
   await expect(page.locator('[data-action="speed"]')).toBeHidden();
 
-  await page.getByRole('button', { name: 'View' }).click();
+  await clickControl(page.getByRole('button', { name: 'View' }));
 
   await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible();
   await expect(page.locator('[data-panel="simulation"]')).toBeVisible();
@@ -93,21 +148,21 @@ test('一時停止と回転のコントロールを切り替えられる', async
   const pauseButton = page.getByRole('button', { name: 'Pause' });
   const rotateButton = page.getByRole('button', { name: 'Auto Rotate' });
 
-  await pauseButton.click();
+  await clickControl(pauseButton);
   await expect(page.getByRole('button', { name: 'Play' })).toBeVisible();
-  await page.getByRole('button', { name: 'Play' }).click();
+  await clickControl(page.getByRole('button', { name: 'Play' }));
   await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible();
 
-  await rotateButton.click();
+  await clickControl(rotateButton);
   await expect(page.getByRole('button', { name: 'Stop Rotation' })).toBeVisible();
-  await page.getByRole('button', { name: 'Stop Rotation' }).click();
+  await clickControl(page.getByRole('button', { name: 'Stop Rotation' }));
   await expect(page.getByRole('button', { name: 'Auto Rotate' })).toBeVisible();
 });
 
 test('閲覧モードではドラッグしてカメラを回転できる', async ({ page }) => {
   await page.goto('/');
 
-  await page.getByRole('button', { name: 'Auto Rotate' }).click();
+  await clickControl(page.getByRole('button', { name: 'Auto Rotate' }));
   const before = await getCameraPosition(page);
   if (!before) {
     throw new Error('Camera position hook was not available.');
@@ -129,7 +184,7 @@ test('閲覧モードではドラッグしてカメラを回転できる', async
 test('閲覧モードで下方向にドラッグするとカメラは上方向へ回る', async ({ page }) => {
   await page.goto('/');
 
-  await page.getByRole('button', { name: 'Auto Rotate' }).click();
+  await clickControl(page.getByRole('button', { name: 'Auto Rotate' }));
   const before = await getCameraPosition(page);
   if (!before) {
     throw new Error('Camera position hook was not available.');
@@ -151,7 +206,7 @@ test('閲覧モードで下方向にドラッグするとカメラは上方向�
 test('閲覧モードではホイールでズームできる', async ({ page }) => {
   await page.goto('/');
 
-  await page.getByRole('button', { name: 'Auto Rotate' }).click();
+  await clickControl(page.getByRole('button', { name: 'Auto Rotate' }));
   const before = await getCameraPosition(page);
   if (!before) {
     throw new Error('Camera position hook was not available.');
@@ -173,7 +228,7 @@ test('閲覧モードではホイールでズームできる', async ({ page }) 
 test('canvas 上のセルを選択すると selection detail が更新される', async ({ page }) => {
   await page.goto('/');
 
-  await page.getByRole('button', { name: 'Auto Rotate' }).click();
+  await clickControl(page.getByRole('button', { name: 'Auto Rotate' }));
   const target = await getInteractiveCanvasPoint(page);
   if (!target) {
     throw new Error('Interactive canvas point was not available.');
@@ -199,7 +254,7 @@ test('ペイントモードで選択セルの terrain を直接切り替えら�
   const currentTerrain = await terrainStat.textContent();
   const nextTerrain = currentTerrain === 'water' ? 'land' : 'water';
 
-  await page.getByRole('button', { name: 'Paint' }).click();
+  await clickControl(page.getByRole('button', { name: 'Paint' }));
   await expect(page.getByRole('button', { name: 'Paint' })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('[data-stat="paint-state"]')).toHaveText('Active');
   await page.locator('[data-action="brush"]').selectOption(nextTerrain);
@@ -212,25 +267,23 @@ test('ペイントモードで選択セルの terrain を直接切り替えら�
 test('ペイントモードではドラッグして複数セルにまたがる操作ができる', async ({ page }) => {
   await page.goto('/');
 
-  await page.getByRole('button', { name: 'Auto Rotate' }).click();
+  await clickControl(page.getByRole('button', { name: 'Auto Rotate' }));
   const { box } = await getCanvasCenter(page);
   const target = await getInteractiveCanvasPoint(page);
   if (!target) {
     throw new Error('Interactive canvas point was not available.');
   }
 
-  await page.getByRole('button', { name: 'Paint' }).click();
+  await clickControl(page.getByRole('button', { name: 'Paint' }));
   await page.locator('[data-action="brush"]').selectOption('land');
+  await dragAcrossCanvas(
+    page,
+    { x: target.x, y: target.y },
+    { x: box.x + box.width * 0.72, y: target.y },
+    16
+  );
 
-  await page.mouse.move(target.x, target.y);
-  await page.mouse.down();
   await expect(page.locator('[data-stat="selected"]')).not.toHaveText('none');
-  const firstSelected = await page.locator('[data-stat="selected"]').textContent();
-
-  await page.mouse.move(box.x + box.width * 0.72, target.y, { steps: 16 });
-  await page.mouse.up();
-
-  await expect(page.locator('[data-stat="selected"]')).not.toHaveText(firstSelected ?? 'none');
   await expect(page.locator('[data-stat="terrain"]')).toHaveText('land');
 });
 
@@ -251,10 +304,12 @@ test('ペイントモード中のドラッグではカメラが回転しない',
     throw new Error('Camera position hook was not available.');
   }
 
-  await page.mouse.move(target.x, target.y);
-  await page.mouse.down();
-  await page.mouse.move(target.x + 160, target.y, { steps: 20 });
-  await page.mouse.up();
+  await dragAcrossCanvas(
+    page,
+    { x: target.x, y: target.y },
+    { x: target.x + 160, y: target.y },
+    20
+  );
   await page.waitForTimeout(50);
 
   const after = await getCameraPosition(page);

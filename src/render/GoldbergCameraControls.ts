@@ -70,13 +70,14 @@ export class GoldbergCameraControls {
     this.currentPolar += (this.targetPolar - this.currentPolar) * CAMERA_DAMPING;
     this.currentRadius += (this.targetRadius - this.currentRadius) * CAMERA_DAMPING;
 
-    const sinPolar = Math.sin(this.currentPolar);
-    this.camera.position.set(
-      Math.sin(this.currentAzimuth) * sinPolar * this.currentRadius,
-      Math.cos(this.currentPolar) * this.currentRadius,
-      Math.cos(this.currentAzimuth) * sinPolar * this.currentRadius
-    );
-    this.camera.lookAt(0, 0, 0);
+    this.applyCameraTransform();
+  }
+
+  syncCameraImmediately() {
+    this.currentAzimuth = this.targetAzimuth;
+    this.currentPolar = this.targetPolar;
+    this.currentRadius = this.targetRadius;
+    this.applyCameraTransform();
   }
 
   setEnabled(enabled: boolean) {
@@ -198,5 +199,15 @@ export class GoldbergCameraControls {
     this.targetAzimuth = this.currentAzimuth;
     this.targetPolar = this.currentPolar;
     this.targetRadius = this.currentRadius;
+  }
+
+  private applyCameraTransform() {
+    const sinPolar = Math.sin(this.currentPolar);
+    this.camera.position.set(
+      Math.sin(this.currentAzimuth) * sinPolar * this.currentRadius,
+      Math.cos(this.currentPolar) * this.currentRadius,
+      Math.cos(this.currentAzimuth) * sinPolar * this.currentRadius
+    );
+    this.camera.lookAt(0, 0, 0);
   }
 }

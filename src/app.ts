@@ -66,9 +66,11 @@ export function mountApp(root: HTMLElement): () => void {
     getCameraPosition: () => view.getCameraPosition(),
     rotateCameraByPixels: (deltaX, deltaY) => {
       view.rotateCameraByPixels(deltaX, deltaY);
+      view.syncCameraImmediately();
     },
     zoomCameraByDelta: (deltaY) => {
       view.zoomCameraByDelta(deltaY);
+      view.syncCameraImmediately();
     },
     getInteractiveCanvasPoint: () => view.getInteractiveCanvasPoint()
   };

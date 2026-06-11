@@ -55,6 +55,7 @@ export interface SimulationScene {
   getCameraPosition: () => [number, number, number];
   rotateCameraByPixels: (deltaX: number, deltaY: number) => void;
   zoomCameraByDelta: (deltaY: number) => void;
+  syncCameraImmediately: () => void;
   pickCellAtClientPoint: (clientX: number, clientY: number) => number | null;
   setHoveredCell: (cellId: number | null) => void;
   setSelectedCell: (cellId: number | null) => void;
@@ -94,7 +95,9 @@ class SimulationSceneController implements SimulationScene {
     this.camera.position.set(0, 0, 4.4);
 
     this.renderer = new WebGPURenderer({ antialias: true });
-    this.renderer.inspector = new Inspector();
+    if (!navigator.webdriver) {
+      this.renderer.inspector = new Inspector();
+    }
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.domElement.style.touchAction = "none";
     mount.appendChild(this.renderer.domElement);
@@ -267,6 +270,10 @@ class SimulationSceneController implements SimulationScene {
 
   zoomCameraByDelta(deltaY: number) {
     this.controls.zoomByWheelDelta(deltaY);
+  }
+
+  syncCameraImmediately() {
+    this.controls.syncCameraImmediately();
   }
 
   pickCellAtClientPoint(clientX: number, clientY: number): number | null {
