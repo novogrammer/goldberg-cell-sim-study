@@ -40,10 +40,10 @@ type AnimationLoopCallback = ((time: number, frame?: XRFrame) => void) | null;
 const SURFACE_SPHERE_RADIUS_SCALE = 2;
 const HOVER_CAP_SCALE = 1.004;
 const SELECTED_CAP_SCALE = 1.005;
-const HOVER_RING_THETA_START = Math.PI * 0.2;
-const HOVER_RING_THETA_LENGTH = Math.PI * 0.3;
-const SELECTED_RING_THETA_START = Math.PI * 0.2;
-const SELECTED_RING_THETA_LENGTH = Math.PI * 0.3;
+const HOVER_RING_THETA_START = Math.PI * 0.18;
+const HOVER_RING_THETA_LENGTH = Math.PI * 0.22;
+const SELECTED_RING_THETA_START = Math.PI * 0.18;
+const SELECTED_RING_THETA_LENGTH = Math.PI * 0.22;
 
 type RenderCellVisual = CellVisual & {
   normal: Vector3;
