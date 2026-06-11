@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { createGoldbergMesh } from "../sim/goldberg";
-import { getPackedSurfaceSphereRadius } from "./cellVisualGeometry";
+import { getPackedSurfaceSphereRadius } from "./surfaceCellInstances";
 
 describe("getPackedSurfaceSphereRadius", () => {
   it("returns a positive radius that stays below the planet radius", () => {
