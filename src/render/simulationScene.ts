@@ -61,200 +61,220 @@ export interface SimulationScene {
   dispose: () => void;
 }
 
-export function createSimulationScene(
-  mount: HTMLElement,
-  meshData: GoldbergMeshData,
-  cells: Cell[]
-): SimulationScene {
-  const scene = new Scene();
-  scene.background = new Color("#06131f");
-  const raycaster = new Raycaster();
-  const pointer = new Vector2();
+class SimulationSceneController implements SimulationScene {
+  readonly renderer: WebGPURenderer;
 
-  const camera = new PerspectiveCamera(45, 1, 0.1, 100);
-  camera.position.set(0, 0, 4.4);
+  private readonly camera: PerspectiveCamera;
+  private readonly cellVisuals = new Map<number, RenderCellVisual>();
+  private readonly controls: GoldbergCameraControls;
+  private readonly mount: HTMLElement;
+  private readonly pointer = new Vector2();
+  private readonly raycaster = new Raycaster();
+  private readonly scene = new Scene();
+  private readonly selectionOverlay: SurfaceSelectionOverlay;
+  private readonly surfaceCellInstances: SurfaceCellInstances;
+  private readonly surfaceSphereGeometry: SphereGeometry;
+  private readonly treeGeometry: ConeGeometry;
+  private readonly treeMaterial: MeshStandardMaterial;
+  private readonly treeMesh: InstancedMesh;
+  private readonly weedGeometry: BoxGeometry;
+  private readonly weedMaterial: MeshStandardMaterial;
+  private readonly weedMesh: InstancedMesh;
+  private lastRenderTimestamp = performance.now();
 
-  const renderer = new WebGPURenderer({ antialias: true });
-  renderer.inspector = new Inspector();
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.domElement.style.touchAction = "none";
-  mount.appendChild(renderer.domElement);
-  const controls = new GoldbergCameraControls(camera, renderer.domElement);
+  constructor(
+    mount: HTMLElement,
+    meshData: GoldbergMeshData,
+    cells: Cell[]
+  ) {
+    this.mount = mount;
+    this.scene.background = new Color("#06131f");
 
-  const ambientLight = new AmbientLight("#ffffff", 1.2);
-  const directionalLight = new DirectionalLight("#d6f0ff", 2.4);
-  directionalLight.position.set(3, 2, 4);
-  scene.add(ambientLight, directionalLight);
+    this.camera = new PerspectiveCamera(45, 1, 0.1, 100);
+    this.camera.position.set(0, 0, 4.4);
 
-  const group = new Group();
-  scene.add(group);
+    this.renderer = new WebGPURenderer({ antialias: true });
+    this.renderer.inspector = new Inspector();
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.domElement.style.touchAction = "none";
+    mount.appendChild(this.renderer.domElement);
+    this.controls = new GoldbergCameraControls(this.camera, this.renderer.domElement);
 
-  const cellVisuals = new Map<number, RenderCellVisual>();
-  let lastRenderTimestamp = performance.now();
-  const surfaceSphereRadius =
-    getPackedSurfaceSphereRadius(meshData) * SURFACE_SPHERE_RADIUS_SCALE;
-  const surfaceSphereGeometry = new SphereGeometry(
-    surfaceSphereRadius,
-    32,
-    16,
-    0,
-    Math.PI * 2,
-    0,
-    Math.PI / 2
-  );
-  const treeGeometry = new ConeGeometry(1, 1, 5);
-  const weedGeometry = new BoxGeometry(1, 1, 0.2);
-  const treeMaterial = new MeshStandardMaterial({
-    color: "#ffffff",
-    roughness: 0.88,
-    metalness: 0.02
-  });
-  const weedMaterial = new MeshStandardMaterial({
-    color: "#ffffff",
-    roughness: 0.88,
-    metalness: 0.02
-  });
-  const surfaceCellInstances = new SurfaceCellInstances(
-    surfaceSphereGeometry,
-    meshData.geometry.faces.length
-  );
-  const treeMesh = new InstancedMesh(
-    treeGeometry,
-    treeMaterial,
-    meshData.geometry.faces.length * TREE_INSTANCE_COUNT
-  );
-  const weedMesh = new InstancedMesh(
-    weedGeometry,
-    weedMaterial,
-    meshData.geometry.faces.length * WEED_INSTANCE_COUNT
-  );
-  const selectionOverlay = new SurfaceSelectionOverlay(surfaceSphereRadius);
-  treeMesh.count = meshData.geometry.faces.length * TREE_INSTANCE_COUNT;
-  weedMesh.count = meshData.geometry.faces.length * WEED_INSTANCE_COUNT;
-  group.add(
-    surfaceCellInstances.landMesh,
-    surfaceCellInstances.waterMesh,
-    treeMesh,
-    weedMesh,
-    selectionOverlay.hoverMesh,
-    selectionOverlay.selectedMesh
-  );
+    const ambientLight = new AmbientLight("#ffffff", 1.2);
+    const directionalLight = new DirectionalLight("#d6f0ff", 2.4);
+    directionalLight.position.set(3, 2, 4);
+    this.scene.add(ambientLight, directionalLight);
 
-  for (const face of meshData.geometry.faces) {
-    const cell = cells[face.cellId];
-    const faceNormal = new Vector3(...face.normal).normalize();
-    const vegetationLayout = createCellVegetationLayout(
-      face,
-      cell,
-      surfaceSphereRadius * 2 + 0.012
+    const group = new Group();
+    this.scene.add(group);
+
+    const surfaceSphereRadius =
+      getPackedSurfaceSphereRadius(meshData) * SURFACE_SPHERE_RADIUS_SCALE;
+    this.surfaceSphereGeometry = new SphereGeometry(
+      surfaceSphereRadius,
+      32,
+      16,
+      0,
+      Math.PI * 2,
+      0,
+      Math.PI / 2
     );
-    const cellColor = colorForCell(cell);
-    const instanceRotation = new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), faceNormal);
-    const landInstanceId = face.cellId;
-    const treeStartIndex = face.cellId * TREE_INSTANCE_COUNT;
-    const waterInstanceId = face.cellId;
-    const weedStartIndex = face.cellId * WEED_INSTANCE_COUNT;
-    const sphereCenter = new Vector3(...face.center).add(
-      faceNormal.clone().multiplyScalar(surfaceSphereRadius)
+    this.treeGeometry = new ConeGeometry(1, 1, 5);
+    this.weedGeometry = new BoxGeometry(1, 1, 0.2);
+    this.treeMaterial = new MeshStandardMaterial({
+      color: "#ffffff",
+      roughness: 0.88,
+      metalness: 0.02
+    });
+    this.weedMaterial = new MeshStandardMaterial({
+      color: "#ffffff",
+      roughness: 0.88,
+      metalness: 0.02
+    });
+    this.surfaceCellInstances = new SurfaceCellInstances(
+      this.surfaceSphereGeometry,
+      meshData.geometry.faces.length
     );
-    const visual: RenderCellVisual = {
-      landInstanceId,
-      normal: faceNormal.clone(),
-      surfaceRotation: instanceRotation.clone(),
-      sphereCenter,
-      treeStartIndex,
-      vegetationLayout,
-      waterInstanceId,
-      weedStartIndex
-    };
-    surfaceCellInstances.registerCell(face.cellId, visual);
-    surfaceCellInstances.applyCellState(
-      visual,
-      cell.terrainKind,
-      cellColor
+    this.treeMesh = new InstancedMesh(
+      this.treeGeometry,
+      this.treeMaterial,
+      meshData.geometry.faces.length * TREE_INSTANCE_COUNT
     );
-    cellVisuals.set(face.cellId, visual);
-    updateCellVegetationInstances(
-      treeMesh,
-      weedMesh,
-      treeStartIndex,
-      weedStartIndex,
-      vegetationLayout,
-      cell
+    this.weedMesh = new InstancedMesh(
+      this.weedGeometry,
+      this.weedMaterial,
+      meshData.geometry.faces.length * WEED_INSTANCE_COUNT
     );
+    this.selectionOverlay = new SurfaceSelectionOverlay(surfaceSphereRadius);
+    this.treeMesh.count = meshData.geometry.faces.length * TREE_INSTANCE_COUNT;
+    this.weedMesh.count = meshData.geometry.faces.length * WEED_INSTANCE_COUNT;
+    group.add(
+      this.surfaceCellInstances.landMesh,
+      this.surfaceCellInstances.waterMesh,
+      this.treeMesh,
+      this.weedMesh,
+      this.selectionOverlay.hoverMesh,
+      this.selectionOverlay.selectedMesh
+    );
+
+    for (const face of meshData.geometry.faces) {
+      const cell = cells[face.cellId];
+      const faceNormal = new Vector3(...face.normal).normalize();
+      const vegetationLayout = createCellVegetationLayout(
+        face,
+        cell,
+        surfaceSphereRadius * 2 + 0.012
+      );
+      const cellColor = colorForCell(cell);
+      const instanceRotation = new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), faceNormal);
+      const landInstanceId = face.cellId;
+      const treeStartIndex = face.cellId * TREE_INSTANCE_COUNT;
+      const waterInstanceId = face.cellId;
+      const weedStartIndex = face.cellId * WEED_INSTANCE_COUNT;
+      const sphereCenter = new Vector3(...face.center).add(
+        faceNormal.clone().multiplyScalar(surfaceSphereRadius)
+      );
+      const visual: RenderCellVisual = {
+        landInstanceId,
+        normal: faceNormal.clone(),
+        surfaceRotation: instanceRotation.clone(),
+        sphereCenter,
+        treeStartIndex,
+        vegetationLayout,
+        waterInstanceId,
+        weedStartIndex
+      };
+      this.surfaceCellInstances.registerCell(face.cellId, visual);
+      this.surfaceCellInstances.applyCellState(
+        visual,
+        cell.terrainKind,
+        cellColor
+      );
+      this.cellVisuals.set(face.cellId, visual);
+      updateCellVegetationInstances(
+        this.treeMesh,
+        this.weedMesh,
+        treeStartIndex,
+        weedStartIndex,
+        vegetationLayout,
+        cell
+      );
+    }
+    this.surfaceCellInstances.sync();
+    this.syncVegetationInstances();
+    this.resize();
   }
-  surfaceCellInstances.sync();
-  treeMesh.instanceMatrix.needsUpdate = true;
-  weedMesh.instanceMatrix.needsUpdate = true;
-  if (treeMesh.instanceColor) {
-    treeMesh.instanceColor.needsUpdate = true;
-  }
-  if (weedMesh.instanceColor) {
-    weedMesh.instanceColor.needsUpdate = true;
-  }
 
-  const resize = () => {
-    const width = mount.clientWidth;
-    const height = mount.clientHeight;
-    renderer.setSize(width, height, false);
-    camera.aspect = width / height;
-    camera.updateProjectionMatrix();
+  resize = () => {
+    const width = this.mount.clientWidth;
+    const height = this.mount.clientHeight;
+    this.renderer.setSize(width, height, false);
+    this.camera.aspect = width / height;
+    this.camera.updateProjectionMatrix();
   };
 
-  const updateCells = (nextCells: Cell[]) => {
-    for (const cell of nextCells) {
-      const visual = cellVisuals.get(cell.id);
+  render = () => {
+    const now = performance.now();
+    const deltaSeconds = Math.min(0.05, (now - this.lastRenderTimestamp) / 1000);
+    this.lastRenderTimestamp = now;
+    this.controls.update(deltaSeconds);
+    this.renderer.render(this.scene, this.camera);
+  };
+
+  setAnimationLoop = (callback: AnimationLoopCallback) => {
+    this.renderer.setAnimationLoop(callback);
+  };
+
+  updateCells = (cells: Cell[]) => {
+    for (const cell of cells) {
+      const visual = this.cellVisuals.get(cell.id);
       if (!visual) {
         continue;
       }
-      surfaceCellInstances.applyCellState(
+      this.surfaceCellInstances.applyCellState(
         visual,
         cell.terrainKind,
         colorForCell(cell)
       );
       updateCellVegetationInstances(
-        treeMesh,
-        weedMesh,
+        this.treeMesh,
+        this.weedMesh,
         visual.treeStartIndex,
         visual.weedStartIndex,
         visual.vegetationLayout,
         cell
       );
     }
-    surfaceCellInstances.sync();
-    treeMesh.instanceMatrix.needsUpdate = true;
-    weedMesh.instanceMatrix.needsUpdate = true;
-    if (treeMesh.instanceColor) {
-      treeMesh.instanceColor.needsUpdate = true;
-    }
-    if (weedMesh.instanceColor) {
-      weedMesh.instanceColor.needsUpdate = true;
-    }
+    this.surfaceCellInstances.sync();
+    this.syncVegetationInstances();
   };
 
-  const setAutoRotate = (enabled: boolean) => {
-    controls.setAutoRotate(enabled);
+  setAutoRotate = (enabled: boolean) => {
+    this.controls.setAutoRotate(enabled);
   };
 
-  const setControlsEnabled = (enabled: boolean) => {
-    controls.setEnabled(enabled);
+  setControlsEnabled = (enabled: boolean) => {
+    this.controls.setEnabled(enabled);
   };
 
-  const getCameraPosition = () => controls.getCameraPosition();
-  const rotateCameraByPixels = (deltaX: number, deltaY: number) => controls.rotateByPointerDelta(deltaX, deltaY);
-  const zoomCameraByDelta = (deltaY: number) => controls.zoomByWheelDelta(deltaY);
+  getCameraPosition = () => this.controls.getCameraPosition();
 
-  const pickCellAtClientPoint = (clientX: number, clientY: number): number | null => {
-    const rect = renderer.domElement.getBoundingClientRect();
+  rotateCameraByPixels = (deltaX: number, deltaY: number) =>
+    this.controls.rotateByPointerDelta(deltaX, deltaY);
+
+  zoomCameraByDelta = (deltaY: number) => this.controls.zoomByWheelDelta(deltaY);
+
+  pickCellAtClientPoint = (clientX: number, clientY: number): number | null => {
+    const rect = this.renderer.domElement.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) {
       return null;
     }
 
-    pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
-    pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
-    raycaster.setFromCamera(pointer, camera);
-    const intersections = raycaster.intersectObjects(
-      [surfaceCellInstances.landMesh, surfaceCellInstances.waterMesh],
+    this.pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+    this.pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+    this.raycaster.setFromCamera(this.pointer, this.camera);
+    const intersections = this.raycaster.intersectObjects(
+      [this.surfaceCellInstances.landMesh, this.surfaceCellInstances.waterMesh],
       false
     );
 
@@ -263,61 +283,46 @@ export function createSimulationScene(
       return null;
     }
 
-    return surfaceCellInstances.pickCellId(
-      hit.object,
-      hit.instanceId
-    );
+    return this.surfaceCellInstances.pickCellId(hit.object, hit.instanceId);
   };
 
-  const setHoveredCell = (cellId: number | null) => {
-    selectionOverlay.setHoveredCell(cellId, (id) => cellVisuals.get(id));
+  setHoveredCell = (cellId: number | null) => {
+    this.selectionOverlay.setHoveredCell(cellId, (id) => this.cellVisuals.get(id));
   };
 
-  const setSelectedCell = (cellId: number | null) => {
-    selectionOverlay.setSelectedCell(cellId, (id) => cellVisuals.get(id));
+  setSelectedCell = (cellId: number | null) => {
+    this.selectionOverlay.setSelectedCell(cellId, (id) => this.cellVisuals.get(id));
   };
 
-  const render = () => {
-    const now = performance.now();
-    const deltaSeconds = Math.min(0.05, (now - lastRenderTimestamp) / 1000);
-    lastRenderTimestamp = now;
-    controls.update(deltaSeconds);
-    renderer.render(scene, camera);
+  dispose = () => {
+    this.controls.dispose();
+    this.surfaceCellInstances.dispose();
+    this.selectionOverlay.dispose();
+    this.surfaceSphereGeometry.dispose();
+    this.treeMaterial.dispose();
+    this.weedMaterial.dispose();
+    this.treeGeometry.dispose();
+    this.weedGeometry.dispose();
+    this.renderer.dispose();
+    this.mount.removeChild(this.renderer.domElement);
   };
 
-  const setAnimationLoop = (callback: AnimationLoopCallback) => {
-    renderer.setAnimationLoop(callback);
-  };
+  private syncVegetationInstances() {
+    this.treeMesh.instanceMatrix.needsUpdate = true;
+    this.weedMesh.instanceMatrix.needsUpdate = true;
+    if (this.treeMesh.instanceColor) {
+      this.treeMesh.instanceColor.needsUpdate = true;
+    }
+    if (this.weedMesh.instanceColor) {
+      this.weedMesh.instanceColor.needsUpdate = true;
+    }
+  }
+}
 
-  const dispose = () => {
-    controls.dispose();
-    surfaceCellInstances.dispose();
-    selectionOverlay.dispose();
-    surfaceSphereGeometry.dispose();
-    treeMaterial.dispose();
-    weedMaterial.dispose();
-    treeGeometry.dispose();
-    weedGeometry.dispose();
-    renderer.dispose();
-    mount.removeChild(renderer.domElement);
-  };
-
-  resize();
-
-  return {
-    renderer,
-    resize,
-    render,
-    setAnimationLoop,
-    updateCells,
-    setAutoRotate,
-    setControlsEnabled,
-    getCameraPosition,
-    rotateCameraByPixels,
-    zoomCameraByDelta,
-    pickCellAtClientPoint,
-    setHoveredCell,
-    setSelectedCell,
-    dispose
-  };
+export function createSimulationScene(
+  mount: HTMLElement,
+  meshData: GoldbergMeshData,
+  cells: Cell[]
+): SimulationScene {
+  return new SimulationSceneController(mount, meshData, cells);
 }
