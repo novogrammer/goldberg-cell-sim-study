@@ -2,119 +2,174 @@ import type { AppElements, AppEventHandlers } from "./types";
 
 const CLICK_SELECTION_THRESHOLD = 6;
 
-export function bindAppEvents(
-  elements: AppElements,
-  canvasElement: HTMLCanvasElement,
-  handlers: AppEventHandlers
-) {
-  let isPaintMode = false;
-  let isPointerPainting = false;
-  let pointerDownClientX = 0;
-  let pointerDownClientY = 0;
+class AppEventController {
+  private isPaintMode = false;
+  private isPointerPainting = false;
+  private pointerDownClientX = 0;
+  private pointerDownClientY = 0;
+  private readonly cleanupCallbacks: Array<() => void> = [];
 
-  const onTogglePlay = () => handlers.onTogglePlay();
-  const onViewMode = () => {
-    isPaintMode = false;
-    isPointerPainting = false;
-    handlers.onCanvasPaintEnd();
-    handlers.onSetMode("view");
-  };
-  const onPaintMode = () => {
-    isPaintMode = true;
-    isPointerPainting = false;
-    handlers.onCanvasPaintEnd();
-    handlers.onSetMode("paint");
-  };
-  const onToggleAutoRotate = () => handlers.onToggleAutoRotate();
-  const onStep = () => handlers.onStep();
-  const onRandomize = () => handlers.onRandomize();
-  const onBrushChange = () => handlers.onSetBrush(elements.brushSelect.value as "water" | "land");
-  const onSpeedInput = () => handlers.onSetSpeed(Number(elements.speedSlider.value));
-  const onPointerMove = (event: PointerEvent) => {
-    handlers.onCanvasHover(event.clientX, event.clientY);
-    if (!isPaintMode || !isPointerPainting || (event.buttons & 1) === 0) {
+  constructor(
+    private readonly elements: AppElements,
+    private readonly canvasElement: HTMLCanvasElement,
+    private readonly handlers: AppEventHandlers
+  ) {}
+
+  bind() {
+    this.bindElement(this.elements.toggleButton, "click", this.onTogglePlay);
+    this.bindElement(this.elements.viewModeButton, "click", this.onViewMode);
+    this.bindElement(this.elements.paintModeButton, "click", this.onPaintMode);
+    this.bindElement(this.elements.rotateButton, "click", this.onToggleAutoRotate);
+    this.bindElement(this.elements.stepButton, "click", this.onStep);
+    this.bindElement(this.elements.randomizeButton, "click", this.onRandomize);
+    this.bindElement(this.elements.brushSelect, "change", this.onBrushChange);
+    this.bindElement(this.elements.speedSlider, "input", this.onSpeedInput);
+    this.bindElement(this.canvasElement, "pointermove", this.onPointerMove);
+    this.bindElement(this.canvasElement, "pointerleave", this.onPointerLeave);
+    this.bindElement(this.canvasElement, "pointerdown", this.onPointerDown);
+    this.bindElement(this.canvasElement, "pointerup", this.onPointerUp);
+    this.bindElement(this.canvasElement, "pointercancel", this.onPointerCancel);
+    this.bindWindow("pointerup", this.onWindowPointerUp);
+  }
+
+  dispose() {
+    for (const cleanup of this.cleanupCallbacks) {
+      cleanup();
+    }
+  }
+
+  private endPainting() {
+    this.isPointerPainting = false;
+    this.handlers.onCanvasPaintEnd();
+  }
+
+  private releasePointerCaptureIfHeld(pointerId: number) {
+    if (this.canvasElement.hasPointerCapture(pointerId)) {
+      this.canvasElement.releasePointerCapture(pointerId);
+    }
+  }
+
+  private onTogglePlay() {
+    this.handlers.onTogglePlay();
+  }
+
+  private onViewMode() {
+    this.isPaintMode = false;
+    this.endPainting();
+    this.handlers.onSetMode("view");
+  }
+
+  private onPaintMode() {
+    this.isPaintMode = true;
+    this.endPainting();
+    this.handlers.onSetMode("paint");
+  }
+
+  private onToggleAutoRotate() {
+    this.handlers.onToggleAutoRotate();
+  }
+
+  private onStep() {
+    this.handlers.onStep();
+  }
+
+  private onRandomize() {
+    this.handlers.onRandomize();
+  }
+
+  private onBrushChange() {
+    this.handlers.onSetBrush(this.elements.brushSelect.value as "water" | "land");
+  }
+
+  private onSpeedInput() {
+    this.handlers.onSetSpeed(Number(this.elements.speedSlider.value));
+  }
+
+  private onPointerMove(event: PointerEvent) {
+    this.handlers.onCanvasHover(event.clientX, event.clientY);
+    if (!this.isPaintMode || !this.isPointerPainting || (event.buttons & 1) === 0) {
       return;
     }
-    handlers.onCanvasPaintMove(event.clientX, event.clientY);
-  };
-  const onPointerLeave = () => handlers.onCanvasLeave();
-  const onPointerDown = (event: PointerEvent) => {
-    pointerDownClientX = event.clientX;
-    pointerDownClientY = event.clientY;
+    this.handlers.onCanvasPaintMove(event.clientX, event.clientY);
+  }
 
-    if (!isPaintMode || event.button !== 0) {
+  private onPointerLeave() {
+    this.handlers.onCanvasLeave();
+  }
+
+  private onPointerDown(event: PointerEvent) {
+    this.pointerDownClientX = event.clientX;
+    this.pointerDownClientY = event.clientY;
+
+    if (!this.isPaintMode || event.button !== 0) {
       return;
     }
 
-    isPointerPainting = true;
-    canvasElement.setPointerCapture(event.pointerId);
-    handlers.onCanvasPaintStart(event.clientX, event.clientY);
-  };
-  const onPointerUp = (event: PointerEvent) => {
-    if (!isPaintMode) {
+    this.isPointerPainting = true;
+    this.canvasElement.setPointerCapture(event.pointerId);
+    this.handlers.onCanvasPaintStart(event.clientX, event.clientY);
+  }
+
+  private onPointerUp(event: PointerEvent) {
+    if (!this.isPaintMode) {
       if (event.button !== 0) {
         return;
       }
 
       const movedDistance = Math.hypot(
-        event.clientX - pointerDownClientX,
-        event.clientY - pointerDownClientY
+        event.clientX - this.pointerDownClientX,
+        event.clientY - this.pointerDownClientY
       );
       if (movedDistance > CLICK_SELECTION_THRESHOLD) {
         return;
       }
 
-      handlers.onCanvasSelect(event.clientX, event.clientY);
+      this.handlers.onCanvasSelect(event.clientX, event.clientY);
       return;
     }
 
-    isPointerPainting = false;
-    handlers.onCanvasPaintEnd();
-    if (canvasElement.hasPointerCapture(event.pointerId)) {
-      canvasElement.releasePointerCapture(event.pointerId);
-    }
-  };
-  const onPointerCancel = (event: PointerEvent) => {
-    isPointerPainting = false;
-    handlers.onCanvasPaintEnd();
-    if (canvasElement.hasPointerCapture(event.pointerId)) {
-      canvasElement.releasePointerCapture(event.pointerId);
-    }
-  };
-  const onWindowPointerUp = () => {
-    isPointerPainting = false;
-    handlers.onCanvasPaintEnd();
-  };
+    this.endPainting();
+    this.releasePointerCaptureIfHeld(event.pointerId);
+  }
 
-  elements.toggleButton.addEventListener("click", onTogglePlay);
-  elements.viewModeButton.addEventListener("click", onViewMode);
-  elements.paintModeButton.addEventListener("click", onPaintMode);
-  elements.rotateButton.addEventListener("click", onToggleAutoRotate);
-  elements.stepButton.addEventListener("click", onStep);
-  elements.randomizeButton.addEventListener("click", onRandomize);
-  elements.brushSelect.addEventListener("change", onBrushChange);
-  elements.speedSlider.addEventListener("input", onSpeedInput);
-  canvasElement.addEventListener("pointermove", onPointerMove);
-  canvasElement.addEventListener("pointerleave", onPointerLeave);
-  canvasElement.addEventListener("pointerdown", onPointerDown);
-  canvasElement.addEventListener("pointerup", onPointerUp);
-  canvasElement.addEventListener("pointercancel", onPointerCancel);
-  window.addEventListener("pointerup", onWindowPointerUp);
+  private onPointerCancel(event: PointerEvent) {
+    this.endPainting();
+    this.releasePointerCaptureIfHeld(event.pointerId);
+  }
+
+  private onWindowPointerUp() {
+    this.endPainting();
+  }
+
+  private bindElement<K extends keyof HTMLElementEventMap>(
+    target: HTMLElement,
+    type: K,
+    listener: (event: HTMLElementEventMap[K]) => void
+  ) {
+    const boundListener = listener.bind(this) as EventListener;
+    target.addEventListener(type, boundListener);
+    this.cleanupCallbacks.push(() => target.removeEventListener(type, boundListener));
+  }
+
+  private bindWindow<K extends keyof WindowEventMap>(
+    type: K,
+    listener: (event: WindowEventMap[K]) => void
+  ) {
+    const boundListener = listener.bind(this) as EventListener;
+    window.addEventListener(type, boundListener);
+    this.cleanupCallbacks.push(() => window.removeEventListener(type, boundListener));
+  }
+}
+
+export function bindAppEvents(
+  elements: AppElements,
+  canvasElement: HTMLCanvasElement,
+  handlers: AppEventHandlers
+) {
+  const controller = new AppEventController(elements, canvasElement, handlers);
+  controller.bind();
 
   return () => {
-    elements.toggleButton.removeEventListener("click", onTogglePlay);
-    elements.viewModeButton.removeEventListener("click", onViewMode);
-    elements.paintModeButton.removeEventListener("click", onPaintMode);
-    elements.rotateButton.removeEventListener("click", onToggleAutoRotate);
-    elements.stepButton.removeEventListener("click", onStep);
-    elements.randomizeButton.removeEventListener("click", onRandomize);
-    elements.brushSelect.removeEventListener("change", onBrushChange);
-    elements.speedSlider.removeEventListener("input", onSpeedInput);
-    canvasElement.removeEventListener("pointermove", onPointerMove);
-    canvasElement.removeEventListener("pointerleave", onPointerLeave);
-    canvasElement.removeEventListener("pointerdown", onPointerDown);
-    canvasElement.removeEventListener("pointerup", onPointerUp);
-    canvasElement.removeEventListener("pointercancel", onPointerCancel);
-    window.removeEventListener("pointerup", onWindowPointerUp);
+    controller.dispose();
   };
 }
