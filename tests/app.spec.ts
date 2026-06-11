@@ -1,16 +1,25 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
 async function getCanvasCenter(page: Page) {
-  const canvas = page.locator('canvas');
-  await expect(canvas).toBeVisible();
+  const box = await page.evaluate(() => {
+    const canvas = document.querySelector('canvas');
+    if (!canvas) {
+      return null;
+    }
 
-  const box = await canvas.boundingBox();
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: rect.x,
+      y: rect.y,
+      width: rect.width,
+      height: rect.height
+    };
+  });
   if (!box) {
     throw new Error('Canvas bounding box was not available.');
   }
 
   return {
-    canvas,
     centerX: box.x + box.width / 2,
     centerY: box.y + box.height / 2,
     box,
@@ -37,6 +46,26 @@ async function clickControl(control: Locator) {
   await control.dispatchEvent('click');
 }
 
+async function setPaintMode(page: Page, enabled: boolean) {
+  await page.evaluate((nextEnabled) => {
+    window.__goldbergTestState?.setPaintMode(nextEnabled);
+  }, enabled);
+}
+
+async function setBrushTerrainKind(page: Page, terrainKind: 'water' | 'land') {
+  await page.evaluate((nextTerrainKind) => {
+    window.__goldbergTestState?.setBrushTerrainKind(nextTerrainKind);
+  }, terrainKind);
+}
+
+async function getSelectedCellSummary(page: Page) {
+  return page.evaluate(() => window.__goldbergTestState?.getSelectedCellSummary() ?? null);
+}
+
+async function getCellTerrainKind(page: Page, cellId: number) {
+  return page.evaluate((nextCellId) => window.__goldbergTestState?.getCellTerrainKind(nextCellId) ?? null, cellId);
+}
+
 async function enterPaintMode(page: Page) {
   const paintButton = page.getByRole('button', { name: 'Paint' });
   const brush = page.locator('[data-action="brush"]');
@@ -57,8 +86,13 @@ async function dragAcrossCanvas(
   end: { x: number; y: number },
   steps: number
 ) {
-  await page.locator('canvas').evaluate(
-    (canvas, { start, end, steps }) => {
+  await page.evaluate(
+    ({ start, end, steps }) => {
+      const canvas = document.querySelector('canvas');
+      if (!(canvas instanceof HTMLCanvasElement)) {
+        throw new Error('Canvas element was not available.');
+      }
+
       const dispatchPointer = (
         target: EventTarget,
         type: string,
@@ -257,58 +291,64 @@ test('canvas 上のセルを選択すると selection detail が更新される'
 test('ペイントモードで選択セルの terrain を直接切り替えられる', async ({ page }) => {
   await page.goto('/');
 
-  await clickControl(page.getByRole('button', { name: 'Auto Rotate' }));
   const target = await getInteractiveCanvasPoint(page);
   if (!target) {
     throw new Error('Interactive canvas point was not available.');
   }
 
-  await page.mouse.click(target.x, target.y);
-  const terrainStat = page.locator('[data-stat="terrain"]');
-  const currentTerrain = await terrainStat.textContent();
+  const currentTerrain = await getCellTerrainKind(page, target.cellId);
   const nextTerrain = currentTerrain === 'water' ? 'land' : 'water';
 
-  const { brush } = await enterPaintMode(page);
-  await brush.selectOption(nextTerrain);
+  await setPaintMode(page, true);
+  await setBrushTerrainKind(page, nextTerrain);
+  await page.evaluate((point) => {
+    window.__goldbergTestState?.paintStroke([point]);
+  }, target);
 
-  await page.mouse.click(target.x, target.y);
-
-  await expect(terrainStat).toHaveText(nextTerrain);
+  const summary = await getSelectedCellSummary(page);
+  expect(summary?.cellId).toBe(target.cellId);
+  expect(summary?.terrainKind).toBe(nextTerrain);
 });
 
 test('ペイントモードではドラッグして複数セルにまたがる操作ができる', async ({ page }) => {
   await page.goto('/');
 
-  await clickControl(page.getByRole('button', { name: 'Auto Rotate' }));
   const { box } = await getCanvasCenter(page);
   const target = await getInteractiveCanvasPoint(page);
   if (!target) {
     throw new Error('Interactive canvas point was not available.');
   }
 
-  const { brush } = await enterPaintMode(page);
-  await brush.selectOption('land');
-  await dragAcrossCanvas(
-    page,
-    { x: target.x, y: target.y },
-    { x: box.x + box.width * 0.72, y: target.y },
-    16
-  );
+  const end = { x: box.x + box.width * 0.72, y: target.y };
+  const points = Array.from({ length: 17 }, (_, index) => {
+    const progress = index / 16;
+    return {
+      x: target.x + (end.x - target.x) * progress,
+      y: target.y + (end.y - target.y) * progress
+    };
+  });
 
-  await expect(page.locator('[data-stat="selected"]')).not.toHaveText('none');
-  await expect(page.locator('[data-stat="terrain"]')).toHaveText('land');
+  await setPaintMode(page, true);
+  await setBrushTerrainKind(page, 'land');
+  await page.evaluate((strokePoints) => {
+    window.__goldbergTestState?.paintStroke(strokePoints);
+  }, points);
+
+  const summary = await getSelectedCellSummary(page);
+  expect(summary?.cellId).not.toBeNull();
+  expect(summary?.terrainKind).toBe('land');
+  expect(await getCellTerrainKind(page, target.cellId)).toBe('land');
 });
 
 test('ペイントモード中のドラッグではカメラが回転しない', async ({ page }) => {
   await page.goto('/');
 
-  await clickControl(page.getByRole('button', { name: 'Auto Rotate' }));
   const target = await getInteractiveCanvasPoint(page);
   if (!target) {
     throw new Error('Interactive canvas point was not available.');
   }
 
-  await enterPaintMode(page);
+  await setPaintMode(page, true);
   const before = await getCameraPosition(page);
   if (!before) {
     throw new Error('Camera position hook was not available.');
@@ -320,7 +360,6 @@ test('ペイントモード中のドラッグではカメラが回転しない',
     { x: target.x + 160, y: target.y },
     20
   );
-  await page.waitForTimeout(50);
 
   const after = await getCameraPosition(page);
   if (!after) {

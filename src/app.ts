@@ -10,6 +10,7 @@ import { buildSelectedCellSummary } from "./ui/buildSelectedCellSummary";
 import { createAppLayout } from "./ui/createAppLayout";
 import type { HudState } from "./ui/types";
 import { updateHud } from "./ui/updateHud";
+import type { Cell } from "./types";
 
 const DISPLAY_FREQUENCY = 10;
 
@@ -20,6 +21,11 @@ declare global {
       rotateCameraByPixels: (deltaX: number, deltaY: number) => void;
       zoomCameraByDelta: (deltaY: number) => void;
       getInteractiveCanvasPoint: () => { x: number; y: number; cellId: number } | null;
+      setPaintMode: (enabled: boolean) => void;
+      setBrushTerrainKind: (terrainKind: Cell["terrainKind"]) => void;
+      paintStroke: (points: Array<{ x: number; y: number }>) => void;
+      getSelectedCellSummary: () => ReturnType<typeof buildSelectedCellSummary>;
+      getCellTerrainKind: (cellId: number) => Cell["terrainKind"] | null;
     };
   }
 }
@@ -62,24 +68,25 @@ export function mountApp(root: HTMLElement): () => void {
 
   const view = createSimulationView(elements.viewport, meshData, appState.cells);
   view.setAutoRotate(appState.autoRotate);
-  window.__goldbergTestState = {
-    getCameraPosition: () => view.getCameraPosition(),
-    rotateCameraByPixels: (deltaX, deltaY) => {
-      view.rotateCameraByPixels(deltaX, deltaY);
-      view.syncCameraImmediately();
-    },
-    zoomCameraByDelta: (deltaY) => {
-      view.zoomCameraByDelta(deltaY);
-      view.syncCameraImmediately();
-    },
-    getInteractiveCanvasPoint: () => view.getInteractiveCanvasPoint()
-  };
 
   const refreshHud = () => updateHud(elements, buildHudState());
 
   const syncScene = (nextCells: AppState["cells"]) => {
     appState.cells = nextCells;
     view.syncCells(appState.cells);
+    refreshHud();
+  };
+
+  const setPaintMode = (enabled: boolean) => {
+    appState.isPaintMode = enabled;
+    appState.pausedByPaint = enabled;
+    appState.lastPaintedCellId = null;
+    view.setControlsEnabled(!enabled);
+    refreshHud();
+  };
+
+  const setBrushTerrainKind = (terrainKind: Cell["terrainKind"]) => {
+    appState.brushTerrainKind = terrainKind;
     refreshHud();
   };
 
@@ -105,17 +112,21 @@ export function mountApp(root: HTMLElement): () => void {
     refreshHud();
   };
 
+  const paintStroke = (points: Array<{ x: number; y: number }>) => {
+    appState.lastPaintedCellId = null;
+    for (const point of points) {
+      paintAtClientPoint(point.x, point.y);
+    }
+    appState.lastPaintedCellId = null;
+  };
+
   const cleanupEvents = bindAppEvents(elements, view.canvasElement, {
     onTogglePlay: () => {
       appState.pausedByUser = !appState.pausedByUser;
       refreshHud();
     },
     onSetMode: (mode) => {
-      appState.isPaintMode = mode === "paint";
-      appState.pausedByPaint = appState.isPaintMode;
-      appState.lastPaintedCellId = null;
-      view.setControlsEnabled(!appState.isPaintMode);
-      refreshHud();
+      setPaintMode(mode === "paint");
     },
     onToggleAutoRotate: () => {
       appState.autoRotate = !appState.autoRotate;
@@ -129,8 +140,7 @@ export function mountApp(root: HTMLElement): () => void {
       syncScene(randomizeCellState(meshData.cells, Math.random() * 1000));
     },
     onSetBrush: (terrainKind) => {
-      appState.brushTerrainKind = terrainKind;
-      refreshHud();
+      setBrushTerrainKind(terrainKind);
     },
     onSetSpeed: (nextSpeed) => {
       appState.speed = nextSpeed;
@@ -159,6 +169,24 @@ export function mountApp(root: HTMLElement): () => void {
       refreshHud();
     }
   });
+
+  window.__goldbergTestState = {
+    getCameraPosition: () => view.getCameraPosition(),
+    rotateCameraByPixels: (deltaX, deltaY) => {
+      view.rotateCameraByPixels(deltaX, deltaY);
+      view.syncCameraImmediately();
+    },
+    zoomCameraByDelta: (deltaY) => {
+      view.zoomCameraByDelta(deltaY);
+      view.syncCameraImmediately();
+    },
+    getInteractiveCanvasPoint: () => view.getInteractiveCanvasPoint(),
+    setPaintMode,
+    setBrushTerrainKind,
+    paintStroke,
+    getSelectedCellSummary: () => buildSelectedCellSummary(appState.cells, appState.selectedCellId),
+    getCellTerrainKind: (cellId) => appState.cells.find((cell) => cell.id === cellId)?.terrainKind ?? null
+  };
 
   const onResize = () => view.resize();
   window.addEventListener("resize", onResize);
