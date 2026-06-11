@@ -205,27 +205,27 @@ class SimulationSceneController implements SimulationScene {
     this.resize();
   }
 
-  resize = () => {
+  resize() {
     const width = this.mount.clientWidth;
     const height = this.mount.clientHeight;
     this.renderer.setSize(width, height, false);
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
-  };
+  }
 
-  render = () => {
+  render() {
     const now = performance.now();
     const deltaSeconds = Math.min(0.05, (now - this.lastRenderTimestamp) / 1000);
     this.lastRenderTimestamp = now;
     this.controls.update(deltaSeconds);
     this.renderer.render(this.scene, this.camera);
-  };
+  }
 
-  setAnimationLoop = (callback: AnimationLoopCallback) => {
+  setAnimationLoop(callback: AnimationLoopCallback) {
     this.renderer.setAnimationLoop(callback);
-  };
+  }
 
-  updateCells = (cells: Cell[]) => {
+  updateCells(cells: Cell[]) {
     for (const cell of cells) {
       const visual = this.cellVisuals.get(cell.id);
       if (!visual) {
@@ -247,24 +247,29 @@ class SimulationSceneController implements SimulationScene {
     }
     this.surfaceCellInstances.sync();
     this.syncVegetationInstances();
-  };
+  }
 
-  setAutoRotate = (enabled: boolean) => {
+  setAutoRotate(enabled: boolean) {
     this.controls.setAutoRotate(enabled);
-  };
+  }
 
-  setControlsEnabled = (enabled: boolean) => {
+  setControlsEnabled(enabled: boolean) {
     this.controls.setEnabled(enabled);
-  };
+  }
 
-  getCameraPosition = () => this.controls.getCameraPosition();
+  getCameraPosition() {
+    return this.controls.getCameraPosition();
+  }
 
-  rotateCameraByPixels = (deltaX: number, deltaY: number) =>
+  rotateCameraByPixels(deltaX: number, deltaY: number) {
     this.controls.rotateByPointerDelta(deltaX, deltaY);
+  }
 
-  zoomCameraByDelta = (deltaY: number) => this.controls.zoomByWheelDelta(deltaY);
+  zoomCameraByDelta(deltaY: number) {
+    this.controls.zoomByWheelDelta(deltaY);
+  }
 
-  pickCellAtClientPoint = (clientX: number, clientY: number): number | null => {
+  pickCellAtClientPoint(clientX: number, clientY: number): number | null {
     const rect = this.renderer.domElement.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) {
       return null;
@@ -284,17 +289,17 @@ class SimulationSceneController implements SimulationScene {
     }
 
     return this.surfaceCellInstances.pickCellId(hit.object, hit.instanceId);
-  };
+  }
 
-  setHoveredCell = (cellId: number | null) => {
+  setHoveredCell(cellId: number | null) {
     this.selectionOverlay.setHoveredCell(cellId, (id) => this.cellVisuals.get(id));
-  };
+  }
 
-  setSelectedCell = (cellId: number | null) => {
+  setSelectedCell(cellId: number | null) {
     this.selectionOverlay.setSelectedCell(cellId, (id) => this.cellVisuals.get(id));
-  };
+  }
 
-  dispose = () => {
+  dispose() {
     this.controls.dispose();
     this.surfaceCellInstances.dispose();
     this.selectionOverlay.dispose();
@@ -305,7 +310,7 @@ class SimulationSceneController implements SimulationScene {
     this.weedGeometry.dispose();
     this.renderer.dispose();
     this.mount.removeChild(this.renderer.domElement);
-  };
+  }
 
   private syncVegetationInstances() {
     this.treeMesh.instanceMatrix.needsUpdate = true;

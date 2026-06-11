@@ -28,45 +28,68 @@ class SimulationViewAdapter implements SimulationView {
     this.canvasElement = scene.renderer.domElement;
   }
 
-  resize = () => this.scene.resize();
+  resize() {
+    this.scene.resize();
+  }
 
-  render = () => this.scene.render();
+  render() {
+    this.scene.render();
+  }
 
-  setAnimationLoop = (callback: ((time: number, frame?: XRFrame) => void) | null) => {
+  setAnimationLoop(callback: ((time: number, frame?: XRFrame) => void) | null) {
     this.scene.setAnimationLoop(callback);
-  };
+  }
 
-  dispose = () => this.scene.dispose();
+  dispose() {
+    this.scene.dispose();
+  }
 
-  syncCells = (cells: Cell[]) => this.scene.updateCells(cells);
+  syncCells(cells: Cell[]) {
+    this.scene.updateCells(cells);
+  }
 
-  setAutoRotate = (enabled: boolean) => this.scene.setAutoRotate(enabled);
+  setAutoRotate(enabled: boolean) {
+    this.scene.setAutoRotate(enabled);
+  }
 
-  setControlsEnabled = (enabled: boolean) => this.scene.setControlsEnabled(enabled);
+  setControlsEnabled(enabled: boolean) {
+    this.scene.setControlsEnabled(enabled);
+  }
 
-  setHoveredFromClientPoint = (clientX: number, clientY: number) => {
+  setHoveredFromClientPoint(clientX: number, clientY: number) {
     this.scene.setHoveredCell(this.scene.pickCellAtClientPoint(clientX, clientY));
-  };
+  }
 
-  clearHoveredCell = () => this.scene.setHoveredCell(null);
+  clearHoveredCell() {
+    this.scene.setHoveredCell(null);
+  }
 
-  setSelectedCell = (cellId: number | null) => this.scene.setSelectedCell(cellId);
+  setSelectedCell(cellId: number | null) {
+    this.scene.setSelectedCell(cellId);
+  }
 
-  pickCellAtClientPoint = (clientX: number, clientY: number) =>
-    this.scene.pickCellAtClientPoint(clientX, clientY);
+  pickCellAtClientPoint(clientX: number, clientY: number) {
+    return this.scene.pickCellAtClientPoint(clientX, clientY);
+  }
 
-  getCameraPosition = () => this.scene.getCameraPosition();
+  getCameraPosition() {
+    return this.scene.getCameraPosition();
+  }
 
-  rotateCameraByPixels = (deltaX: number, deltaY: number) =>
+  rotateCameraByPixels(deltaX: number, deltaY: number) {
     this.scene.rotateCameraByPixels(deltaX, deltaY);
+  }
 
-  zoomCameraByDelta = (deltaY: number) => this.scene.zoomCameraByDelta(deltaY);
+  zoomCameraByDelta(deltaY: number) {
+    this.scene.zoomCameraByDelta(deltaY);
+  }
 
-  getInteractiveCanvasPoint = () =>
-    findInteractiveCanvasPoint(
+  getInteractiveCanvasPoint() {
+    return findInteractiveCanvasPoint(
       this.canvasElement,
-      this.scene.pickCellAtClientPoint
+      this.scene.pickCellAtClientPoint.bind(this.scene)
     );
+  }
 }
 
 export function createSimulationView(
