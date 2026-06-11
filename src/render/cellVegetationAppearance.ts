@@ -28,6 +28,8 @@ const PENTAGON_SCALE = 0.9;
 const MIN_VEGETATION_THRESHOLD = 0.01;
 const TREE_VEGETATION_THRESHOLD = 0.22;
 const MAX_TREES = 5;
+const TREE_SURFACE_ANCHOR = 0.24;
+const WEED_SURFACE_ANCHOR = 0.12;
 const localUp = new Vector3(0, 1, 0);
 const hiddenScale = new Vector3(0, 0, 0);
 const tempPosition = new Vector3();
@@ -176,7 +178,7 @@ export function updateCellVegetationInstances(
 
     tempPosition.set(
       treeLayout.x * layoutScale,
-      height * 0.5,
+      height * TREE_SURFACE_ANCHOR,
       treeLayout.z * layoutScale
     );
     tempLocalQuaternion.setFromEuler(tempEuler.set(0, yaw, 0));
@@ -215,7 +217,7 @@ export function updateCellVegetationInstances(
 
     tempPosition.set(
       weedLayout.x * layoutScale,
-      height * 0.5,
+      height * WEED_SURFACE_ANCHOR,
       weedLayout.z * layoutScale
     );
     tempLocalQuaternion.setFromEuler(
