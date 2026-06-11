@@ -15,6 +15,7 @@ import {
   Vector3,
   WebGPURenderer
 } from "three/webgpu";
+import { Inspector } from "three/addons/inspector/Inspector.js";
 
 import { GoldbergCameraControls } from "./GoldbergCameraControls";
 import {
@@ -70,6 +71,7 @@ export function createSimulationScene(
   camera.position.set(0, 0, 4.4);
 
   const renderer = new WebGPURenderer({ antialias: true });
+  renderer.inspector = new Inspector();
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.domElement.style.touchAction = "none";
   mount.appendChild(renderer.domElement);
