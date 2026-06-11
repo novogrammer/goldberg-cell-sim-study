@@ -1,10 +1,8 @@
 import {
-  BoxGeometry,
-  ConeGeometry,
   Color,
-  Group,
-  Mesh,
-  MeshStandardMaterial,
+  Euler,
+  InstancedMesh,
+  Matrix4,
   Quaternion,
   Vector3
 } from "three/webgpu";
@@ -18,11 +16,10 @@ export interface VegetationIndicatorState {
   tint: Color;
 }
 
-export interface CellVegetationVisual {
-  group: Group;
-  material: MeshStandardMaterial;
-  trees: Mesh[];
-  weeds: Mesh[];
+export interface CellVegetationLayout {
+  cellScale: number;
+  position: Vector3;
+  rotation: Quaternion;
   sizeUnit: number;
 }
 
@@ -32,6 +29,14 @@ const MIN_VEGETATION_THRESHOLD = 0.01;
 const TREE_VEGETATION_THRESHOLD = 0.22;
 const MAX_TREES = 5;
 const localUp = new Vector3(0, 1, 0);
+const hiddenScale = new Vector3(0, 0, 0);
+const tempPosition = new Vector3();
+const tempScale = new Vector3();
+const tempWorldPosition = new Vector3();
+const tempWorldQuaternion = new Quaternion();
+const tempLocalQuaternion = new Quaternion();
+const tempEuler = new Euler();
+const tempMatrix = new Matrix4();
 
 const TREE_LAYOUTS: ReadonlyArray<{ x: number; z: number }> = [
   { x: 0, z: 0 },
@@ -53,6 +58,9 @@ const WEED_LAYOUTS: ReadonlyArray<{ x: number; z: number }> = [
   { x: -0.34, z: -0.46 }
 ];
 
+export const TREE_INSTANCE_COUNT = TREE_LAYOUTS.length;
+export const WEED_INSTANCE_COUNT = WEED_LAYOUTS.length;
+
 export interface VegetationSizeMetrics {
   baseHeight: number;
   baseRadius: number;
@@ -72,7 +80,10 @@ export function getVegetationIndicatorState(cell: Cell): VegetationIndicatorStat
   const vegetation = Math.max(0, Math.min(1, cell.vegetation));
   const visibleTreeCount = Math.min(
     MAX_TREES,
-    1 + Math.floor(Math.pow((vegetation - MIN_VEGETATION_THRESHOLD) / (1 - MIN_VEGETATION_THRESHOLD), 0.9) * (MAX_TREES - 0.0001))
+    1 + Math.floor(
+      Math.pow((vegetation - MIN_VEGETATION_THRESHOLD) / (1 - MIN_VEGETATION_THRESHOLD), 0.9) *
+        (MAX_TREES - 0.0001)
+    )
   );
   const vigor = Math.pow(vegetation, 0.72);
 
@@ -92,112 +103,133 @@ export function getVegetationSizeMetrics(face: CellFaceGeometry): VegetationSize
   };
 }
 
-export function createCellVegetationVisual(
+export function createCellVegetationLayout(
   face: CellFaceGeometry,
-  cell: Cell,
-  treeGeometry: ConeGeometry,
-  weedGeometry: BoxGeometry
-): CellVegetationVisual {
-  const material = new MeshStandardMaterial({
-    color: "#6d8f45",
-    roughness: 0.88,
-    metalness: 0.02
-  });
-  const group = new Group();
+  cell: Cell
+): CellVegetationLayout {
   const normal = new Vector3(...face.normal).normalize();
-  const cellScale = cell.isPentagon ? PENTAGON_SCALE : 1;
-  const sizeMetrics = getVegetationSizeMetrics(face);
-  group.position
-    .set(...face.center)
-    .add(normal.clone().multiplyScalar(SURFACE_LIFT));
-  group.quaternion.copy(new Quaternion().setFromUnitVectors(localUp, normal));
-  group.scale.setScalar(cellScale);
 
-  const trees = TREE_LAYOUTS.map(({ x, z }) => {
-    const tree = new Mesh(treeGeometry, material);
-    tree.position.set(
-      x * sizeMetrics.layoutScale,
-      0,
-      z * sizeMetrics.layoutScale
-    );
-    group.add(tree);
-    return tree;
-  });
-
-  const weeds = WEED_LAYOUTS.map(({ x, z }) => {
-    const weed = new Mesh(weedGeometry, material);
-    weed.position.set(
-      x * sizeMetrics.layoutScale,
-      0,
-      z * sizeMetrics.layoutScale
-    );
-    group.add(weed);
-    return weed;
-  });
-
-  const visual = { group, material, trees, weeds, sizeUnit: face.inradius };
-  updateCellVegetationVisual(visual, cell);
-  return visual;
+  return {
+    cellScale: cell.isPentagon ? PENTAGON_SCALE : 1,
+    position: new Vector3(...face.center).add(normal.clone().multiplyScalar(SURFACE_LIFT)),
+    rotation: new Quaternion().setFromUnitVectors(localUp, normal),
+    sizeUnit: face.inradius
+  };
 }
 
-export function updateCellVegetationVisual(visual: CellVegetationVisual, cell: Cell) {
-  const state = getVegetationIndicatorState(cell);
-  visual.material.color.copy(state.tint);
-  visual.group.visible = state.visibleTreeCount > 0;
-  const treeBaseHeight = visual.sizeUnit * 1.28;
-  const treeBaseRadius = visual.sizeUnit * 0.22;
-  const weedBaseHeight = visual.sizeUnit * 0.62;
-  const weedBaseRadius = visual.sizeUnit * 0.05;
-  const layoutScale = visual.sizeUnit * 1.18;
+function setHiddenInstance(mesh: InstancedMesh, index: number) {
+  tempMatrix.compose(new Vector3(), new Quaternion(), hiddenScale);
+  mesh.setMatrixAt(index, tempMatrix);
+}
 
-  for (let index = 0; index < visual.trees.length; index += 1) {
-    const tree = visual.trees[index];
-    const layout = TREE_LAYOUTS[index];
-    const isVisible = cell.vegetation >= TREE_VEGETATION_THRESHOLD && index < state.visibleTreeCount;
-    tree.visible = isVisible;
+function setInstanceTransform(
+  mesh: InstancedMesh,
+  index: number,
+  layout: CellVegetationLayout,
+  localPosition: Vector3,
+  localRotation: Quaternion,
+  localScale: Vector3,
+  tint: Color
+) {
+  tempWorldPosition
+    .copy(localPosition)
+    .multiplyScalar(layout.cellScale)
+    .applyQuaternion(layout.rotation)
+    .add(layout.position);
+  tempWorldQuaternion.copy(layout.rotation).multiply(localRotation);
+  tempScale.copy(localScale).multiplyScalar(layout.cellScale);
+  tempMatrix.compose(tempWorldPosition, tempWorldQuaternion, tempScale);
+  mesh.setMatrixAt(index, tempMatrix);
+  mesh.setColorAt(index, tint);
+}
+
+export function updateCellVegetationInstances(
+  treeMesh: InstancedMesh,
+  weedMesh: InstancedMesh,
+  treeStartIndex: number,
+  weedStartIndex: number,
+  layout: CellVegetationLayout,
+  cell: Cell
+) {
+  const state = getVegetationIndicatorState(cell);
+  const treeBaseHeight = layout.sizeUnit * 1.28;
+  const treeBaseRadius = layout.sizeUnit * 0.22;
+  const weedBaseHeight = layout.sizeUnit * 0.62;
+  const weedBaseRadius = layout.sizeUnit * 0.05;
+  const layoutScale = layout.sizeUnit * 1.18;
+
+  for (let index = 0; index < TREE_INSTANCE_COUNT; index += 1) {
+    const treeIndex = treeStartIndex + index;
+    const isVisible =
+      cell.vegetation >= TREE_VEGETATION_THRESHOLD && index < state.visibleTreeCount;
+
     if (!isVisible) {
+      setHiddenInstance(treeMesh, treeIndex);
       continue;
     }
 
+    const treeLayout = TREE_LAYOUTS[index];
     const height = treeBaseHeight * state.heightScale * (1 - index * 0.08);
     const radius = treeBaseRadius * state.radiusScale * (1 - index * 0.06);
-    const yaw = Math.atan2(layout.x, layout.z);
-    tree.position.set(
-      layout.x * layoutScale,
+    const yaw = Math.atan2(treeLayout.x, treeLayout.z);
+
+    tempPosition.set(
+      treeLayout.x * layoutScale,
       height * 0.5,
-      layout.z * layoutScale
+      treeLayout.z * layoutScale
     );
-    tree.scale.set(radius, height, radius);
-    tree.rotation.set(0, yaw, 0);
+    tempLocalQuaternion.setFromEuler(tempEuler.set(0, yaw, 0));
+    tempScale.set(radius, height, radius);
+
+    setInstanceTransform(
+      treeMesh,
+      treeIndex,
+      layout,
+      tempPosition,
+      tempLocalQuaternion,
+      tempScale,
+      state.tint
+    );
   }
 
-  for (let index = 0; index < visual.weeds.length; index += 1) {
-    const weed = visual.weeds[index];
-    const layout = WEED_LAYOUTS[index];
-    const visibleWeedCount = Math.min(
-      visual.weeds.length,
-      Math.max(2, state.visibleTreeCount * 2)
-    );
+  const visibleWeedCount = Math.min(
+    WEED_INSTANCE_COUNT,
+    Math.max(2, state.visibleTreeCount * 2)
+  );
+
+  for (let index = 0; index < WEED_INSTANCE_COUNT; index += 1) {
+    const weedIndex = weedStartIndex + index;
     const isVisible = index < visibleWeedCount;
-    weed.visible = isVisible;
+
     if (!isVisible) {
+      setHiddenInstance(weedMesh, weedIndex);
       continue;
     }
 
+    const weedLayout = WEED_LAYOUTS[index];
     const height = weedBaseHeight * state.heightScale * (1 - index * 0.035);
     const radius = weedBaseRadius * state.radiusScale * (1 - index * 0.03);
-    const yaw = Math.atan2(layout.x, layout.z);
+    const yaw = Math.atan2(weedLayout.x, weedLayout.z);
     const lean = 0.26 + index * 0.06;
-    weed.position.set(
-      layout.x * layoutScale,
-      height * 0.5,
-      layout.z * layoutScale
-    );
-    weed.scale.set(radius * 2, height, radius * 0.9);
-    weed.rotation.set(Math.cos(yaw) * lean, yaw, -Math.sin(yaw) * lean);
-  }
-}
 
-export function disposeCellVegetationVisual(visual: CellVegetationVisual) {
-  visual.material.dispose();
+    tempPosition.set(
+      weedLayout.x * layoutScale,
+      height * 0.5,
+      weedLayout.z * layoutScale
+    );
+    tempLocalQuaternion.setFromEuler(
+      tempEuler.set(Math.cos(yaw) * lean, yaw, -Math.sin(yaw) * lean)
+    );
+    tempScale.set(radius * 2, height, radius * 0.9);
+
+    setInstanceTransform(
+      weedMesh,
+      weedIndex,
+      layout,
+      tempPosition,
+      tempLocalQuaternion,
+      tempScale,
+      state.tint
+    );
+  }
 }

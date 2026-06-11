@@ -5,6 +5,7 @@ import {
   ConeGeometry,
   DirectionalLight,
   Group,
+  InstancedMesh,
   Mesh,
   MeshBasicMaterial,
   MeshStandardMaterial,
@@ -30,15 +31,20 @@ import {
   getTileBevelDrop
 } from "./cellVisualGeometry";
 import {
-  createCellVegetationVisual,
-  disposeCellVegetationVisual,
-  updateCellVegetationVisual,
-  type CellVegetationVisual
+  TREE_INSTANCE_COUNT,
+  WEED_INSTANCE_COUNT,
+  createCellVegetationLayout,
+  updateCellVegetationInstances,
+  type CellVegetationLayout
 } from "./cellVegetationAppearance";
 import type { Cell, GoldbergMeshData } from "../types";
 
 type AnimationLoopCallback = ((time: number, frame?: XRFrame) => void) | null;
-type RenderCellVisual = CellVisual & { vegetationVisual: CellVegetationVisual };
+type RenderCellVisual = CellVisual & {
+  treeStartIndex: number;
+  vegetationLayout: CellVegetationLayout;
+  weedStartIndex: number;
+};
 
 export interface SimulationScene {
   renderer: WebGPURenderer;
@@ -93,6 +99,29 @@ export function createSimulationScene(
   const bevelDrop = getTileBevelDrop(meshData);
   const treeGeometry = new ConeGeometry(1, 1, 5);
   const weedGeometry = new BoxGeometry(1, 1, 0.2);
+  const treeMaterial = new MeshStandardMaterial({
+    color: "#ffffff",
+    roughness: 0.88,
+    metalness: 0.02
+  });
+  const weedMaterial = new MeshStandardMaterial({
+    color: "#ffffff",
+    roughness: 0.88,
+    metalness: 0.02
+  });
+  const treeMesh = new InstancedMesh(
+    treeGeometry,
+    treeMaterial,
+    meshData.geometry.faces.length * TREE_INSTANCE_COUNT
+  );
+  const weedMesh = new InstancedMesh(
+    weedGeometry,
+    weedMaterial,
+    meshData.geometry.faces.length * WEED_INSTANCE_COUNT
+  );
+  treeMesh.count = meshData.geometry.faces.length * TREE_INSTANCE_COUNT;
+  weedMesh.count = meshData.geometry.faces.length * WEED_INSTANCE_COUNT;
+  group.add(treeMesh, weedMesh);
 
   const applyOverlayState = (cellId: number) => {
     applyCellOverlayState(cellVisuals.get(cellId), cellId, hoveredCellId, selectedCellId);
@@ -100,6 +129,9 @@ export function createSimulationScene(
 
   for (const face of meshData.geometry.faces) {
     const cell = cells[face.cellId];
+    const vegetationLayout = createCellVegetationLayout(face, cell);
+    const treeStartIndex = face.cellId * TREE_INSTANCE_COUNT;
+    const weedStartIndex = face.cellId * WEED_INSTANCE_COUNT;
     const polygonPoints = face.vertexIndices.map((vertexId) => geometryVertices[vertexId].clone());
     const faceNormal = new Vector3(...face.normal);
     const { tileGeometry, overlayGeometry } = createCellVisualGeometry(
@@ -125,13 +157,34 @@ export function createSimulationScene(
     overlayMaterial.visible = false;
     const overlayMesh = new Mesh(overlayGeometry, overlayMaterial);
     overlayMesh.renderOrder = 10;
-    const vegetationVisual = createCellVegetationVisual(face, cell, treeGeometry, weedGeometry);
 
     mesh.add(overlayMesh);
     group.add(mesh);
-    group.add(vegetationVisual.group);
-    cellVisuals.set(face.cellId, { mesh, material, overlayMesh, vegetationVisual });
+    cellVisuals.set(face.cellId, {
+      mesh,
+      material,
+      overlayMesh,
+      treeStartIndex,
+      vegetationLayout,
+      weedStartIndex
+    });
+    updateCellVegetationInstances(
+      treeMesh,
+      weedMesh,
+      treeStartIndex,
+      weedStartIndex,
+      vegetationLayout,
+      cell
+    );
     applyOverlayState(face.cellId);
+  }
+  treeMesh.instanceMatrix.needsUpdate = true;
+  weedMesh.instanceMatrix.needsUpdate = true;
+  if (treeMesh.instanceColor) {
+    treeMesh.instanceColor.needsUpdate = true;
+  }
+  if (weedMesh.instanceColor) {
+    weedMesh.instanceColor.needsUpdate = true;
   }
 
   const resize = () => {
@@ -149,7 +202,22 @@ export function createSimulationScene(
         continue;
       }
       applyCellMaterial(visual, cell);
-      updateCellVegetationVisual(visual.vegetationVisual, cell);
+      updateCellVegetationInstances(
+        treeMesh,
+        weedMesh,
+        visual.treeStartIndex,
+        visual.weedStartIndex,
+        visual.vegetationLayout,
+        cell
+      );
+    }
+    treeMesh.instanceMatrix.needsUpdate = true;
+    weedMesh.instanceMatrix.needsUpdate = true;
+    if (treeMesh.instanceColor) {
+      treeMesh.instanceColor.needsUpdate = true;
+    }
+    if (weedMesh.instanceColor) {
+      weedMesh.instanceColor.needsUpdate = true;
     }
   };
 
@@ -226,7 +294,6 @@ export function createSimulationScene(
     for (const visual of cellVisuals.values()) {
       visual.mesh.geometry.dispose();
       visual.material.dispose();
-      disposeCellVegetationVisual(visual.vegetationVisual);
       visual.overlayMesh.geometry.dispose();
       if (Array.isArray(visual.overlayMesh.material)) {
         for (const material of visual.overlayMesh.material) {
@@ -236,6 +303,8 @@ export function createSimulationScene(
         visual.overlayMesh.material.dispose();
       }
     }
+    treeMaterial.dispose();
+    weedMaterial.dispose();
     treeGeometry.dispose();
     weedGeometry.dispose();
     renderer.dispose();
