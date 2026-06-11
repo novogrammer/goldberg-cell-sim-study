@@ -9,6 +9,7 @@ import {
   Mesh,
   MeshStandardMaterial,
   PerspectiveCamera,
+  Quaternion,
   Raycaster,
   Scene,
   SphereGeometry,
@@ -37,8 +38,16 @@ import type { Cell, GoldbergMeshData } from "../types";
 
 type AnimationLoopCallback = ((time: number, frame?: XRFrame) => void) | null;
 const SURFACE_SPHERE_RADIUS_SCALE = 2;
+const HOVER_CAP_SCALE = 1.004;
+const SELECTED_CAP_SCALE = 1.005;
+const HOVER_RING_THETA_START = Math.PI * 0.2;
+const HOVER_RING_THETA_LENGTH = Math.PI * 0.3;
+const SELECTED_RING_THETA_START = Math.PI * 0.2;
+const SELECTED_RING_THETA_LENGTH = Math.PI * 0.3;
 
 type RenderCellVisual = CellVisual & {
+  normal: Vector3;
+  sphereCenter: Vector3;
   treeStartIndex: number;
   vegetationLayout: CellVegetationLayout;
   weedStartIndex: number;
@@ -90,10 +99,30 @@ export function createSimulationScene(
   scene.add(group);
 
   const cellVisuals = new Map<number, RenderCellVisual>();
+  const selectionUp = new Vector3(0, 1, 0);
+  const selectionQuaternion = new Quaternion();
   let lastRenderTimestamp = performance.now();
   const surfaceSphereRadius =
     getPackedSurfaceSphereRadius(meshData) * SURFACE_SPHERE_RADIUS_SCALE;
-  const surfaceSphereGeometry = new SphereGeometry(surfaceSphereRadius, 12, 10);
+  const surfaceSphereGeometry = new SphereGeometry(surfaceSphereRadius, 32, 16);
+  const hoverCapGeometry = new SphereGeometry(
+    surfaceSphereRadius * HOVER_CAP_SCALE,
+    32,
+    12,
+    0,
+    Math.PI * 2,
+    HOVER_RING_THETA_START,
+    HOVER_RING_THETA_LENGTH
+  );
+  const selectedCapGeometry = new SphereGeometry(
+    surfaceSphereRadius * SELECTED_CAP_SCALE,
+    32,
+    12,
+    0,
+    Math.PI * 2,
+    SELECTED_RING_THETA_START,
+    SELECTED_RING_THETA_LENGTH
+  );
   const treeGeometry = new ConeGeometry(1, 1, 5);
   const weedGeometry = new BoxGeometry(1, 1, 0.2);
   const treeMaterial = new MeshStandardMaterial({
@@ -116,9 +145,55 @@ export function createSimulationScene(
     weedMaterial,
     meshData.geometry.faces.length * WEED_INSTANCE_COUNT
   );
+  const hoverCapMaterial = new MeshStandardMaterial({
+    color: "#e1ff8a",
+    roughness: 0.32,
+    metalness: 0.02
+  });
+  const selectedCapMaterial = new MeshStandardMaterial({
+    color: "#fff3c4",
+    roughness: 0.22,
+    metalness: 0.04
+  });
+  const hoverCapMesh = new Mesh(hoverCapGeometry, hoverCapMaterial);
+  const selectedCapMesh = new Mesh(selectedCapGeometry, selectedCapMaterial);
   treeMesh.count = meshData.geometry.faces.length * TREE_INSTANCE_COUNT;
   weedMesh.count = meshData.geometry.faces.length * WEED_INSTANCE_COUNT;
-  group.add(treeMesh, weedMesh);
+  hoverCapMesh.visible = false;
+  selectedCapMesh.visible = false;
+  group.add(treeMesh, weedMesh, hoverCapMesh, selectedCapMesh);
+
+  let hoveredCellId: number | null = null;
+  let selectedCellId: number | null = null;
+
+  const placeSelectionCap = (
+    mesh: Mesh,
+    cellId: number | null
+  ) => {
+    if (cellId === null) {
+      mesh.visible = false;
+      return;
+    }
+
+    const visual = cellVisuals.get(cellId);
+    if (!visual) {
+      mesh.visible = false;
+      return;
+    }
+
+    selectionQuaternion.setFromUnitVectors(selectionUp, visual.normal);
+    mesh.position.copy(visual.sphereCenter);
+    mesh.quaternion.copy(selectionQuaternion);
+    mesh.visible = true;
+  };
+
+  const updateSelectionCaps = () => {
+    placeSelectionCap(selectedCapMesh, selectedCellId);
+    placeSelectionCap(
+      hoverCapMesh,
+      hoveredCellId !== selectedCellId ? hoveredCellId : null
+    );
+  };
 
   for (const face of meshData.geometry.faces) {
     const cell = cells[face.cellId];
@@ -136,14 +211,17 @@ export function createSimulationScene(
       metalness: 0.08
     });
     const mesh = new Mesh(surfaceSphereGeometry, material);
-    mesh.position
-      .set(...face.center)
-      .add(faceNormal.multiplyScalar(surfaceSphereRadius));
+    const sphereCenter = new Vector3(...face.center).add(
+      faceNormal.clone().multiplyScalar(surfaceSphereRadius)
+    );
+    mesh.position.copy(sphereCenter);
     mesh.userData.cellId = face.cellId;
     group.add(mesh);
     cellVisuals.set(face.cellId, {
       mesh,
       material,
+      normal: faceNormal.clone(),
+      sphereCenter,
       treeStartIndex,
       vegetationLayout,
       weedStartIndex
@@ -234,9 +312,15 @@ export function createSimulationScene(
     return typeof hit.object.userData.cellId === "number" ? hit.object.userData.cellId : null;
   };
 
-  const setHoveredCell = (_cellId: number | null) => {};
+  const setHoveredCell = (cellId: number | null) => {
+    hoveredCellId = cellId;
+    updateSelectionCaps();
+  };
 
-  const setSelectedCell = (_cellId: number | null) => {};
+  const setSelectedCell = (cellId: number | null) => {
+    selectedCellId = cellId;
+    updateSelectionCaps();
+  };
 
   const render = () => {
     const now = performance.now();
@@ -266,6 +350,10 @@ export function createSimulationScene(
       }
     }
     surfaceSphereGeometry.dispose();
+    hoverCapGeometry.dispose();
+    selectedCapGeometry.dispose();
+    hoverCapMaterial.dispose();
+    selectedCapMaterial.dispose();
     treeMaterial.dispose();
     weedMaterial.dispose();
     treeGeometry.dispose();
