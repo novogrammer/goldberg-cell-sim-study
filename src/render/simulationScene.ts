@@ -29,11 +29,8 @@ import {
   type CellVegetationLayout
 } from "./cellVegetationAppearance";
 import {
-  LAND_SURFACE_ROUGHNESS,
-  WATER_SURFACE_ROUGHNESS,
-  applySurfaceCellState,
   getPackedSurfaceSphereRadius,
-  resolveSurfaceCellIdFromIntersection,
+  SurfaceCellInstances,
   type SurfaceCellInstanceData
 } from "./surfaceCellInstances";
 import type { Cell, GoldbergMeshData } from "../types";
@@ -99,10 +96,8 @@ export function createSimulationScene(
   scene.add(group);
 
   const cellVisuals = new Map<number, RenderCellVisual>();
-  const landInstanceToCellId = new Map<number, number>();
   const selectionUp = new Vector3(0, 1, 0);
   const selectionQuaternion = new Quaternion();
-  const waterInstanceToCellId = new Map<number, number>();
   let lastRenderTimestamp = performance.now();
   const surfaceSphereRadius =
     getPackedSurfaceSphereRadius(meshData) * SURFACE_SPHERE_RADIUS_SCALE;
@@ -140,35 +135,19 @@ export function createSimulationScene(
     roughness: 0.88,
     metalness: 0.02
   });
-  const landSurfaceMaterial = new MeshStandardMaterial({
-    color: "#ffffff",
-    roughness: LAND_SURFACE_ROUGHNESS,
-    metalness: 0.08
-  });
   const weedMaterial = new MeshStandardMaterial({
     color: "#ffffff",
     roughness: 0.88,
     metalness: 0.02
   });
-  const waterSurfaceMaterial = new MeshStandardMaterial({
-    color: "#ffffff",
-    roughness: WATER_SURFACE_ROUGHNESS,
-    metalness: 0.08
-  });
-  const landSurfaceMesh = new InstancedMesh(
+  const surfaceCellInstances = new SurfaceCellInstances(
     surfaceSphereGeometry,
-    landSurfaceMaterial,
     meshData.geometry.faces.length
   );
   const treeMesh = new InstancedMesh(
     treeGeometry,
     treeMaterial,
     meshData.geometry.faces.length * TREE_INSTANCE_COUNT
-  );
-  const waterSurfaceMesh = new InstancedMesh(
-    surfaceSphereGeometry,
-    waterSurfaceMaterial,
-    meshData.geometry.faces.length
   );
   const weedMesh = new InstancedMesh(
     weedGeometry,
@@ -187,13 +166,18 @@ export function createSimulationScene(
   });
   const hoverCapMesh = new Mesh(hoverCapGeometry, hoverCapMaterial);
   const selectedCapMesh = new Mesh(selectedCapGeometry, selectedCapMaterial);
-  landSurfaceMesh.count = meshData.geometry.faces.length;
   treeMesh.count = meshData.geometry.faces.length * TREE_INSTANCE_COUNT;
-  waterSurfaceMesh.count = meshData.geometry.faces.length;
   weedMesh.count = meshData.geometry.faces.length * WEED_INSTANCE_COUNT;
   hoverCapMesh.visible = false;
   selectedCapMesh.visible = false;
-  group.add(landSurfaceMesh, waterSurfaceMesh, treeMesh, weedMesh, hoverCapMesh, selectedCapMesh);
+  group.add(
+    surfaceCellInstances.landMesh,
+    surfaceCellInstances.waterMesh,
+    treeMesh,
+    weedMesh,
+    hoverCapMesh,
+    selectedCapMesh
+  );
 
   let hoveredCellId: number | null = null;
   let selectedCellId: number | null = null;
@@ -254,11 +238,8 @@ export function createSimulationScene(
       waterInstanceId,
       weedStartIndex
     };
-    landInstanceToCellId.set(landInstanceId, face.cellId);
-    waterInstanceToCellId.set(waterInstanceId, face.cellId);
-    applySurfaceCellState(
-      landSurfaceMesh,
-      waterSurfaceMesh,
+    surfaceCellInstances.registerCell(face.cellId, visual);
+    surfaceCellInstances.applyCellState(
       visual,
       cell.terrainKind,
       cellColor
@@ -273,18 +254,11 @@ export function createSimulationScene(
       cell
     );
   }
-  landSurfaceMesh.instanceMatrix.needsUpdate = true;
+  surfaceCellInstances.sync();
   treeMesh.instanceMatrix.needsUpdate = true;
-  waterSurfaceMesh.instanceMatrix.needsUpdate = true;
   weedMesh.instanceMatrix.needsUpdate = true;
-  if (landSurfaceMesh.instanceColor) {
-    landSurfaceMesh.instanceColor.needsUpdate = true;
-  }
   if (treeMesh.instanceColor) {
     treeMesh.instanceColor.needsUpdate = true;
-  }
-  if (waterSurfaceMesh.instanceColor) {
-    waterSurfaceMesh.instanceColor.needsUpdate = true;
   }
   if (weedMesh.instanceColor) {
     weedMesh.instanceColor.needsUpdate = true;
@@ -304,9 +278,7 @@ export function createSimulationScene(
       if (!visual) {
         continue;
       }
-      applySurfaceCellState(
-        landSurfaceMesh,
-        waterSurfaceMesh,
+      surfaceCellInstances.applyCellState(
         visual,
         cell.terrainKind,
         colorForCell(cell)
@@ -320,18 +292,11 @@ export function createSimulationScene(
         cell
       );
     }
-    landSurfaceMesh.instanceMatrix.needsUpdate = true;
+    surfaceCellInstances.sync();
     treeMesh.instanceMatrix.needsUpdate = true;
-    waterSurfaceMesh.instanceMatrix.needsUpdate = true;
     weedMesh.instanceMatrix.needsUpdate = true;
-    if (landSurfaceMesh.instanceColor) {
-      landSurfaceMesh.instanceColor.needsUpdate = true;
-    }
     if (treeMesh.instanceColor) {
       treeMesh.instanceColor.needsUpdate = true;
-    }
-    if (waterSurfaceMesh.instanceColor) {
-      waterSurfaceMesh.instanceColor.needsUpdate = true;
     }
     if (weedMesh.instanceColor) {
       weedMesh.instanceColor.needsUpdate = true;
@@ -359,20 +324,19 @@ export function createSimulationScene(
     pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
     pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
     raycaster.setFromCamera(pointer, camera);
-    const intersections = raycaster.intersectObjects([landSurfaceMesh, waterSurfaceMesh], false);
+    const intersections = raycaster.intersectObjects(
+      [surfaceCellInstances.landMesh, surfaceCellInstances.waterMesh],
+      false
+    );
 
     const hit = intersections[0];
     if (!hit || typeof hit.instanceId !== "number") {
       return null;
     }
 
-    return resolveSurfaceCellIdFromIntersection(
+    return surfaceCellInstances.pickCellId(
       hit.object,
-      hit.instanceId,
-      landSurfaceMesh,
-      waterSurfaceMesh,
-      landInstanceToCellId,
-      waterInstanceToCellId
+      hit.instanceId
     );
   };
 
@@ -406,14 +370,13 @@ export function createSimulationScene(
 
   const dispose = () => {
     controls.dispose();
+    surfaceCellInstances.dispose();
     surfaceSphereGeometry.dispose();
     hoverCapGeometry.dispose();
     selectedCapGeometry.dispose();
     hoverCapMaterial.dispose();
-    landSurfaceMaterial.dispose();
     selectedCapMaterial.dispose();
     treeMaterial.dispose();
-    waterSurfaceMaterial.dispose();
     weedMaterial.dispose();
     treeGeometry.dispose();
     weedGeometry.dispose();
