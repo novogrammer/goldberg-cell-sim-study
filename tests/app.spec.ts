@@ -37,6 +37,20 @@ async function clickControl(control: Locator) {
   await control.dispatchEvent('click');
 }
 
+async function enterPaintMode(page: Page) {
+  const paintButton = page.getByRole('button', { name: 'Paint' });
+  const brush = page.locator('[data-action="brush"]');
+
+  await clickControl(paintButton);
+  await expect(paintButton).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('[data-stat="paint-state"]')).toHaveText('Active');
+  await expect(page.locator('[data-stat="viewport-mode"]')).toHaveText('Paint mode');
+  await expect(brush).toBeVisible();
+  await expect(brush).toBeEnabled();
+
+  return { paintButton, brush };
+}
+
 async function dragAcrossCanvas(
   page: Page,
   start: { x: number; y: number },
@@ -118,7 +132,7 @@ test('セル未選択時は主要コントロールが表示される', async ({
 test('モード切り替えに応じて viewport のガイドと操作状態が切り替わる', async ({ page }) => {
   await page.goto('/');
 
-  await clickControl(page.getByRole('button', { name: 'Paint' }));
+  await enterPaintMode(page);
 
   await expect(page.locator('[data-panel="simulation"]')).toBeHidden();
   await expect(page.locator('[data-panel="camera"]')).toBeHidden();
@@ -243,7 +257,7 @@ test('canvas 上のセルを選択すると selection detail が更新される'
 test('ペイントモードで選択セルの terrain を直接切り替えられる', async ({ page }) => {
   await page.goto('/');
 
-  await page.getByRole('button', { name: 'Auto Rotate' }).click();
+  await clickControl(page.getByRole('button', { name: 'Auto Rotate' }));
   const target = await getInteractiveCanvasPoint(page);
   if (!target) {
     throw new Error('Interactive canvas point was not available.');
@@ -254,10 +268,8 @@ test('ペイントモードで選択セルの terrain を直接切り替えら�
   const currentTerrain = await terrainStat.textContent();
   const nextTerrain = currentTerrain === 'water' ? 'land' : 'water';
 
-  await clickControl(page.getByRole('button', { name: 'Paint' }));
-  await expect(page.getByRole('button', { name: 'Paint' })).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.locator('[data-stat="paint-state"]')).toHaveText('Active');
-  await page.locator('[data-action="brush"]').selectOption(nextTerrain);
+  const { brush } = await enterPaintMode(page);
+  await brush.selectOption(nextTerrain);
 
   await page.mouse.click(target.x, target.y);
 
@@ -274,8 +286,8 @@ test('ペイントモードではドラッグして複数セルにまたがる�
     throw new Error('Interactive canvas point was not available.');
   }
 
-  await clickControl(page.getByRole('button', { name: 'Paint' }));
-  await page.locator('[data-action="brush"]').selectOption('land');
+  const { brush } = await enterPaintMode(page);
+  await brush.selectOption('land');
   await dragAcrossCanvas(
     page,
     { x: target.x, y: target.y },
@@ -290,15 +302,13 @@ test('ペイントモードではドラッグして複数セルにまたがる�
 test('ペイントモード中のドラッグではカメラが回転しない', async ({ page }) => {
   await page.goto('/');
 
-  await expect(page.getByRole('button', { name: 'Auto Rotate' })).toBeVisible();
+  await clickControl(page.getByRole('button', { name: 'Auto Rotate' }));
   const target = await getInteractiveCanvasPoint(page);
   if (!target) {
     throw new Error('Interactive canvas point was not available.');
   }
 
-  await page.getByRole('button', { name: 'Paint' }).click();
-  await expect(page.getByRole('button', { name: 'Paint' })).toHaveAttribute('aria-pressed', 'true');
-  await page.waitForTimeout(250);
+  await enterPaintMode(page);
   const before = await getCameraPosition(page);
   if (!before) {
     throw new Error('Camera position hook was not available.');
