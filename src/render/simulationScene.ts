@@ -1,6 +1,7 @@
 import {
   AmbientLight,
   Color,
+  ConeGeometry,
   DirectionalLight,
   Group,
   Mesh,
@@ -26,9 +27,16 @@ import {
   createCellVisualGeometry,
   getTileBevelDrop
 } from "./cellVisualGeometry";
+import {
+  createCellVegetationVisual,
+  disposeCellVegetationVisual,
+  updateCellVegetationVisual,
+  type CellVegetationVisual
+} from "./cellVegetationAppearance";
 import type { Cell, GoldbergMeshData } from "../types";
 
 type AnimationLoopCallback = ((time: number, frame?: XRFrame) => void) | null;
+type RenderCellVisual = CellVisual & { vegetationVisual: CellVegetationVisual };
 
 export interface SimulationScene {
   renderer: WebGPURenderer;
@@ -74,12 +82,13 @@ export function createSimulationScene(
   const group = new Group();
   scene.add(group);
 
-  const cellVisuals = new Map<number, CellVisual>();
+  const cellVisuals = new Map<number, RenderCellVisual>();
   let hoveredCellId: number | null = null;
   let selectedCellId: number | null = null;
   let lastRenderTimestamp = performance.now();
   const geometryVertices = meshData.geometry.vertices.map((vertex) => new Vector3(...vertex));
   const bevelDrop = getTileBevelDrop(meshData);
+  const sproutGeometry = new ConeGeometry(1, 1, 5);
 
   const applyOverlayState = (cellId: number) => {
     applyCellOverlayState(cellVisuals.get(cellId), cellId, hoveredCellId, selectedCellId);
@@ -112,10 +121,12 @@ export function createSimulationScene(
     overlayMaterial.visible = false;
     const overlayMesh = new Mesh(overlayGeometry, overlayMaterial);
     overlayMesh.renderOrder = 10;
+    const vegetationVisual = createCellVegetationVisual(face, cell, sproutGeometry);
 
     mesh.add(overlayMesh);
     group.add(mesh);
-    cellVisuals.set(face.cellId, { mesh, material, overlayMesh });
+    group.add(vegetationVisual.group);
+    cellVisuals.set(face.cellId, { mesh, material, overlayMesh, vegetationVisual });
     applyOverlayState(face.cellId);
   }
 
@@ -134,6 +145,7 @@ export function createSimulationScene(
         continue;
       }
       applyCellMaterial(visual, cell);
+      updateCellVegetationVisual(visual.vegetationVisual, cell);
     }
   };
 
@@ -210,6 +222,7 @@ export function createSimulationScene(
     for (const visual of cellVisuals.values()) {
       visual.mesh.geometry.dispose();
       visual.material.dispose();
+      disposeCellVegetationVisual(visual.vegetationVisual);
       visual.overlayMesh.geometry.dispose();
       if (Array.isArray(visual.overlayMesh.material)) {
         for (const material of visual.overlayMesh.material) {
@@ -219,6 +232,7 @@ export function createSimulationScene(
         visual.overlayMesh.material.dispose();
       }
     }
+    sproutGeometry.dispose();
     renderer.dispose();
     mount.removeChild(renderer.domElement);
   };
