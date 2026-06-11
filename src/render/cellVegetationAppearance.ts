@@ -105,13 +105,14 @@ export function getVegetationSizeMetrics(face: CellFaceGeometry): VegetationSize
 
 export function createCellVegetationLayout(
   face: CellFaceGeometry,
-  cell: Cell
+  cell: Cell,
+  surfaceLift = SURFACE_LIFT
 ): CellVegetationLayout {
   const normal = new Vector3(...face.normal).normalize();
 
   return {
     cellScale: cell.isPentagon ? PENTAGON_SCALE : 1,
-    position: new Vector3(...face.center).add(normal.clone().multiplyScalar(SURFACE_LIFT)),
+    position: new Vector3(...face.center).add(normal.clone().multiplyScalar(surfaceLift)),
     rotation: new Quaternion().setFromUnitVectors(localUp, normal),
     sizeUnit: face.inradius
   };

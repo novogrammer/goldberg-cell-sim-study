@@ -12,6 +12,7 @@ const TILE_DEPTH = 0.12;
 const TILE_SURFACE_LIFT = 0.08;
 const TILE_TOP_INSET = 0.04;
 const TILE_BEVEL_DROP_RATIO = 0.18;
+const DEFAULT_SURFACE_RADIUS = 1;
 
 function createTileSurfaceProfile(
   points: Vector3[],
@@ -162,6 +163,49 @@ export function getTileBevelDrop(meshData: GoldbergMeshData) {
   const hexagonFaces = meshData.geometry.faces.filter((face) => !meshData.cells[face.cellId].isPentagon);
   const total = hexagonFaces.reduce((sum, face) => sum + face.inradius, 0);
   return (total / hexagonFaces.length) * TILE_BEVEL_DROP_RATIO;
+}
+
+export function getPackedSurfaceSphereRadius(meshData: GoldbergMeshData) {
+  const faceCenters = new Map<number, Vector3>();
+  let totalSurfaceRadius = 0;
+
+  for (const face of meshData.geometry.faces) {
+    const center = new Vector3(...face.center);
+    faceCenters.set(face.cellId, center);
+    totalSurfaceRadius += center.length();
+  }
+
+  let totalNeighborDistance = 0;
+  let neighborPairCount = 0;
+
+  for (const face of meshData.geometry.faces) {
+    const center = faceCenters.get(face.cellId);
+    if (!center) {
+      continue;
+    }
+
+    for (const neighborId of meshData.cells[face.cellId].neighbors) {
+      if (neighborId <= face.cellId) {
+        continue;
+      }
+
+      const neighborCenter = faceCenters.get(neighborId);
+      if (!neighborCenter) {
+        continue;
+      }
+
+      totalNeighborDistance += center.distanceTo(neighborCenter);
+      neighborPairCount += 1;
+    }
+  }
+
+  if (neighborPairCount === 0) {
+    return meshData.geometry.faces.reduce((sum, face) => sum + face.inradius, 0) / meshData.geometry.faces.length;
+  }
+
+  const averageSurfaceRadius = totalSurfaceRadius / meshData.geometry.faces.length || DEFAULT_SURFACE_RADIUS;
+  const averageNeighborDistance = totalNeighborDistance / neighborPairCount;
+  return (averageSurfaceRadius * averageNeighborDistance) / (2 * averageSurfaceRadius - averageNeighborDistance);
 }
 
 export function createCellVisualGeometry(

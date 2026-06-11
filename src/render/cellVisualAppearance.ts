@@ -10,7 +10,7 @@ import type { Cell } from "../types";
 export interface CellVisual {
   mesh: Mesh;
   material: MeshStandardMaterial;
-  overlayMesh: Mesh;
+  overlayMesh?: Mesh;
 }
 
 const HOVER_COLOR = "#fff2a8";
@@ -52,6 +52,10 @@ export function applyOverlayState(
   selectedCellId: number | null
 ) {
   if (!visual) {
+    return;
+  }
+
+  if (!visual.overlayMesh) {
     return;
   }
 

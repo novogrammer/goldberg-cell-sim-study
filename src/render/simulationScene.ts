@@ -7,11 +7,11 @@ import {
   Group,
   InstancedMesh,
   Mesh,
-  MeshBasicMaterial,
   MeshStandardMaterial,
   PerspectiveCamera,
   Raycaster,
   Scene,
+  SphereGeometry,
   Vector2,
   Vector3,
   WebGPURenderer
@@ -21,15 +21,11 @@ import { Inspector } from "three/addons/inspector/Inspector.js";
 import { GoldbergCameraControls } from "./GoldbergCameraControls";
 import {
   applyCellMaterial,
-  applyOverlayState as applyCellOverlayState,
   colorForCell,
   roughnessForCell,
   type CellVisual
 } from "./cellVisualAppearance";
-import {
-  createCellVisualGeometry,
-  getTileBevelDrop
-} from "./cellVisualGeometry";
+import { getPackedSurfaceSphereRadius } from "./cellVisualGeometry";
 import {
   TREE_INSTANCE_COUNT,
   WEED_INSTANCE_COUNT,
@@ -40,6 +36,8 @@ import {
 import type { Cell, GoldbergMeshData } from "../types";
 
 type AnimationLoopCallback = ((time: number, frame?: XRFrame) => void) | null;
+const SURFACE_SPHERE_RADIUS_SCALE = 2;
+
 type RenderCellVisual = CellVisual & {
   treeStartIndex: number;
   vegetationLayout: CellVegetationLayout;
@@ -92,11 +90,10 @@ export function createSimulationScene(
   scene.add(group);
 
   const cellVisuals = new Map<number, RenderCellVisual>();
-  let hoveredCellId: number | null = null;
-  let selectedCellId: number | null = null;
   let lastRenderTimestamp = performance.now();
-  const geometryVertices = meshData.geometry.vertices.map((vertex) => new Vector3(...vertex));
-  const bevelDrop = getTileBevelDrop(meshData);
+  const surfaceSphereRadius =
+    getPackedSurfaceSphereRadius(meshData) * SURFACE_SPHERE_RADIUS_SCALE;
+  const surfaceSphereGeometry = new SphereGeometry(surfaceSphereRadius, 12, 10);
   const treeGeometry = new ConeGeometry(1, 1, 5);
   const weedGeometry = new BoxGeometry(1, 1, 0.2);
   const treeMaterial = new MeshStandardMaterial({
@@ -123,47 +120,30 @@ export function createSimulationScene(
   weedMesh.count = meshData.geometry.faces.length * WEED_INSTANCE_COUNT;
   group.add(treeMesh, weedMesh);
 
-  const applyOverlayState = (cellId: number) => {
-    applyCellOverlayState(cellVisuals.get(cellId), cellId, hoveredCellId, selectedCellId);
-  };
-
   for (const face of meshData.geometry.faces) {
     const cell = cells[face.cellId];
-    const vegetationLayout = createCellVegetationLayout(face, cell);
+    const faceNormal = new Vector3(...face.normal).normalize();
+    const vegetationLayout = createCellVegetationLayout(
+      face,
+      cell,
+      surfaceSphereRadius * 2 + 0.012
+    );
     const treeStartIndex = face.cellId * TREE_INSTANCE_COUNT;
     const weedStartIndex = face.cellId * WEED_INSTANCE_COUNT;
-    const polygonPoints = face.vertexIndices.map((vertexId) => geometryVertices[vertexId].clone());
-    const faceNormal = new Vector3(...face.normal);
-    const { tileGeometry, overlayGeometry } = createCellVisualGeometry(
-      polygonPoints,
-      faceNormal,
-      face.circumradius,
-      bevelDrop
-    );
     const material = new MeshStandardMaterial({
       color: colorForCell(cell),
       roughness: roughnessForCell(cell),
       metalness: 0.08
     });
-    const mesh = new Mesh(tileGeometry, material);
+    const mesh = new Mesh(surfaceSphereGeometry, material);
+    mesh.position
+      .set(...face.center)
+      .add(faceNormal.multiplyScalar(surfaceSphereRadius));
     mesh.userData.cellId = face.cellId;
-    const overlayMaterial = new MeshBasicMaterial({
-      color: "#fff2a8",
-      transparent: true,
-      opacity: 0,
-      depthWrite: false,
-      depthTest: false
-    });
-    overlayMaterial.visible = false;
-    const overlayMesh = new Mesh(overlayGeometry, overlayMaterial);
-    overlayMesh.renderOrder = 10;
-
-    mesh.add(overlayMesh);
     group.add(mesh);
     cellVisuals.set(face.cellId, {
       mesh,
       material,
-      overlayMesh,
       treeStartIndex,
       vegetationLayout,
       weedStartIndex
@@ -176,7 +156,6 @@ export function createSimulationScene(
       vegetationLayout,
       cell
     );
-    applyOverlayState(face.cellId);
   }
   treeMesh.instanceMatrix.needsUpdate = true;
   weedMesh.instanceMatrix.needsUpdate = true;
@@ -255,27 +234,9 @@ export function createSimulationScene(
     return typeof hit.object.userData.cellId === "number" ? hit.object.userData.cellId : null;
   };
 
-  const setHoveredCell = (cellId: number | null) => {
-    const previous = hoveredCellId;
-    hoveredCellId = cellId;
-    if (previous !== null) {
-      applyOverlayState(previous);
-    }
-    if (cellId !== null) {
-      applyOverlayState(cellId);
-    }
-  };
+  const setHoveredCell = (_cellId: number | null) => {};
 
-  const setSelectedCell = (cellId: number | null) => {
-    const previous = selectedCellId;
-    selectedCellId = cellId;
-    if (previous !== null) {
-      applyOverlayState(previous);
-    }
-    if (cellId !== null) {
-      applyOverlayState(cellId);
-    }
-  };
+  const setSelectedCell = (_cellId: number | null) => {};
 
   const render = () => {
     const now = performance.now();
@@ -292,17 +253,19 @@ export function createSimulationScene(
   const dispose = () => {
     controls.dispose();
     for (const visual of cellVisuals.values()) {
-      visual.mesh.geometry.dispose();
       visual.material.dispose();
-      visual.overlayMesh.geometry.dispose();
-      if (Array.isArray(visual.overlayMesh.material)) {
-        for (const material of visual.overlayMesh.material) {
-          material.dispose();
+      if (visual.overlayMesh) {
+        visual.overlayMesh.geometry.dispose();
+        if (Array.isArray(visual.overlayMesh.material)) {
+          for (const material of visual.overlayMesh.material) {
+            material.dispose();
+          }
+        } else {
+          visual.overlayMesh.material.dispose();
         }
-      } else {
-        visual.overlayMesh.material.dispose();
       }
     }
+    surfaceSphereGeometry.dispose();
     treeMaterial.dispose();
     weedMaterial.dispose();
     treeGeometry.dispose();
