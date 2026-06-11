@@ -43,9 +43,11 @@ const HOVER_RING_THETA_LENGTH = Math.PI * 0.22;
 const SELECTED_RING_THETA_START = Math.PI * 0.18;
 const SELECTED_RING_THETA_LENGTH = Math.PI * 0.22;
 
+type SurfaceMeshKind = "land" | "water";
 type RenderCellVisual = {
   landInstanceId: number;
   normal: Vector3;
+  surfaceRotation: Quaternion;
   sphereCenter: Vector3;
   treeStartIndex: number;
   vegetationLayout: CellVegetationLayout;
@@ -99,12 +101,14 @@ export function createSimulationScene(
   scene.add(group);
 
   const cellVisuals = new Map<number, RenderCellVisual>();
+  const landInstanceToCellId = new Map<number, number>();
   const hiddenScale = new Vector3(0, 0, 0);
   const identityScale = new Vector3(1, 1, 1);
   const selectionUp = new Vector3(0, 1, 0);
   const selectionQuaternion = new Quaternion();
   const tempRotation = new Quaternion();
   const tempSurfaceMatrix = new Matrix4();
+  const waterInstanceToCellId = new Map<number, number>();
   let lastRenderTimestamp = performance.now();
   const surfaceSphereRadius =
     getPackedSurfaceSphereRadius(meshData) * SURFACE_SPHERE_RADIUS_SCALE;
@@ -200,20 +204,19 @@ export function createSimulationScene(
   let hoveredCellId: number | null = null;
   let selectedCellId: number | null = null;
 
-  const setSurfaceInstanceTransform = (
-    mesh: InstancedMesh,
-    instanceId: number,
-    position: Vector3,
-    rotation: Quaternion,
-    visible: boolean
-  ) => {
-    tempRotation.copy(rotation);
+  const setSurfaceInstanceTransform = (mesh: InstancedMesh, instanceId: number, visual: RenderCellVisual, visible: boolean) => {
+    tempRotation.copy(visual.surfaceRotation);
     tempSurfaceMatrix.compose(
-      position,
+      visual.sphereCenter,
       tempRotation,
       visible ? identityScale : hiddenScale
     );
     mesh.setMatrixAt(instanceId, tempSurfaceMatrix);
+  };
+
+  const setSurfaceVisibility = (visual: RenderCellVisual, terrainKind: Cell["terrainKind"]) => {
+    setSurfaceInstanceTransform(landSurfaceMesh, visual.landInstanceId, visual, terrainKind === "land");
+    setSurfaceInstanceTransform(waterSurfaceMesh, visual.waterInstanceId, visual, terrainKind === "water");
   };
 
   const placeSelectionCap = (
@@ -262,31 +265,22 @@ export function createSimulationScene(
     const sphereCenter = new Vector3(...face.center).add(
       faceNormal.clone().multiplyScalar(surfaceSphereRadius)
     );
-    setSurfaceInstanceTransform(
-      landSurfaceMesh,
-      landInstanceId,
-      sphereCenter,
-      instanceRotation,
-      cell.terrainKind === "land"
-    );
-    setSurfaceInstanceTransform(
-      waterSurfaceMesh,
-      waterInstanceId,
-      sphereCenter,
-      instanceRotation,
-      cell.terrainKind === "water"
-    );
-    landSurfaceMesh.setColorAt(landInstanceId, cellColor);
-    waterSurfaceMesh.setColorAt(waterInstanceId, cellColor);
-    cellVisuals.set(face.cellId, {
+    const visual: RenderCellVisual = {
       landInstanceId,
       normal: faceNormal.clone(),
+      surfaceRotation: instanceRotation.clone(),
       sphereCenter,
       treeStartIndex,
       vegetationLayout,
       waterInstanceId,
       weedStartIndex
-    });
+    };
+    landInstanceToCellId.set(landInstanceId, face.cellId);
+    waterInstanceToCellId.set(waterInstanceId, face.cellId);
+    setSurfaceVisibility(visual, cell.terrainKind);
+    landSurfaceMesh.setColorAt(landInstanceId, cellColor);
+    waterSurfaceMesh.setColorAt(waterInstanceId, cellColor);
+    cellVisuals.set(face.cellId, visual);
     updateCellVegetationInstances(
       treeMesh,
       weedMesh,
@@ -330,20 +324,7 @@ export function createSimulationScene(
       const cellColor = colorForCell(cell);
       landSurfaceMesh.setColorAt(visual.landInstanceId, cellColor);
       waterSurfaceMesh.setColorAt(visual.waterInstanceId, cellColor);
-      setSurfaceInstanceTransform(
-        landSurfaceMesh,
-        visual.landInstanceId,
-        visual.sphereCenter,
-        new Quaternion().setFromUnitVectors(selectionUp, visual.normal),
-        cell.terrainKind === "land"
-      );
-      setSurfaceInstanceTransform(
-        waterSurfaceMesh,
-        visual.waterInstanceId,
-        visual.sphereCenter,
-        new Quaternion().setFromUnitVectors(selectionUp, visual.normal),
-        cell.terrainKind === "water"
-      );
+      setSurfaceVisibility(visual, cell.terrainKind);
       updateCellVegetationInstances(
         treeMesh,
         weedMesh,
@@ -399,15 +380,30 @@ export function createSimulationScene(
       return null;
     }
 
-    return hit.instanceId;
+    const meshKind: SurfaceMeshKind | null =
+      hit.object === landSurfaceMesh ? "land" :
+        hit.object === waterSurfaceMesh ? "water" :
+          null;
+    if (!meshKind) {
+      return null;
+    }
+
+    const instanceToCellId = meshKind === "land" ? landInstanceToCellId : waterInstanceToCellId;
+    return instanceToCellId.get(hit.instanceId) ?? null;
   };
 
   const setHoveredCell = (cellId: number | null) => {
+    if (hoveredCellId === cellId) {
+      return;
+    }
     hoveredCellId = cellId;
     updateSelectionCaps();
   };
 
   const setSelectedCell = (cellId: number | null) => {
+    if (selectedCellId === cellId) {
+      return;
+    }
     selectedCellId = cellId;
     updateSelectionCaps();
   };
