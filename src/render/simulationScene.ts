@@ -104,7 +104,15 @@ export function createSimulationScene(
   let lastRenderTimestamp = performance.now();
   const surfaceSphereRadius =
     getPackedSurfaceSphereRadius(meshData) * SURFACE_SPHERE_RADIUS_SCALE;
-  const surfaceSphereGeometry = new SphereGeometry(surfaceSphereRadius, 32, 16);
+  const surfaceSphereGeometry = new SphereGeometry(
+    surfaceSphereRadius,
+    32,
+    16,
+    0,
+    Math.PI * 2,
+    0,
+    Math.PI / 2
+  );
   const hoverCapGeometry = new SphereGeometry(
     surfaceSphereRadius * HOVER_CAP_SCALE,
     32,
@@ -215,6 +223,7 @@ export function createSimulationScene(
       faceNormal.clone().multiplyScalar(surfaceSphereRadius)
     );
     mesh.position.copy(sphereCenter);
+    mesh.quaternion.setFromUnitVectors(selectionUp, faceNormal);
     mesh.userData.cellId = face.cellId;
     group.add(mesh);
     cellVisuals.set(face.cellId, {
