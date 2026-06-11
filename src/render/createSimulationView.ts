@@ -1,6 +1,6 @@
 import { findInteractiveCanvasPoint } from "../editor/findInteractiveCanvasPoint";
 import type { Cell, GoldbergMeshData } from "../types";
-import { createSimulationScene } from "./simulationScene";
+import { createSimulationScene, type SimulationScene } from "./simulationScene";
 
 export interface SimulationView {
   canvasElement: HTMLCanvasElement;
@@ -21,35 +21,58 @@ export interface SimulationView {
   getInteractiveCanvasPoint: () => { x: number; y: number; cellId: number } | null;
 }
 
+class SimulationViewAdapter implements SimulationView {
+  readonly canvasElement: HTMLCanvasElement;
+
+  constructor(private readonly scene: SimulationScene) {
+    this.canvasElement = scene.renderer.domElement;
+  }
+
+  resize = () => this.scene.resize();
+
+  render = () => this.scene.render();
+
+  setAnimationLoop = (callback: ((time: number, frame?: XRFrame) => void) | null) => {
+    this.scene.setAnimationLoop(callback);
+  };
+
+  dispose = () => this.scene.dispose();
+
+  syncCells = (cells: Cell[]) => this.scene.updateCells(cells);
+
+  setAutoRotate = (enabled: boolean) => this.scene.setAutoRotate(enabled);
+
+  setControlsEnabled = (enabled: boolean) => this.scene.setControlsEnabled(enabled);
+
+  setHoveredFromClientPoint = (clientX: number, clientY: number) => {
+    this.scene.setHoveredCell(this.scene.pickCellAtClientPoint(clientX, clientY));
+  };
+
+  clearHoveredCell = () => this.scene.setHoveredCell(null);
+
+  setSelectedCell = (cellId: number | null) => this.scene.setSelectedCell(cellId);
+
+  pickCellAtClientPoint = (clientX: number, clientY: number) =>
+    this.scene.pickCellAtClientPoint(clientX, clientY);
+
+  getCameraPosition = () => this.scene.getCameraPosition();
+
+  rotateCameraByPixels = (deltaX: number, deltaY: number) =>
+    this.scene.rotateCameraByPixels(deltaX, deltaY);
+
+  zoomCameraByDelta = (deltaY: number) => this.scene.zoomCameraByDelta(deltaY);
+
+  getInteractiveCanvasPoint = () =>
+    findInteractiveCanvasPoint(
+      this.canvasElement,
+      this.scene.pickCellAtClientPoint
+    );
+}
+
 export function createSimulationView(
   mount: HTMLElement,
   meshData: GoldbergMeshData,
   cells: Cell[]
 ): SimulationView {
-  const scene = createSimulationScene(mount, meshData, cells);
-  const canvasElement = scene.renderer.domElement;
-
-  return {
-    canvasElement,
-    resize: () => scene.resize(),
-    render: () => scene.render(),
-    setAnimationLoop: (callback) => scene.setAnimationLoop(callback),
-    dispose: () => scene.dispose(),
-    syncCells: (nextCells) => scene.updateCells(nextCells),
-    setAutoRotate: (enabled) => scene.setAutoRotate(enabled),
-    setControlsEnabled: (enabled) => scene.setControlsEnabled(enabled),
-    setHoveredFromClientPoint: (clientX, clientY) => {
-      scene.setHoveredCell(scene.pickCellAtClientPoint(clientX, clientY));
-    },
-    clearHoveredCell: () => scene.setHoveredCell(null),
-    setSelectedCell: (cellId) => scene.setSelectedCell(cellId),
-    pickCellAtClientPoint: (clientX, clientY) => scene.pickCellAtClientPoint(clientX, clientY),
-    getCameraPosition: () => scene.getCameraPosition(),
-    rotateCameraByPixels: (deltaX, deltaY) => scene.rotateCameraByPixels(deltaX, deltaY),
-    zoomCameraByDelta: (deltaY) => scene.zoomCameraByDelta(deltaY),
-    getInteractiveCanvasPoint: () => findInteractiveCanvasPoint(
-      canvasElement,
-      scene.pickCellAtClientPoint
-    )
-  };
+  return new SimulationViewAdapter(createSimulationScene(mount, meshData, cells));
 }
