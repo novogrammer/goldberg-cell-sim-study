@@ -161,7 +161,6 @@ export function mountApp(root: HTMLElement): () => void {
   const onResize = () => view.resize();
   window.addEventListener("resize", onResize);
 
-  let animationFrameId = 0;
   let isDisposed = false;
 
   const animate = (timestamp: number) => {
@@ -169,7 +168,6 @@ export function mountApp(root: HTMLElement): () => void {
       return;
     }
 
-    animationFrameId = requestAnimationFrame(animate);
     const interval = 1000 / appState.speed;
     const isPlaying = !appState.pausedByUser && !appState.pausedByPaint;
 
@@ -182,7 +180,7 @@ export function mountApp(root: HTMLElement): () => void {
   };
 
   refreshHud();
-  animationFrameId = requestAnimationFrame(animate);
+  view.setAnimationLoop(animate);
 
   return () => {
     if (isDisposed) {
@@ -190,7 +188,7 @@ export function mountApp(root: HTMLElement): () => void {
     }
 
     isDisposed = true;
-    cancelAnimationFrame(animationFrameId);
+    view.setAnimationLoop(null);
     cleanupEvents();
     window.removeEventListener("resize", onResize);
     delete window.__goldbergTestState;

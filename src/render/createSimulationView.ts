@@ -6,6 +6,7 @@ export interface SimulationView {
   canvasElement: HTMLCanvasElement;
   resize: () => void;
   render: () => void;
+  setAnimationLoop: (callback: XRFrameRequestCallback | null) => void;
   dispose: () => void;
   syncCells: (cells: Cell[]) => void;
   setAutoRotate: (enabled: boolean) => void;
@@ -32,6 +33,7 @@ export function createSimulationView(
     canvasElement,
     resize: () => scene.resize(),
     render: () => scene.render(),
+    setAnimationLoop: (callback) => scene.setAnimationLoop(callback),
     dispose: () => scene.dispose(),
     syncCells: (nextCells) => scene.updateCells(nextCells),
     setAutoRotate: (enabled) => scene.setAutoRotate(enabled),

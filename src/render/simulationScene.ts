@@ -32,6 +32,7 @@ export interface SimulationScene {
   renderer: WebGLRenderer;
   resize: () => void;
   render: () => void;
+  setAnimationLoop: (callback: XRFrameRequestCallback | null) => void;
   updateCells: (cells: Cell[]) => void;
   setAutoRotate: (enabled: boolean) => void;
   setControlsEnabled: (enabled: boolean) => void;
@@ -198,6 +199,10 @@ export function createSimulationScene(
     renderer.render(scene, camera);
   };
 
+  const setAnimationLoop = (callback: XRFrameRequestCallback | null) => {
+    renderer.setAnimationLoop(callback);
+  };
+
   const dispose = () => {
     controls.dispose();
     for (const visual of cellVisuals.values()) {
@@ -222,6 +227,7 @@ export function createSimulationScene(
     renderer,
     resize,
     render,
+    setAnimationLoop,
     updateCells,
     setAutoRotate,
     setControlsEnabled,
