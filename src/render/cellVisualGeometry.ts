@@ -2,7 +2,7 @@ import {
   BufferGeometry,
   Float32BufferAttribute,
   Vector3
-} from "three";
+} from "three/webgpu";
 
 import type { GoldbergMeshData } from "../types";
 

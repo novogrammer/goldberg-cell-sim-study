@@ -3,7 +3,7 @@ import {
   Mesh,
   MeshBasicMaterial,
   MeshStandardMaterial
-} from "three";
+} from "three/webgpu";
 
 import type { Cell } from "../types";
 

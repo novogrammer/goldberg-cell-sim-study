@@ -1,5 +1,7 @@
 import {
+  AmbientLight,
   Color,
+  DirectionalLight,
   Group,
   Mesh,
   MeshBasicMaterial,
@@ -9,10 +11,8 @@ import {
   Scene,
   Vector2,
   Vector3,
-  WebGLRenderer,
-  AmbientLight,
-  DirectionalLight
-} from "three";
+  WebGPURenderer
+} from "three/webgpu";
 
 import { GoldbergCameraControls } from "./GoldbergCameraControls";
 import {
@@ -28,11 +28,13 @@ import {
 } from "./cellVisualGeometry";
 import type { Cell, GoldbergMeshData } from "../types";
 
+type AnimationLoopCallback = ((time: number, frame?: XRFrame) => void) | null;
+
 export interface SimulationScene {
-  renderer: WebGLRenderer;
+  renderer: WebGPURenderer;
   resize: () => void;
   render: () => void;
-  setAnimationLoop: (callback: XRFrameRequestCallback | null) => void;
+  setAnimationLoop: (callback: AnimationLoopCallback) => void;
   updateCells: (cells: Cell[]) => void;
   setAutoRotate: (enabled: boolean) => void;
   setControlsEnabled: (enabled: boolean) => void;
@@ -58,7 +60,7 @@ export function createSimulationScene(
   const camera = new PerspectiveCamera(45, 1, 0.1, 100);
   camera.position.set(0, 0, 4.4);
 
-  const renderer = new WebGLRenderer({ antialias: true });
+  const renderer = new WebGPURenderer({ antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.domElement.style.touchAction = "none";
   mount.appendChild(renderer.domElement);
@@ -199,7 +201,7 @@ export function createSimulationScene(
     renderer.render(scene, camera);
   };
 
-  const setAnimationLoop = (callback: XRFrameRequestCallback | null) => {
+  const setAnimationLoop = (callback: AnimationLoopCallback) => {
     renderer.setAnimationLoop(callback);
   };
 

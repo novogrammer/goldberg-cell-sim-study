@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Vector3 } from "three";
+import { Vector3 } from "three/webgpu";
 
 import { createGoldbergMesh } from "./goldberg";
 import { createCellPlacementTransform, getCellFaceGeometry } from "./placement";

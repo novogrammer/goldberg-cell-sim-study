@@ -1,4 +1,4 @@
-import { PerspectiveCamera } from "three";
+import { PerspectiveCamera } from "three/webgpu";
 
 const MIN_CAMERA_DISTANCE = 2.4;
 const MAX_CAMERA_DISTANCE = 7.5;

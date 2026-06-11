@@ -6,7 +6,7 @@ export interface SimulationView {
   canvasElement: HTMLCanvasElement;
   resize: () => void;
   render: () => void;
-  setAnimationLoop: (callback: XRFrameRequestCallback | null) => void;
+  setAnimationLoop: (callback: ((time: number, frame?: XRFrame) => void) | null) => void;
   dispose: () => void;
   syncCells: (cells: Cell[]) => void;
   setAutoRotate: (enabled: boolean) => void;
