@@ -1,5 +1,6 @@
 import {
   AmbientLight,
+  BoxGeometry,
   Color,
   ConeGeometry,
   DirectionalLight,
@@ -89,6 +90,7 @@ export function createSimulationScene(
   const geometryVertices = meshData.geometry.vertices.map((vertex) => new Vector3(...vertex));
   const bevelDrop = getTileBevelDrop(meshData);
   const sproutGeometry = new ConeGeometry(1, 1, 5);
+  const weedGeometry = new BoxGeometry(1, 1, 0.2);
 
   const applyOverlayState = (cellId: number) => {
     applyCellOverlayState(cellVisuals.get(cellId), cellId, hoveredCellId, selectedCellId);
@@ -121,7 +123,7 @@ export function createSimulationScene(
     overlayMaterial.visible = false;
     const overlayMesh = new Mesh(overlayGeometry, overlayMaterial);
     overlayMesh.renderOrder = 10;
-    const vegetationVisual = createCellVegetationVisual(face, cell, sproutGeometry);
+    const vegetationVisual = createCellVegetationVisual(face, cell, sproutGeometry, weedGeometry);
 
     mesh.add(overlayMesh);
     group.add(mesh);
@@ -233,6 +235,7 @@ export function createSimulationScene(
       }
     }
     sproutGeometry.dispose();
+    weedGeometry.dispose();
     renderer.dispose();
     mount.removeChild(renderer.domElement);
   };

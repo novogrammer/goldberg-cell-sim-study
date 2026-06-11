@@ -1,6 +1,7 @@
 import {
-  Color,
+  BoxGeometry,
   ConeGeometry,
+  Color,
   Group,
   Mesh,
   MeshStandardMaterial,
@@ -21,13 +22,15 @@ export interface CellVegetationVisual {
   group: Group;
   material: MeshStandardMaterial;
   sprouts: Mesh[];
+  weeds: Mesh[];
   sizeUnit: number;
 }
 
 const SURFACE_LIFT = 0.102;
 const PENTAGON_SCALE = 0.9;
-const MIN_VEGETATION_THRESHOLD = 0.14;
-const MAX_SPROUTS = 4;
+const MIN_VEGETATION_THRESHOLD = 0.01;
+const SPROUT_VEGETATION_THRESHOLD = 0.22;
+const MAX_SPROUTS = 5;
 const localUp = new Vector3(0, 1, 0);
 
 const SPROUT_LAYOUTS: ReadonlyArray<{ x: number; z: number }> = [
@@ -36,6 +39,18 @@ const SPROUT_LAYOUTS: ReadonlyArray<{ x: number; z: number }> = [
   { x: -0.37, z: 0.26 },
   { x: 0.2, z: -0.4 },
   { x: -0.28, z: -0.34 }
+];
+
+const WEED_LAYOUTS: ReadonlyArray<{ x: number; z: number }> = [
+  { x: 0.34, z: 0.12 },
+  { x: -0.38, z: 0.26 },
+  { x: 0.4, z: -0.22 },
+  { x: -0.18, z: -0.42 },
+  { x: 0.02, z: 0.44 },
+  { x: 0.52, z: 0.18 },
+  { x: -0.5, z: 0.04 },
+  { x: 0.14, z: -0.54 },
+  { x: -0.34, z: -0.46 }
 ];
 
 export interface VegetationSizeMetrics {
@@ -80,7 +95,8 @@ export function getVegetationSizeMetrics(face: CellFaceGeometry): VegetationSize
 export function createCellVegetationVisual(
   face: CellFaceGeometry,
   cell: Cell,
-  sproutGeometry: ConeGeometry
+  sproutGeometry: ConeGeometry,
+  weedGeometry: BoxGeometry
 ): CellVegetationVisual {
   const material = new MeshStandardMaterial({
     color: "#6d8f45",
@@ -108,7 +124,18 @@ export function createCellVegetationVisual(
     return sprout;
   });
 
-  const visual = { group, material, sprouts, sizeUnit: face.inradius };
+  const weeds = WEED_LAYOUTS.map(({ x, z }) => {
+    const weed = new Mesh(weedGeometry, material);
+    weed.position.set(
+      x * sizeMetrics.layoutScale,
+      0,
+      z * sizeMetrics.layoutScale
+    );
+    group.add(weed);
+    return weed;
+  });
+
+  const visual = { group, material, sprouts, weeds, sizeUnit: face.inradius };
   updateCellVegetationVisual(visual, cell);
   return visual;
 }
@@ -117,27 +144,57 @@ export function updateCellVegetationVisual(visual: CellVegetationVisual, cell: C
   const state = getVegetationIndicatorState(cell);
   visual.material.color.copy(state.tint);
   visual.group.visible = state.visibleSproutCount > 0;
-  const baseHeight = visual.sizeUnit * 1.45;
-  const baseRadius = visual.sizeUnit * 0.28;
-  const layoutScale = visual.sizeUnit * 0.92;
+  const sproutBaseHeight = visual.sizeUnit * 1.28;
+  const sproutBaseRadius = visual.sizeUnit * 0.22;
+  const weedBaseHeight = visual.sizeUnit * 0.62;
+  const weedBaseRadius = visual.sizeUnit * 0.05;
+  const layoutScale = visual.sizeUnit * 1.18;
 
   for (let index = 0; index < visual.sprouts.length; index += 1) {
     const sprout = visual.sprouts[index];
     const layout = SPROUT_LAYOUTS[index];
-    const isVisible = index < state.visibleSproutCount;
+    const isVisible = cell.vegetation >= SPROUT_VEGETATION_THRESHOLD && index < state.visibleSproutCount;
     sprout.visible = isVisible;
     if (!isVisible) {
       continue;
     }
 
-    const height = baseHeight * state.heightScale * (1 - index * 0.08);
-    const radius = baseRadius * state.radiusScale * (1 - index * 0.06);
+    const height = sproutBaseHeight * state.heightScale * (1 - index * 0.08);
+    const radius = sproutBaseRadius * state.radiusScale * (1 - index * 0.06);
+    const yaw = Math.atan2(layout.x, layout.z);
     sprout.position.set(
       layout.x * layoutScale,
       height * 0.5,
       layout.z * layoutScale
     );
     sprout.scale.set(radius, height, radius);
+    sprout.rotation.set(0, yaw, 0);
+  }
+
+  for (let index = 0; index < visual.weeds.length; index += 1) {
+    const weed = visual.weeds[index];
+    const layout = WEED_LAYOUTS[index];
+    const visibleWeedCount = Math.min(
+      visual.weeds.length,
+      Math.max(2, state.visibleSproutCount * 2)
+    );
+    const isVisible = index < visibleWeedCount;
+    weed.visible = isVisible;
+    if (!isVisible) {
+      continue;
+    }
+
+    const height = weedBaseHeight * state.heightScale * (1 - index * 0.035);
+    const radius = weedBaseRadius * state.radiusScale * (1 - index * 0.03);
+    const yaw = Math.atan2(layout.x, layout.z);
+    const lean = 0.26 + index * 0.06;
+    weed.position.set(
+      layout.x * layoutScale,
+      height * 0.5,
+      layout.z * layoutScale
+    );
+    weed.scale.set(radius * 2, height, radius * 0.9);
+    weed.rotation.set(Math.cos(yaw) * lean, yaw, -Math.sin(yaw) * lean);
   }
 }
 

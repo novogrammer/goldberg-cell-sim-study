@@ -51,9 +51,10 @@ describe("cellVegetationAppearance", () => {
   });
 
   it("vegetation が高いほど本数とスケールを増やす", () => {
-    const sparse = getVegetationIndicatorState(createCell({ vegetation: 0.15 }));
+    const sparse = getVegetationIndicatorState(createCell({ vegetation: 0.1 }));
     const dense = getVegetationIndicatorState(createCell({ vegetation: 0.9 }));
 
+    expect(sparse.visibleSproutCount).toBeGreaterThan(0);
     expect(dense.visibleSproutCount).toBeGreaterThan(sparse.visibleSproutCount);
     expect(dense.heightScale).toBeGreaterThan(sparse.heightScale);
     expect(dense.radiusScale).toBeGreaterThan(sparse.radiusScale);
