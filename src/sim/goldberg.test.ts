@@ -89,6 +89,31 @@ describe("createGoldbergMesh", () => {
     }
   });
 
+  it("各セル face に直交正規なローカル座標系を持つ", () => {
+    for (const face of mesh.geometry.faces) {
+      const normal = new Vector3(...face.normal);
+      const tangent = new Vector3(...face.tangent);
+      const bitangent = new Vector3(...face.bitangent);
+
+      expect(Math.abs(normal.dot(tangent))).toBeLessThan(1e-6);
+      expect(Math.abs(normal.dot(bitangent))).toBeLessThan(1e-6);
+      expect(Math.abs(tangent.dot(bitangent))).toBeLessThan(1e-6);
+      expect(normal.length()).toBeCloseTo(1);
+      expect(tangent.length()).toBeCloseTo(1);
+      expect(bitangent.length()).toBeCloseTo(1);
+    }
+  });
+
+  it("face center から normal 方向へ高さを足すとセル表面から外側へ配置できる", () => {
+    const face = mesh.geometry.faces[0];
+    const position = new Vector3(...face.center)
+      .add(new Vector3(...face.normal).multiplyScalar(0.25));
+    const expected = new Vector3(...face.center)
+      .add(new Vector3(...face.normal).multiplyScalar(0.25));
+
+    expect(position.distanceTo(expected)).toBeLessThan(1e-6);
+  });
+
   it("隣接セル同士がちょうど 1 辺を共有する", () => {
     const faceMap = new Map(mesh.geometry.faces.map((face) => [face.cellId, face]));
 

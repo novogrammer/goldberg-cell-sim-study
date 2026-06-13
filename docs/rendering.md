@@ -28,11 +28,7 @@
 - 各セルの face center と法線を基準に、小さな半球を表面へ敷き詰める表現を使っています。
 - 半球の半径は、face center 間の平均距離から求めた packed sphere 半径を基準にしています。
 - instance の向きは各 face の法線方向に揃えています。
-
-補足:
-
-- 以前の `cellVisualGeometry` はセルごとに異なる top shape を持つ押し出し形状用のコードです。
-- 現在の主描画は [src/render/surfaceCellInstances.ts](/Users/novo/Documents/aptanastudio3workspace/goldberg-cell-sim-study/src/render/surfaceCellInstances.ts:1) 側の方式を使っています。
+- 現在の主描画は [src/render/surfaceCellInstances.ts](/Users/novo/Documents/aptanastudio3workspace/goldberg-cell-sim-study/src/render/surfaceCellInstances.ts:1) 側の方式です。
 
 ## 植生オブジェクト
 

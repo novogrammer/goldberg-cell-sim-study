@@ -62,22 +62,6 @@ export interface GoldbergPolyhedronGeometry {
   faces: CellFaceGeometry[];
 }
 
-export interface CellPlacement {
-  cellId: number;
-  offsetU: number;
-  offsetV: number;
-  height: number;
-  yaw: number;
-}
-
-export interface CellPlacementTransform {
-  position: Vec3;
-  normal: Vec3;
-  tangent: Vec3;
-  bitangent: Vec3;
-  yaw: number;
-}
-
 export interface GoldbergMeshData {
   frequency: number;
   cells: Cell[];
