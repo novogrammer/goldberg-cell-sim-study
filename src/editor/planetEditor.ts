@@ -1,6 +1,6 @@
 import type { Cell } from "../types";
 
-export interface PlanetEditorState {
+interface PlanetEditorState {
   cells: Cell[];
   selectedCellId: number | null;
   lastPaintedCellId: number | null;

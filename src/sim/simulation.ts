@@ -27,15 +27,6 @@ export const DEFAULT_RULE_CONFIG: SimulationRuleConfig = {
 
 const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
 
-export function getNeighborAverage(cell: Cell, cells: Cell[]): number {
-  if (cell.neighborCount === 0) {
-    return 0;
-  }
-
-  const sum = cell.neighbors.reduce((total, neighborId) => total + cells[neighborId].vegetation, 0);
-  return sum / cell.neighborCount;
-}
-
 export function getNeighborMoistureAverage(cell: Cell, cells: Cell[]): number {
   if (cell.neighborCount === 0) {
     return 0;

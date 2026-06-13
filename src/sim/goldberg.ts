@@ -359,7 +359,7 @@ function normalizedNoise(seed: number): number {
   return clamp01(Math.sin(seed * 12.9898) * 43758.5453 % 1 + 0.5);
 }
 
-export function createInitialPlanetEnvironment(
+function createInitialPlanetEnvironment(
   cells: Cell[],
   geometry: GoldbergPolyhedronGeometry
 ): Cell[] {

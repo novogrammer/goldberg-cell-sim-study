@@ -16,8 +16,8 @@ const identityScale = new Vector3(1, 1, 1);
 const tempRotation = new Quaternion();
 const tempSurfaceMatrix = new Matrix4();
 
-export const LAND_SURFACE_ROUGHNESS = 0.66;
-export const WATER_SURFACE_ROUGHNESS = 0.15;
+const LAND_SURFACE_ROUGHNESS = 0.66;
+const WATER_SURFACE_ROUGHNESS = 0.15;
 
 export interface SurfaceCellInstanceData {
   landInstanceId: number;
@@ -166,7 +166,7 @@ export function getPackedSurfaceSphereRadius(meshData: GoldbergMeshData) {
   return (averageSurfaceRadius * averageNeighborDistance) / (2 * averageSurfaceRadius - averageNeighborDistance);
 }
 
-export function setSurfaceInstanceTransform(
+function setSurfaceInstanceTransform(
   mesh: InstancedMesh,
   instanceId: number,
   sphereCenter: Vector3,

@@ -9,7 +9,7 @@ import {
 
 import type { Cell, CellFaceGeometry } from "../types";
 
-export interface VegetationIndicatorState {
+interface VegetationIndicatorState {
   visibleTreeCount: number;
   heightScale: number;
   radiusScale: number;
@@ -63,7 +63,7 @@ const WEED_LAYOUTS: ReadonlyArray<{ x: number; z: number }> = [
 export const TREE_INSTANCE_COUNT = TREE_LAYOUTS.length;
 export const WEED_INSTANCE_COUNT = WEED_LAYOUTS.length;
 
-export interface VegetationSizeMetrics {
+interface VegetationSizeMetrics {
   baseHeight: number;
   baseRadius: number;
   layoutScale: number;
@@ -116,7 +116,7 @@ export function createCellVegetationLayout(
     cellScale: cell.isPentagon ? PENTAGON_SCALE : 1,
     position: new Vector3(...face.center).add(normal.clone().multiplyScalar(surfaceLift)),
     rotation: new Quaternion().setFromUnitVectors(localUp, normal),
-    sizeUnit: face.inradius
+    sizeUnit: getVegetationSizeMetrics(face).layoutScale / 0.92
   };
 }
 
