@@ -24,6 +24,14 @@ export function createAppLayout(
           <p class="hero-copy">
             Orbit the planet, then paint water or land directly on the sphere.
           </p>
+          <a
+            class="hero-link"
+            href="https://github.com/novogrammer/goldberg-cell-sim-study"
+            target="_blank"
+            rel="noreferrer"
+          >
+            View Source on GitHub
+          </a>
         </div>
         <section class="panel panel-mode" data-panel="mode">
           <div class="panel-header">

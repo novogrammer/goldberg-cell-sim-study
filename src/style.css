@@ -89,6 +89,33 @@ select {
   font-size: 0.92rem;
 }
 
+.hero-link {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  min-height: 34px;
+  margin-top: 8px;
+  padding: 0 14px;
+  border: 1px solid rgba(164, 222, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(9, 31, 48, 0.82);
+  color: #dff5ff;
+  text-decoration: none;
+  font-size: 0.86rem;
+  transition:
+    border-color 180ms ease,
+    background 180ms ease,
+    color 180ms ease,
+    transform 180ms ease;
+}
+
+.hero-link:hover {
+  border-color: rgba(114, 214, 255, 0.48);
+  background: rgba(16, 49, 74, 0.96);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
 .panel {
   display: flex;
   flex-direction: column;
