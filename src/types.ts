@@ -44,12 +44,12 @@ export interface SimulationStepContext {
   config: SimulationRuleConfig;
 }
 
-export type Vec3 = [number, number, number];
+type Vec3 = [number, number, number];
 
 export interface CellFaceGeometry {
   cellId: number;
   vertexIndices: number[];
-  center: [number, number, number];
+  center: Vec3;
   normal: Vec3;
   tangent: Vec3;
   bitangent: Vec3;

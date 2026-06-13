@@ -2,7 +2,7 @@ import type { AppElements } from "./types";
 import type { HudState } from "./types";
 import { updateHud } from "./updateHud";
 
-export interface AppLayoutData {
+interface AppLayoutData {
   cellCount: number;
   pentagonCount: number;
   hexagonCount: number;
