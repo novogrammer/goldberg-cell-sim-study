@@ -72,7 +72,7 @@ async function enterPaintMode(page: Page) {
 
   await clickControl(paintButton);
   await expect(paintButton).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.locator('[data-stat="paint-state"]')).toHaveText('Paint active');
+  await expect(page.locator('[data-stat="paint-state"]')).toHaveText('Editing');
   await expect(page.locator('[data-stat="tool-mode"]')).toHaveText('Paint');
   await expect(brush).toBeVisible();
   await expect(brush).toBeEnabled();
@@ -136,10 +136,10 @@ test('Goldberg シミュレーション画面が表示される', async ({ page 
   await page.goto('/');
 
   await expect(
-    page.getByRole('heading', { name: 'Water basins drive vegetation across the planet' })
+    page.getByRole('heading', { name: 'Shape rivers. Watch biomes spread.' })
   ).toBeVisible();
   await expect(page.locator('canvas')).toBeVisible();
-  await expect(page.getByText('Goldberg Polyhedron Cell Simulation')).toBeVisible();
+  await expect(page.getByText('Planetary Cell Study')).toBeVisible();
   await expect(page.locator('[data-stat="frequency"]')).toHaveText('10');
 });
 
@@ -157,9 +157,9 @@ test('セル未選択時は主要コントロールが表示される', async ({
   await expect(page.locator('.overlay-viewport-status')).toBeVisible();
   await expect(page.locator('[data-stat="selected"]')).toHaveText('none');
   await expect(page.locator('[data-stat="tool-mode"]')).toHaveText('View');
-  await expect(page.locator('[data-stat="camera-state"]')).toHaveText('Camera unlocked');
-  await expect(page.locator('[data-stat="paint-state"]')).toHaveText('View active');
-  await expect(page.locator('[data-stat="viewport-hint"]')).toHaveText('Drag to orbit and scroll to zoom.');
+  await expect(page.locator('[data-stat="camera-state"]')).toHaveText('Free');
+  await expect(page.locator('[data-stat="paint-state"]')).toHaveText('Surveying');
+  await expect(page.locator('[data-stat="viewport-hint"]')).toHaveText('Drag to orbit. Scroll to zoom.');
 });
 
 test('モード切り替えに応じて viewport のガイドと操作状態が切り替わる', async ({ page }) => {
@@ -173,7 +173,7 @@ test('モード切り替えに応じて viewport のガイドと操作状態が�
   await expect(page.locator('[data-action="brush"]')).toHaveValue('land');
   await expect(page.locator('[data-stat="tool-mode"]')).toHaveText('Paint');
   await expect(page.locator('[data-stat="viewport-hint"]')).toContainText('Brush land.');
-  await expect(page.locator('[data-stat="camera-state"]')).toHaveText('Camera locked for painting');
+  await expect(page.locator('[data-stat="camera-state"]')).toHaveText('Locked');
   await expect(page.getByRole('button', { name: 'Auto Rotate' })).toBeDisabled();
   await expect(page.locator('[data-action="speed"]')).toBeDisabled();
 
@@ -184,7 +184,7 @@ test('モード切り替えに応じて viewport のガイドと操作状態が�
   await expect(page.locator('.overlay-tool')).toBeVisible();
   await expect(page.locator('.overlay-viewport-status')).toBeVisible();
   await expect(page.locator('[data-stat="tool-mode"]')).toHaveText('View');
-  await expect(page.locator('[data-stat="viewport-hint"]')).toHaveText('Drag to orbit and scroll to zoom.');
+  await expect(page.locator('[data-stat="viewport-hint"]')).toHaveText('Drag to orbit. Scroll to zoom.');
   await expect(page.getByRole('button', { name: 'Auto Rotate' })).toBeEnabled();
   await expect(page.locator('[data-action="speed"]')).toBeEnabled();
 });

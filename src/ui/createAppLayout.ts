@@ -19,11 +19,25 @@ export function createAppLayout(
     <div class="app-shell" data-mode="view">
       <div class="hud">
         <div class="hero-block">
-          <p class="eyebrow">Goldberg Polyhedron Cell Simulation</p>
-          <h1>Water basins drive vegetation across the planet</h1>
+          <p class="eyebrow">Planetary Cell Study</p>
+          <h1>Shape rivers. Watch biomes spread.</h1>
           <p class="hero-copy">
-            Orbit the planet, then paint water or land directly on the sphere.
+            Orbit the sphere, repaint terrain, and inspect how local water conditions reshape each cell.
           </p>
+          <dl class="hero-stats" aria-label="Mesh summary">
+            <div>
+              <dt>Cells</dt>
+              <dd data-stat="cells">${data.cellCount}</dd>
+            </div>
+            <div>
+              <dt>Pentagons</dt>
+              <dd data-stat="pentagons">${data.pentagonCount}</dd>
+            </div>
+            <div>
+              <dt>Frequency</dt>
+              <dd data-stat="frequency">${data.frequency}</dd>
+            </div>
+          </dl>
           <a
             class="hero-link"
             href="https://github.com/novogrammer/goldberg-cell-sim-study"
@@ -36,12 +50,12 @@ export function createAppLayout(
         <section class="panel" data-panel="simulation">
           <div class="panel-header">
             <div>
-              <p class="panel-eyebrow">Control Panel</p>
-              <h2>Simulation</h2>
+              <p class="panel-eyebrow">Active Tools</p>
+              <h2>Planet Tools</h2>
             </div>
           </div>
           <p class="panel-copy">
-            Control simulation flow and inspect the current mesh and rule setup.
+            Keep the scene playable, then open the mesh details only when you need the topology.
           </p>
           <div class="controls">
             <button type="button" data-action="toggle">Pause</button>
@@ -52,13 +66,13 @@ export function createAppLayout(
               <input type="range" min="1" max="24" step="1" value="${data.speed}" data-action="speed" />
             </label>
           </div>
-          <dl class="stat-grid stat-grid-compact">
-            <div><dt>Rule</dt><dd>Water + vegetation locality</dd></div>
-            <div><dt>Cells</dt><dd data-stat="cells">${data.cellCount}</dd></div>
-            <div><dt>Pentagons</dt><dd data-stat="pentagons">${data.pentagonCount}</dd></div>
-            <div><dt>Hexagons</dt><dd data-stat="hexagons">${data.hexagonCount}</dd></div>
-            <div><dt>Frequency</dt><dd data-stat="frequency">${data.frequency}</dd></div>
-          </dl>
+          <details class="details-panel">
+            <summary>Mesh details</summary>
+            <dl class="stat-grid stat-grid-compact">
+              <div><dt>Rule</dt><dd>Water + vegetation locality</dd></div>
+              <div><dt>Hexagons</dt><dd data-stat="hexagons">${data.hexagonCount}</dd></div>
+            </dl>
+          </details>
         </section>
       </div>
       <div class="viewport-frame">
@@ -67,15 +81,12 @@ export function createAppLayout(
             <section class="overlay-card overlay-tool">
               <div class="overlay-card-header">
                 <div>
-                  <p class="overlay-eyebrow">Tool</p>
+                  <p class="overlay-eyebrow">Mode</p>
                   <h2 data-stat="tool-mode"></h2>
                 </div>
                 <span class="overlay-badge" data-stat="paint-state"></span>
               </div>
               <div class="overlay-section">
-                <div class="overlay-section-header">
-                  <span class="overlay-label">Mode</span>
-                </div>
                 <div class="segmented" role="group" aria-label="Mode switch">
                   <button type="button" data-action="view-mode" aria-pressed="true">View</button>
                   <button type="button" data-action="paint-mode" aria-pressed="false">Paint</button>
@@ -99,16 +110,13 @@ export function createAppLayout(
             <section class="overlay-card overlay-viewport-status">
               <div class="overlay-card-header">
                 <div>
-                  <p class="overlay-eyebrow">Viewport</p>
-                  <h2>Navigation</h2>
+                  <p class="overlay-eyebrow">Camera</p>
+                  <h2>Orbit</h2>
                 </div>
                 <span class="overlay-badge" data-stat="camera-state"></span>
               </div>
               <div class="overlay-section">
-                <div class="overlay-section-header">
-                  <span class="overlay-label">Camera</span>
-                  <span class="overlay-value" data-stat="rotation-state"></span>
-                </div>
+                <span class="overlay-value" data-stat="rotation-state"></span>
                 <button type="button" class="overlay-button" data-action="rotate"></button>
                 <p class="overlay-copy" data-stat="viewport-hint"></p>
               </div>

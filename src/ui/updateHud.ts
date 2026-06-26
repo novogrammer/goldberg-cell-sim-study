@@ -13,15 +13,15 @@ export function updateHud(elements: AppElements, hudState: HudState) {
   elements.appShell.dataset.mode = isPaintMode ? "paint" : "view";
   elements.toolModeStat.textContent = isPaintMode ? "Paint" : "View";
   elements.toolModeDetailStat.textContent = isPaintMode
-    ? "Paint water or land directly on the sphere."
-    : "Orbit, zoom, and inspect selected cells.";
-  elements.cameraStateStat.textContent = isPaintMode ? "Camera locked for painting" : "Camera unlocked";
+    ? "Brush water or land directly onto the sphere."
+    : "Orbit freely, then click a cell to inspect it.";
+  elements.cameraStateStat.textContent = isPaintMode ? "Locked" : "Free";
   elements.brushStateStat.textContent = `Brush: ${brushTerrainKind}`;
-  elements.rotationStateStat.textContent = autoRotate ? "Auto rotate on" : "Auto rotate off";
-  elements.paintStateStat.textContent = isPaintMode ? "Paint active" : "View active";
+  elements.rotationStateStat.textContent = autoRotate ? "Auto drift on" : "Auto drift off";
+  elements.paintStateStat.textContent = isPaintMode ? "Editing" : "Surveying";
   elements.viewportHintStat.textContent = isPaintMode
-    ? `Brush ${brushTerrainKind}. Click or drag across the sphere to paint.`
-    : "Drag to orbit and scroll to zoom.";
+    ? `Brush ${brushTerrainKind}. Click or drag across the globe to repaint terrain.`
+    : "Drag to orbit. Scroll to zoom.";
   elements.viewModeButton.setAttribute("aria-pressed", String(!isPaintMode));
   elements.paintModeButton.setAttribute("aria-pressed", String(isPaintMode));
   elements.toggleButton.disabled = isPaintMode;
@@ -36,8 +36,8 @@ export function updateHud(elements: AppElements, hudState: HudState) {
     elements.viewportSelectionCard.dataset.state = "empty";
     elements.selectedStat.textContent = "none";
     elements.selectionStateStat.textContent = isPaintMode
-      ? "Pick a cell or drag to paint"
-      : "Click a cell to inspect it.";
+      ? "Pick a cell or drag to start painting."
+      : "Select a cell to inspect its local climate.";
     elements.terrainStat.textContent = "-";
     elements.moistureStat.textContent = "-";
     elements.vegetationStat.textContent = "-";

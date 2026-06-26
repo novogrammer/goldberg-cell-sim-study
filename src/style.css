@@ -3,7 +3,7 @@
   font-family: "IBM Plex Sans", "Avenir Next", sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  --app-shell-padding: 24px;
+  --app-shell-padding: 18px;
   background:
     radial-gradient(circle at top, rgba(79, 180, 255, 0.28), transparent 30%),
     linear-gradient(180deg, #06131f 0%, #030914 100%);
@@ -38,9 +38,9 @@ select {
 
 .app-shell {
   display: grid;
-  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  grid-template-columns: minmax(260px, 308px) minmax(0, 1fr);
   align-items: stretch;
-  gap: 24px;
+  gap: 18px;
   min-height: 100vh;
   height: 100vh;
   padding: var(--app-shell-padding);
@@ -51,13 +51,13 @@ select {
   display: flex;
   flex-direction: column;
   align-content: start;
-  gap: 18px;
+  gap: 14px;
   height: calc(100vh - var(--app-shell-padding) * 2);
-  padding: 24px;
+  padding: 18px;
   border: 1px solid rgba(182, 226, 255, 0.16);
-  border-radius: 24px;
-  background: rgba(5, 15, 24, 0.72);
-  backdrop-filter: blur(16px);
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(5, 15, 24, 0.82), rgba(5, 15, 24, 0.58));
+  backdrop-filter: blur(14px);
   overflow-y: auto;
   scrollbar-gutter: stable;
 }
@@ -65,7 +65,7 @@ select {
 .hero-block {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 10px;
 }
 
 .eyebrow {
@@ -79,14 +79,42 @@ select {
 .hud h1 {
   margin: 0;
   font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
-  font-size: clamp(1.8rem, 4.4vw, 2.6rem);
-  line-height: 0.98;
+  font-size: clamp(1.55rem, 4vw, 2.2rem);
+  line-height: 1;
 }
 
 .hero-copy {
   margin: 0;
   color: #b8d8ea;
-  font-size: 0.92rem;
+  font-size: 0.9rem;
+  max-width: 28ch;
+}
+
+.hero-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.hero-stats div {
+  padding: 10px 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(164, 222, 255, 0.12);
+  background: rgba(9, 29, 45, 0.7);
+}
+
+.hero-stats dt {
+  color: #8dbed8;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.hero-stats dd {
+  margin: 4px 0 0;
+  font-size: 1.05rem;
+  font-weight: 700;
 }
 
 .hero-link {
@@ -94,7 +122,6 @@ select {
   align-self: flex-start;
   align-items: center;
   min-height: 34px;
-  margin-top: 8px;
   padding: 0 14px;
   border: 1px solid rgba(164, 222, 255, 0.18);
   border-radius: 999px;
@@ -119,11 +146,11 @@ select {
 .panel {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 16px;
+  gap: 12px;
+  padding: 14px;
   border-radius: 20px;
   border: 1px solid rgba(164, 222, 255, 0.12);
-  background: rgba(8, 24, 38, 0.86);
+  background: rgba(8, 24, 38, 0.68);
   transition:
     opacity 180ms ease,
     transform 180ms ease,
@@ -164,7 +191,7 @@ select {
 .panel-copy {
   margin: 0;
   color: #b8d8ea;
-  font-size: 0.94rem;
+  font-size: 0.88rem;
 }
 
 .panel-status,
@@ -212,7 +239,7 @@ select {
 .controls {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 10px;
 }
 
 .controls button,
@@ -241,6 +268,35 @@ select {
   padding: 10px 14px;
 }
 
+.details-panel {
+  padding: 0;
+  overflow: hidden;
+}
+
+.details-panel summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  padding: 12px 14px;
+  cursor: pointer;
+  list-style: none;
+  color: #dff5ff;
+  font-weight: 600;
+}
+
+.details-panel summary::-webkit-details-marker {
+  display: none;
+}
+
+.details-panel[open] summary {
+  border-bottom: 1px solid rgba(164, 222, 255, 0.12);
+}
+
+.details-panel .stat-grid {
+  padding: 12px;
+}
+
 .controls input[type="range"] {
   width: 120px;
 }
@@ -263,7 +319,7 @@ select {
 .stat-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 10px;
   margin: 0;
 }
 
@@ -272,9 +328,9 @@ select {
 }
 
 .stat-grid div {
-  padding: 14px;
-  border-radius: 18px;
-  background: rgba(10, 28, 44, 0.88);
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(10, 28, 44, 0.78);
 }
 
 .stat-grid dt {
@@ -299,8 +355,8 @@ select {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 18px;
-  gap: 16px;
+  padding: 14px;
+  gap: 14px;
   pointer-events: none;
   z-index: 2;
 }
@@ -309,17 +365,17 @@ select {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
 }
 
 .overlay-card,
 .viewport-selection-card {
   width: fit-content;
-  max-width: min(360px, 100%);
-  padding: 14px 16px;
+  max-width: min(340px, 100%);
+  padding: 12px 14px;
   border-radius: 18px;
   border: 1px solid rgba(182, 226, 255, 0.16);
-  background: rgba(4, 14, 24, 0.72);
+  background: rgba(4, 14, 24, 0.58);
   backdrop-filter: blur(12px);
   pointer-events: auto;
 }
@@ -327,15 +383,15 @@ select {
 .overlay-card {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
 
 .overlay-tool {
-  min-width: min(360px, calc(100vw - 72px));
+  min-width: min(320px, calc(100vw - 72px));
 }
 
 .overlay-viewport-status {
-  min-width: min(280px, calc(100vw - 72px));
+  min-width: min(220px, calc(100vw - 72px));
 }
 
 .overlay-card-header,
@@ -356,7 +412,7 @@ select {
 
 .overlay-card h2 {
   margin: 0;
-  font-size: 1rem;
+  font-size: 0.96rem;
 }
 
 .overlay-badge,
@@ -376,7 +432,7 @@ select {
 .overlay-section {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .overlay-label {
@@ -390,7 +446,7 @@ select {
 .viewport-selection-card {
   margin: 0;
   color: #d6ecf8;
-  font-size: 0.92rem;
+  font-size: 0.88rem;
 }
 
 .overlay-field {
@@ -433,8 +489,9 @@ select {
   align-self: flex-start;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 12px 14px;
+  gap: 10px;
+  max-width: min(420px, 100%);
+  padding: 14px 16px;
 }
 
 .viewport-selection-card[data-state="empty"] .viewport-selection-grid {
@@ -451,7 +508,7 @@ select {
 .viewport-selection-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 6px 14px;
+  gap: 8px 14px;
   margin: 0;
 }
 
@@ -526,6 +583,7 @@ select {
   .overlay-card,
   .viewport-selection-card {
     max-width: 100%;
+    min-width: 0;
   }
 
   .viewport-selection-grid {
@@ -534,5 +592,30 @@ select {
 
   .panel-header {
     flex-direction: column;
+  }
+}
+
+@media (max-width: 640px) {
+  .hero-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .controls {
+    flex-direction: column;
+  }
+
+  .controls button,
+  .controls label,
+  .overlay-button,
+  .overlay-field {
+    width: 100%;
+  }
+
+  .viewport-selection-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .viewport-selection-grid div {
+    grid-column: auto;
   }
 }
