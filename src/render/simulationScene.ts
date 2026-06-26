@@ -94,7 +94,10 @@ class SimulationSceneController implements SimulationScene {
     this.camera = new PerspectiveCamera(45, 1, 0.1, 100);
     this.camera.position.set(0, 0, 4.4);
 
-    this.renderer = new WebGPURenderer({ antialias: true });
+    this.renderer = new WebGPURenderer({
+      antialias: true,
+      forceWebGL: false,
+    });
     if (!navigator.webdriver) {
       this.renderer.inspector = new Inspector();
     }
