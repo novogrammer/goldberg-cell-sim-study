@@ -11,28 +11,19 @@ export function updateHud(elements: AppElements, hudState: HudState) {
   } = hudState;
 
   elements.appShell.dataset.mode = isPaintMode ? "paint" : "view";
-  elements.modeLabelStat.textContent = isPaintMode ? "Paint mode" : "View mode";
-  elements.modeBadgeStat.textContent = isPaintMode ? "Editing terrain" : "Orbit camera";
-  elements.modeDetailStat.textContent = isPaintMode
+  elements.toolModeStat.textContent = isPaintMode ? "Paint" : "View";
+  elements.toolModeDetailStat.textContent = isPaintMode
     ? "Paint water or land directly on the sphere."
     : "Orbit, zoom, and inspect selected cells.";
   elements.cameraStateStat.textContent = isPaintMode ? "Camera locked for painting" : "Camera unlocked";
   elements.brushStateStat.textContent = `Brush: ${brushTerrainKind}`;
   elements.rotationStateStat.textContent = autoRotate ? "Auto rotate on" : "Auto rotate off";
-  elements.paintStateStat.textContent = isPaintMode ? "Active" : "Inactive";
-  elements.viewportModeStat.textContent = isPaintMode ? "Paint mode" : "View mode";
+  elements.paintStateStat.textContent = isPaintMode ? "Paint active" : "View active";
   elements.viewportHintStat.textContent = isPaintMode
     ? `Brush ${brushTerrainKind}. Click or drag across the sphere to paint.`
     : "Drag to orbit and scroll to zoom.";
   elements.viewModeButton.setAttribute("aria-pressed", String(!isPaintMode));
   elements.paintModeButton.setAttribute("aria-pressed", String(isPaintMode));
-  elements.modePanel.dataset.mode = isPaintMode ? "paint" : "view";
-  elements.simulationPanel.hidden = isPaintMode;
-  elements.cameraPanel.hidden = isPaintMode;
-  elements.paintPanel.hidden = !isPaintMode;
-  elements.simulationPanel.dataset.emphasis = "normal";
-  elements.cameraPanel.dataset.emphasis = "normal";
-  elements.paintPanel.dataset.active = String(isPaintMode);
   elements.toggleButton.disabled = isPaintMode;
   elements.rotateButton.disabled = isPaintMode;
   elements.speedSlider.disabled = isPaintMode;

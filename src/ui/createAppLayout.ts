@@ -33,54 +33,16 @@ export function createAppLayout(
             View Source on GitHub
           </a>
         </div>
-        <section class="panel panel-mode" data-panel="mode">
-          <div class="panel-header">
-            <div>
-              <p class="panel-eyebrow">Mode</p>
-              <h2 data-stat="mode-label"></h2>
-            </div>
-            <span class="mode-badge" data-stat="mode-badge"></span>
-          </div>
-          <p class="panel-copy" data-stat="mode-detail"></p>
-          <div class="segmented" role="group" aria-label="Mode switch">
-            <button type="button" data-action="view-mode" aria-pressed="true">View</button>
-            <button type="button" data-action="paint-mode" aria-pressed="false">Paint</button>
-          </div>
-          <div class="state-row">
-            <span class="state-chip" data-stat="camera-state"></span>
-            <span class="state-chip" data-stat="brush-state"></span>
-          </div>
-        </section>
-
-        <section class="panel panel-paint" data-panel="paint">
-          <div class="panel-header">
-            <div>
-              <p class="panel-eyebrow">Paint</p>
-              <h2>Brush</h2>
-            </div>
-            <span class="panel-status" data-stat="paint-state"></span>
-          </div>
-          <p class="panel-copy">
-            Paint mode changes how the sphere responds. Pick the active terrain, then click or drag directly on the planet.
-          </p>
-          <div class="controls">
-            <label>
-              <span>Brush</span>
-              <select data-action="brush">
-                <option value="land">land</option>
-                <option value="water">water</option>
-              </select>
-            </label>
-          </div>
-        </section>
-
         <section class="panel" data-panel="simulation">
           <div class="panel-header">
             <div>
-              <p class="panel-eyebrow">Simulation</p>
-              <h2>Run state</h2>
+              <p class="panel-eyebrow">Control Panel</p>
+              <h2>Simulation</h2>
             </div>
           </div>
+          <p class="panel-copy">
+            Control simulation flow and inspect the current mesh and rule setup.
+          </p>
           <div class="controls">
             <button type="button" data-action="toggle">Pause</button>
             <button type="button" data-action="step">Step</button>
@@ -98,25 +60,59 @@ export function createAppLayout(
             <div><dt>Frequency</dt><dd data-stat="frequency">${data.frequency}</dd></div>
           </dl>
         </section>
-
-        <section class="panel" data-panel="camera">
-          <div class="panel-header">
-            <div>
-              <p class="panel-eyebrow">Camera</p>
-              <h2>Movement</h2>
-            </div>
-            <span class="panel-status" data-stat="rotation-state"></span>
-          </div>
-          <div class="controls">
-            <button type="button" data-action="rotate"></button>
-          </div>
-        </section>
       </div>
       <div class="viewport-frame">
-        <div class="viewport-overlay" aria-hidden="true">
-          <div class="viewport-guide">
-            <span class="viewport-guide-badge" data-stat="viewport-mode"></span>
-            <p class="viewport-guide-text" data-stat="viewport-hint"></p>
+        <div class="viewport-overlay">
+          <div class="viewport-overlay-top">
+            <section class="overlay-card overlay-tool">
+              <div class="overlay-card-header">
+                <div>
+                  <p class="overlay-eyebrow">Tool</p>
+                  <h2 data-stat="tool-mode"></h2>
+                </div>
+                <span class="overlay-badge" data-stat="paint-state"></span>
+              </div>
+              <div class="overlay-section">
+                <div class="overlay-section-header">
+                  <span class="overlay-label">Mode</span>
+                </div>
+                <div class="segmented" role="group" aria-label="Mode switch">
+                  <button type="button" data-action="view-mode" aria-pressed="true">View</button>
+                  <button type="button" data-action="paint-mode" aria-pressed="false">Paint</button>
+                </div>
+                <p class="overlay-copy" data-stat="tool-mode-detail"></p>
+              </div>
+              <div class="overlay-section">
+                <div class="overlay-section-header">
+                  <span class="overlay-label">Paint</span>
+                  <span class="overlay-value" data-stat="brush-state"></span>
+                </div>
+                <label class="overlay-field">
+                  <span>Brush</span>
+                  <select data-action="brush">
+                    <option value="land">land</option>
+                    <option value="water">water</option>
+                  </select>
+                </label>
+              </div>
+            </section>
+            <section class="overlay-card overlay-viewport-status">
+              <div class="overlay-card-header">
+                <div>
+                  <p class="overlay-eyebrow">Viewport</p>
+                  <h2>Navigation</h2>
+                </div>
+                <span class="overlay-badge" data-stat="camera-state"></span>
+              </div>
+              <div class="overlay-section">
+                <div class="overlay-section-header">
+                  <span class="overlay-label">Camera</span>
+                  <span class="overlay-value" data-stat="rotation-state"></span>
+                </div>
+                <button type="button" class="overlay-button" data-action="rotate"></button>
+                <p class="overlay-copy" data-stat="viewport-hint"></p>
+              </div>
+            </section>
           </div>
           <div class="viewport-selection-card" data-state="empty">
             <p class="viewport-selection-title" data-stat="selection-state"></p>
@@ -146,21 +142,16 @@ export function createAppLayout(
   const randomizeButton = root.querySelector<HTMLButtonElement>("[data-action='randomize']");
   const brushSelect = root.querySelector<HTMLSelectElement>("[data-action='brush']");
   const speedSlider = root.querySelector<HTMLInputElement>("[data-action='speed']");
-  const modePanel = root.querySelector<HTMLElement>("[data-panel='mode']");
   const simulationPanel = root.querySelector<HTMLElement>("[data-panel='simulation']");
-  const cameraPanel = root.querySelector<HTMLElement>("[data-panel='camera']");
-  const paintPanel = root.querySelector<HTMLElement>("[data-panel='paint']");
   const viewportSelectionCard = root.querySelector<HTMLElement>(".viewport-selection-card");
   const selectedStat = root.querySelector<HTMLElement>("[data-stat='selected']");
-  const modeLabelStat = root.querySelector<HTMLElement>("[data-stat='mode-label']");
-  const modeBadgeStat = root.querySelector<HTMLElement>("[data-stat='mode-badge']");
-  const modeDetailStat = root.querySelector<HTMLElement>("[data-stat='mode-detail']");
+  const toolModeStat = root.querySelector<HTMLElement>("[data-stat='tool-mode']");
+  const toolModeDetailStat = root.querySelector<HTMLElement>("[data-stat='tool-mode-detail']");
   const cameraStateStat = root.querySelector<HTMLElement>("[data-stat='camera-state']");
   const brushStateStat = root.querySelector<HTMLElement>("[data-stat='brush-state']");
   const rotationStateStat = root.querySelector<HTMLElement>("[data-stat='rotation-state']");
   const paintStateStat = root.querySelector<HTMLElement>("[data-stat='paint-state']");
   const selectionStateStat = root.querySelector<HTMLElement>("[data-stat='selection-state']");
-  const viewportModeStat = root.querySelector<HTMLElement>("[data-stat='viewport-mode']");
   const viewportHintStat = root.querySelector<HTMLElement>("[data-stat='viewport-hint']");
   const terrainStat = root.querySelector<HTMLElement>("[data-stat='terrain']");
   const moistureStat = root.querySelector<HTMLElement>("[data-stat='moisture']");
@@ -180,21 +171,16 @@ export function createAppLayout(
     !randomizeButton ||
     !brushSelect ||
     !speedSlider ||
-    !modePanel ||
     !simulationPanel ||
-    !cameraPanel ||
-    !paintPanel ||
     !viewportSelectionCard ||
     !selectedStat ||
-    !modeLabelStat ||
-    !modeBadgeStat ||
-    !modeDetailStat ||
+    !toolModeStat ||
+    !toolModeDetailStat ||
     !cameraStateStat ||
     !brushStateStat ||
     !rotationStateStat ||
     !paintStateStat ||
     !selectionStateStat ||
-    !viewportModeStat ||
     !viewportHintStat ||
     !terrainStat ||
     !moistureStat ||
@@ -217,21 +203,16 @@ export function createAppLayout(
     randomizeButton,
     brushSelect,
     speedSlider,
-    modePanel,
     simulationPanel,
-    cameraPanel,
-    paintPanel,
     viewportSelectionCard,
     selectedStat,
-    modeLabelStat,
-    modeBadgeStat,
-    modeDetailStat,
+    toolModeStat,
+    toolModeDetailStat,
     cameraStateStat,
     brushStateStat,
     rotationStateStat,
     paintStateStat,
     selectionStateStat,
-    viewportModeStat,
     viewportHintStat,
     terrainStat,
     moistureStat,

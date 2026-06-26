@@ -72,8 +72,8 @@ async function enterPaintMode(page: Page) {
 
   await clickControl(paintButton);
   await expect(paintButton).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.locator('[data-stat="paint-state"]')).toHaveText('Active');
-  await expect(page.locator('[data-stat="viewport-mode"]')).toHaveText('Paint mode');
+  await expect(page.locator('[data-stat="paint-state"]')).toHaveText('Paint active');
+  await expect(page.locator('[data-stat="tool-mode"]')).toHaveText('Paint');
   await expect(brush).toBeVisible();
   await expect(brush).toBeEnabled();
 
@@ -153,13 +153,12 @@ test('セル未選択時は主要コントロールが表示される', async ({
   await expect(page.getByRole('button', { name: 'Step' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Randomize' })).toBeVisible();
   await expect(page.locator('[data-panel="simulation"]')).toBeVisible();
-  await expect(page.locator('[data-panel="camera"]')).toBeVisible();
-  await expect(page.locator('[data-panel="paint"]')).toBeHidden();
-  await expect(page.locator('[data-action="terrain"]')).toHaveCount(0);
+  await expect(page.locator('.overlay-tool')).toBeVisible();
+  await expect(page.locator('.overlay-viewport-status')).toBeVisible();
   await expect(page.locator('[data-stat="selected"]')).toHaveText('none');
-  await expect(page.locator('[data-stat="mode-label"]')).toHaveText('View mode');
+  await expect(page.locator('[data-stat="tool-mode"]')).toHaveText('View');
   await expect(page.locator('[data-stat="camera-state"]')).toHaveText('Camera unlocked');
-  await expect(page.locator('[data-stat="viewport-mode"]')).toHaveText('View mode');
+  await expect(page.locator('[data-stat="paint-state"]')).toHaveText('View active');
   await expect(page.locator('[data-stat="viewport-hint"]')).toHaveText('Drag to orbit and scroll to zoom.');
 });
 
@@ -168,23 +167,23 @@ test('モード切り替えに応じて viewport のガイドと操作状態が�
 
   await enterPaintMode(page);
 
-  await expect(page.locator('[data-panel="simulation"]')).toBeHidden();
-  await expect(page.locator('[data-panel="camera"]')).toBeHidden();
-  await expect(page.locator('[data-panel="paint"]')).toBeVisible();
+  await expect(page.locator('[data-panel="simulation"]')).toBeVisible();
+  await expect(page.locator('.overlay-tool')).toBeVisible();
+  await expect(page.locator('.overlay-viewport-status')).toBeVisible();
   await expect(page.locator('[data-action="brush"]')).toHaveValue('land');
-  await expect(page.locator('[data-stat="viewport-mode"]')).toHaveText('Paint mode');
+  await expect(page.locator('[data-stat="tool-mode"]')).toHaveText('Paint');
   await expect(page.locator('[data-stat="viewport-hint"]')).toContainText('Brush land.');
   await expect(page.locator('[data-stat="camera-state"]')).toHaveText('Camera locked for painting');
-  await expect(page.getByRole('button', { name: 'Auto Rotate' })).toBeHidden();
-  await expect(page.locator('[data-action="speed"]')).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Auto Rotate' })).toBeDisabled();
+  await expect(page.locator('[data-action="speed"]')).toBeDisabled();
 
   await clickControl(page.getByRole('button', { name: 'View' }));
 
   await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible();
   await expect(page.locator('[data-panel="simulation"]')).toBeVisible();
-  await expect(page.locator('[data-panel="camera"]')).toBeVisible();
-  await expect(page.locator('[data-panel="paint"]')).toBeHidden();
-  await expect(page.locator('[data-stat="viewport-mode"]')).toHaveText('View mode');
+  await expect(page.locator('.overlay-tool')).toBeVisible();
+  await expect(page.locator('.overlay-viewport-status')).toBeVisible();
+  await expect(page.locator('[data-stat="tool-mode"]')).toHaveText('View');
   await expect(page.locator('[data-stat="viewport-hint"]')).toHaveText('Drag to orbit and scroll to zoom.');
   await expect(page.getByRole('button', { name: 'Auto Rotate' })).toBeEnabled();
   await expect(page.locator('[data-action="speed"]')).toBeEnabled();
