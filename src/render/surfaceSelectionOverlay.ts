@@ -10,6 +10,8 @@ import type { SurfaceCellInstanceData } from "./surfaceCellInstances";
 
 const HOVER_CAP_SCALE = 1.004;
 const SELECTED_CAP_SCALE = 1.005;
+const HOVER_OFFSET_SCALE = 0.05;
+const SELECTED_OFFSET_SCALE = 0.06;
 const HOVER_RING_THETA_START = Math.PI * 0.17;
 const HOVER_RING_THETA_LENGTH = Math.PI * 0.23;
 const SELECTED_RING_THETA_START = Math.PI * 0.17;
@@ -21,10 +23,16 @@ export class SurfaceSelectionOverlay {
 
   private hoveredCellId: number | null = null;
   private selectedCellId: number | null = null;
+  private readonly hoverOffset: number;
   private readonly selectionUp = new Vector3(0, 1, 0);
   private readonly selectionQuaternion = new Quaternion();
+  private readonly selectedOffset: number;
+  private readonly tempOffset = new Vector3();
 
   constructor(surfaceSphereRadius: number) {
+    this.hoverOffset = surfaceSphereRadius * HOVER_OFFSET_SCALE;
+    this.selectedOffset = surfaceSphereRadius * SELECTED_OFFSET_SCALE;
+
     const hoverGeometry = new SphereGeometry(
       surfaceSphereRadius * HOVER_CAP_SCALE,
       32,
@@ -109,7 +117,10 @@ export class SurfaceSelectionOverlay {
     }
 
     this.selectionQuaternion.setFromUnitVectors(this.selectionUp, visual.normal);
+    const offset = mesh === this.selectedMesh ? this.selectedOffset : this.hoverOffset;
+
     mesh.position.copy(visual.sphereCenter);
+    mesh.position.add(this.tempOffset.copy(visual.normal).multiplyScalar(offset));
     mesh.quaternion.copy(this.selectionQuaternion);
     mesh.visible = true;
   }
