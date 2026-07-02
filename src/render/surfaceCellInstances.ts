@@ -2,22 +2,23 @@ import {
   Color,
   InstancedMesh,
   Matrix4,
-  MeshStandardMaterial,
+  Material,
   Quaternion,
   SphereGeometry,
   Vector3
 } from "three/webgpu";
 
 import type { Cell, GoldbergMeshData } from "../types";
+import {
+  createLandSurfaceMaterial,
+  createWaterSurfaceMaterial
+} from "./surfaceCellMaterial";
 
 const DEFAULT_SURFACE_RADIUS = 1;
 const hiddenScale = new Vector3(0, 0, 0);
 const identityScale = new Vector3(1, 1, 1);
 const tempRotation = new Quaternion();
 const tempSurfaceMatrix = new Matrix4();
-
-const LAND_SURFACE_ROUGHNESS = 0.66;
-const WATER_SURFACE_ROUGHNESS = 0.15;
 
 export interface SurfaceCellInstanceData {
   landInstanceId: number;
@@ -35,16 +36,8 @@ export class SurfaceCellInstances {
   private readonly waterInstanceToCellId = new Map<number, number>();
 
   constructor(surfaceSphereGeometry: SphereGeometry, maxCount: number) {
-    const landSurfaceMaterial = new MeshStandardMaterial({
-      color: "#ffffff",
-      roughness: LAND_SURFACE_ROUGHNESS,
-      metalness: 0.08
-    });
-    const waterSurfaceMaterial = new MeshStandardMaterial({
-      color: "#ffffff",
-      roughness: WATER_SURFACE_ROUGHNESS,
-      metalness: 0.08
-    });
+    const landSurfaceMaterial = createLandSurfaceMaterial();
+    const waterSurfaceMaterial = createWaterSurfaceMaterial();
 
     this.landMesh = new InstancedMesh(
       surfaceSphereGeometry,
@@ -112,14 +105,8 @@ export class SurfaceCellInstances {
   }
 
   dispose() {
-    const landMaterial = this.landMesh.material;
-    if (landMaterial instanceof MeshStandardMaterial) {
-      landMaterial.dispose();
-    }
-    const waterMaterial = this.waterMesh.material;
-    if (waterMaterial instanceof MeshStandardMaterial) {
-      waterMaterial.dispose();
-    }
+    disposeMaterial(this.landMesh.material);
+    disposeMaterial(this.waterMesh.material);
   }
 }
 
@@ -180,4 +167,15 @@ function setSurfaceInstanceTransform(
     visible ? identityScale : hiddenScale
   );
   mesh.setMatrixAt(instanceId, tempSurfaceMatrix);
+}
+
+function disposeMaterial(material: Material | Material[]) {
+  if (Array.isArray(material)) {
+    for (const entry of material) {
+      entry.dispose();
+    }
+    return;
+  }
+
+  material.dispose();
 }
