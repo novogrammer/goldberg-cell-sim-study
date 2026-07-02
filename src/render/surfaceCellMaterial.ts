@@ -22,10 +22,43 @@ export function createLandSurfaceMaterial() {
     roughness: LAND_SURFACE_ROUGHNESS,
     metalness: 0.08
   });
+  const baseWorldNormal = normalWorldGeometry.normalize();
   const landNoise = createLandNoise(positionWorld);
   const landShade = landNoise.mul(0.18).add(0.92);
+  const landHeight = createLandHeight(positionWorld);
+  const basisSign = sign(baseWorldNormal.z);
+  const basisA = float(-1).div(basisSign.add(baseWorldNormal.z));
+  const basisB = baseWorldNormal.x.mul(baseWorldNormal.y).mul(basisA);
+  const tangentWorld = vec3(
+    baseWorldNormal.x.mul(baseWorldNormal.x).mul(basisSign).mul(basisA).add(1),
+    basisSign.mul(basisB),
+    basisSign.mul(baseWorldNormal.x).negate()
+  ).normalize();
+  const bitangentWorld = vec3(
+    basisB,
+    baseWorldNormal.y.mul(baseWorldNormal.y).mul(basisA).add(basisSign),
+    baseWorldNormal.y.negate()
+  ).normalize();
+  const sampleOffset = 0.04;
+  const tangentSlope = createLandHeight(positionWorld.add(tangentWorld.mul(sampleOffset)))
+    .sub(createLandHeight(positionWorld.sub(tangentWorld.mul(sampleOffset))))
+    .div(sampleOffset * 2);
+  const bitangentSlope = createLandHeight(positionWorld.add(bitangentWorld.mul(sampleOffset)))
+    .sub(createLandHeight(positionWorld.sub(bitangentWorld.mul(sampleOffset))))
+    .div(sampleOffset * 2);
+  const localLandNormal = vec3(
+    tangentSlope.negate(),
+    bitangentSlope.negate(),
+    1
+  ).normalize();
+  const landWorldNormal = tangentWorld.mul(localLandNormal.x)
+    .add(bitangentWorld.mul(localLandNormal.y))
+    .add(baseWorldNormal.mul(localLandNormal.z))
+    .normalize();
 
   material.colorNode = color(vec3(landShade));
+  material.positionNode = positionLocal.add(normalLocal.normalize().mul(landHeight));
+  material.normalNode = transformNormalToView(landWorldNormal).normalize();
 
   return material;
 }
@@ -80,6 +113,12 @@ function createLandNoise(positionNode: any) {
   const detailLandNoise = mx_fractal_noise_float(positionNode.mul(12.5), 3, 2.4, 0.5, 1);
 
   return broadLandNoise.mul(0.72).add(detailLandNoise.mul(0.28));
+}
+
+function createLandHeight(positionNode: any) {
+  const landHeightNoise = mx_fractal_noise_float(positionNode.mul(20), 5, 2.0, 0.58, 1);
+
+  return landHeightNoise.mul(0.006);
 }
 
 function createWaterHeight(positionNode: any) {
