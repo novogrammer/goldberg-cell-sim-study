@@ -16,6 +16,9 @@ const DISPLAY_FREQUENCY = 10;
 const APP_READY_ATTRIBUTE = "data-goldberg-app-ready";
 const APP_INIT_ERROR_ATTRIBUTE = "data-goldberg-app-init-error";
 const APP_BOOTSTRAP_STAGE_ATTRIBUTE = "data-goldberg-bootstrap-stage";
+const APP_CAMERA_X_ATTRIBUTE = "data-goldberg-camera-x";
+const APP_CAMERA_Y_ATTRIBUTE = "data-goldberg-camera-y";
+const APP_CAMERA_Z_ATTRIBUTE = "data-goldberg-camera-z";
 
 declare global {
   interface Window {
@@ -151,6 +154,31 @@ export function mountApp(root: HTMLElement): () => void {
     document.documentElement.setAttribute(APP_INIT_ERROR_ATTRIBUTE, "true");
   };
 
+  let lastCameraTelemetry: [string, string, string] | null = null;
+
+  const writeCameraTelemetry = () => {
+    const [x, y, z] = view.getCameraPosition();
+    const nextTelemetry: [string, string, string] = [
+      x.toFixed(4),
+      y.toFixed(4),
+      z.toFixed(4)
+    ];
+
+    if (
+      lastCameraTelemetry &&
+      lastCameraTelemetry[0] === nextTelemetry[0] &&
+      lastCameraTelemetry[1] === nextTelemetry[1] &&
+      lastCameraTelemetry[2] === nextTelemetry[2]
+    ) {
+      return;
+    }
+
+    document.documentElement.setAttribute(APP_CAMERA_X_ATTRIBUTE, nextTelemetry[0]);
+    document.documentElement.setAttribute(APP_CAMERA_Y_ATTRIBUTE, nextTelemetry[1]);
+    document.documentElement.setAttribute(APP_CAMERA_Z_ATTRIBUTE, nextTelemetry[2]);
+    lastCameraTelemetry = nextTelemetry;
+  };
+
   let isDisposed = false;
   let cleanupEvents = () => { };
   let isBootstrapped = false;
@@ -170,6 +198,7 @@ export function mountApp(root: HTMLElement): () => void {
     }
 
     view.render();
+    writeCameraTelemetry();
   };
 
   refreshHud();
@@ -274,6 +303,7 @@ export function mountApp(root: HTMLElement): () => void {
       window.addEventListener("resize", onResize);
       setBootstrapStage("resize-listener-bound");
       isBootstrapped = true;
+      writeCameraTelemetry();
       delete window.__goldbergAppInitError;
       window.__goldbergAppReady = true;
       setAppStatusAttributes("ready");
@@ -302,6 +332,9 @@ export function mountApp(root: HTMLElement): () => void {
     window.__goldbergAppReady = false;
     document.documentElement.removeAttribute(APP_READY_ATTRIBUTE);
     document.documentElement.removeAttribute(APP_INIT_ERROR_ATTRIBUTE);
+    document.documentElement.removeAttribute(APP_CAMERA_X_ATTRIBUTE);
+    document.documentElement.removeAttribute(APP_CAMERA_Y_ATTRIBUTE);
+    document.documentElement.removeAttribute(APP_CAMERA_Z_ATTRIBUTE);
     if (isBootstrapped) {
       void view.setAnimationLoop(null);
       cleanupEvents();
