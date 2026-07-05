@@ -4,9 +4,10 @@ import { createSimulationScene, type SimulationScene } from "./simulationScene";
 
 interface SimulationView {
   canvasElement: HTMLCanvasElement;
+  whenReady: () => Promise<void>;
   resize: () => void;
   render: () => void;
-  setAnimationLoop: (callback: ((time: number, frame?: XRFrame) => void) | null) => void;
+  setAnimationLoop: (callback: ((time: number, frame?: XRFrame) => void) | null) => Promise<void>;
   dispose: () => void;
   syncCells: (cells: Cell[]) => void;
   setAutoRotate: (enabled: boolean) => void;
@@ -24,9 +25,15 @@ interface SimulationView {
 
 class SimulationViewAdapter implements SimulationView {
   readonly canvasElement: HTMLCanvasElement;
+  private readonly initPromise: Promise<void>;
 
   constructor(private readonly scene: SimulationScene) {
     this.canvasElement = scene.renderer.domElement;
+    this.initPromise = scene.init();
+  }
+
+  whenReady() {
+    return this.initPromise;
   }
 
   resize() {
@@ -38,7 +45,7 @@ class SimulationViewAdapter implements SimulationView {
   }
 
   setAnimationLoop(callback: ((time: number, frame?: XRFrame) => void) | null) {
-    this.scene.setAnimationLoop(callback);
+    return this.scene.setAnimationLoop(callback);
   }
 
   dispose() {

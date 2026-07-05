@@ -1,5 +1,10 @@
 import { expect, test, type Page } from '@playwright/test';
 
+async function gotoApp(page: Page) {
+  await page.goto('/');
+  await page.waitForFunction(() => window.__goldbergAppReady === true);
+}
+
 async function getCanvasCenter(page: Page) {
   const box = await page.evaluate(() => {
     const canvas = document.querySelector('canvas');
@@ -141,7 +146,7 @@ function getVectorLength(position: [number, number, number]) {
 }
 
 test('Goldberg シミュレーション画面が表示される', async ({ page }) => {
-  await page.goto('/');
+  await gotoApp(page);
 
   await expect(
     page.getByRole('heading', { name: 'Shape rivers. Watch biomes spread.' })
@@ -152,7 +157,7 @@ test('Goldberg シミュレーション画面が表示される', async ({ page 
 });
 
 test('セル未選択時は主要コントロールが表示される', async ({ page }) => {
-  await page.goto('/');
+  await gotoApp(page);
 
   await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Auto Rotate' })).toBeVisible();
@@ -171,7 +176,7 @@ test('セル未選択時は主要コントロールが表示される', async ({
 });
 
 test('モード切り替えに応じて viewport のガイドと操作状態が切り替わる', async ({ page }) => {
-  await page.goto('/');
+  await gotoApp(page);
 
   await enterPaintMode(page);
 
@@ -194,7 +199,7 @@ test('モード切り替えに応じて viewport のガイドと操作状態が�
 });
 
 test('一時停止と回転のコントロールを切り替えられる', async ({ page }) => {
-  await page.goto('/');
+  await gotoApp(page);
 
   await setPlaybackState(page, false);
   await expect(page.getByRole('button', { name: 'Play' })).toBeVisible();
@@ -208,7 +213,7 @@ test('一時停止と回転のコントロールを切り替えられる', async
 });
 
 test('閲覧モードではドラッグしてカメラを回転できる', async ({ page }) => {
-  await page.goto('/');
+  await gotoApp(page);
 
   await setAutoRotateEnabled(page, false);
   const before = await getCameraPosition(page);
@@ -230,7 +235,7 @@ test('閲覧モードではドラッグしてカメラを回転できる', async
 });
 
 test('閲覧モードで下方向にドラッグするとカメラは上方向へ回る', async ({ page }) => {
-  await page.goto('/');
+  await gotoApp(page);
 
   await setAutoRotateEnabled(page, false);
   const before = await getCameraPosition(page);
@@ -252,7 +257,7 @@ test('閲覧モードで下方向にドラッグするとカメラは上方向�
 });
 
 test('閲覧モードではホイールでズームできる', async ({ page }) => {
-  await page.goto('/');
+  await gotoApp(page);
 
   await setAutoRotateEnabled(page, false);
   const before = await getCameraPosition(page);
@@ -274,7 +279,7 @@ test('閲覧モードではホイールでズームできる', async ({ page }) 
 });
 
 test('canvas 上のセルを選択すると selection detail が更新される', async ({ page }) => {
-  await page.goto('/');
+  await gotoApp(page);
 
   await setAutoRotateEnabled(page, false);
   const target = await getInteractiveCanvasPoint(page);
@@ -289,7 +294,7 @@ test('canvas 上のセルを選択すると selection detail が更新される'
 });
 
 test('ペイントモードで選択セルの terrain を直接切り替えられる', async ({ page }) => {
-  await page.goto('/');
+  await gotoApp(page);
 
   const target = await getInteractiveCanvasPoint(page);
   if (!target) {
@@ -311,7 +316,7 @@ test('ペイントモードで選択セルの terrain を直接切り替えら�
 });
 
 test('ペイントモードではドラッグして複数セルにまたがる操作ができる', async ({ page }) => {
-  await page.goto('/');
+  await gotoApp(page);
 
   const { box } = await getCanvasCenter(page);
   const target = await getInteractiveCanvasPoint(page);
@@ -341,7 +346,7 @@ test('ペイントモードではドラッグして複数セルにまたがる�
 });
 
 test('ペイントモード中のドラッグではカメラが回転しない', async ({ page }) => {
-  await page.goto('/');
+  await gotoApp(page);
 
   const target = await getInteractiveCanvasPoint(page);
   if (!target) {

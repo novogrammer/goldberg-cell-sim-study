@@ -46,10 +46,11 @@ type RenderCellVisual = SurfaceCellInstanceData & {
 };
 
 export interface SimulationScene {
+  init: () => Promise<void>;
   renderer: WebGPURenderer;
   resize: () => void;
   render: () => void;
-  setAnimationLoop: (callback: AnimationLoopCallback) => void;
+  setAnimationLoop: (callback: AnimationLoopCallback) => Promise<void>;
   updateCells: (cells: Cell[]) => void;
   setAutoRotate: (enabled: boolean) => void;
   setControlsEnabled: (enabled: boolean) => void;
@@ -82,6 +83,7 @@ class SimulationSceneController implements SimulationScene {
   private readonly weedGeometry: BoxGeometry;
   private readonly weedMaterial: MeshStandardMaterial;
   private readonly weedMesh: InstancedMesh;
+  private initPromise: Promise<void> | null = null;
   private lastRenderTimestamp = performance.now();
 
   constructor(
@@ -211,6 +213,14 @@ class SimulationSceneController implements SimulationScene {
     this.resize();
   }
 
+  init() {
+    if (!this.initPromise) {
+      this.initPromise = this.renderer.init().then(() => undefined);
+    }
+
+    return this.initPromise;
+  }
+
   resize() {
     const width = this.mount.clientWidth;
     const height = this.mount.clientHeight;
@@ -227,8 +237,9 @@ class SimulationSceneController implements SimulationScene {
     this.renderer.render(this.scene, this.camera);
   }
 
-  setAnimationLoop(callback: AnimationLoopCallback) {
-    this.renderer.setAnimationLoop(callback);
+  async setAnimationLoop(callback: AnimationLoopCallback) {
+    await this.init();
+    await this.renderer.setAnimationLoop(callback);
   }
 
   updateCells(cells: Cell[]) {

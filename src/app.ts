@@ -16,6 +16,7 @@ const DISPLAY_FREQUENCY = 10;
 
 declare global {
   interface Window {
+    __goldbergAppReady?: boolean;
     __goldbergTestState?: {
       setPlaybackState: (isPlaying: boolean) => void;
       setAutoRotateEnabled: (enabled: boolean) => void;
@@ -69,7 +70,6 @@ export function mountApp(root: HTMLElement): () => void {
   }, buildHudState());
 
   const view = createSimulationView(elements.viewport, meshData, appState.cells);
-  view.setAutoRotate(appState.autoRotate);
 
   const refreshHud = () => updateHud(elements, buildHudState());
 
@@ -122,87 +122,10 @@ export function mountApp(root: HTMLElement): () => void {
     appState.lastPaintedCellId = null;
   };
 
-  const cleanupEvents = bindAppEvents(elements, view.canvasElement, {
-    onTogglePlay: () => {
-      appState.pausedByUser = !appState.pausedByUser;
-      refreshHud();
-    },
-    onSetMode: (mode) => {
-      setPaintMode(mode === "paint");
-    },
-    onToggleAutoRotate: () => {
-      appState.autoRotate = !appState.autoRotate;
-      view.setAutoRotate(appState.autoRotate);
-      refreshHud();
-    },
-    onStep: () => {
-      syncScene(stepSimulation(appState.cells, DEFAULT_RULE_CONFIG));
-    },
-    onRandomize: () => {
-      syncScene(randomizeCellState(meshData.cells, Math.random() * 1000));
-    },
-    onSetBrush: (terrainKind) => {
-      setBrushTerrainKind(terrainKind);
-    },
-    onSetSpeed: (nextSpeed) => {
-      appState.speed = nextSpeed;
-      refreshHud();
-    },
-    onCanvasHover: (clientX, clientY) => {
-      view.setHoveredFromClientPoint(clientX, clientY);
-    },
-    onCanvasLeave: () => {
-      view.clearHoveredCell();
-    },
-    onCanvasPaintStart: (clientX, clientY) => {
-      appState.lastPaintedCellId = null;
-      paintAtClientPoint(clientX, clientY);
-    },
-    onCanvasPaintMove: (clientX, clientY) => {
-      paintAtClientPoint(clientX, clientY);
-    },
-    onCanvasPaintEnd: () => {
-      appState.lastPaintedCellId = null;
-    },
-    onCanvasSelect: (clientX, clientY) => {
-      const pickedCellId = view.pickCellAtClientPoint(clientX, clientY);
-      appState.selectedCellId = toggleSelectedCell(appState.selectedCellId, pickedCellId);
-      view.setSelectedCell(appState.selectedCellId);
-      refreshHud();
-    }
-  });
-
-  window.__goldbergTestState = {
-    setPlaybackState: (isPlaying) => {
-      appState.pausedByUser = !isPlaying;
-      refreshHud();
-    },
-    setAutoRotateEnabled: (enabled) => {
-      appState.autoRotate = enabled;
-      view.setAutoRotate(enabled);
-      refreshHud();
-    },
-    getCameraPosition: () => view.getCameraPosition(),
-    rotateCameraByPixels: (deltaX, deltaY) => {
-      view.rotateCameraByPixels(deltaX, deltaY);
-      view.syncCameraImmediately();
-    },
-    zoomCameraByDelta: (deltaY) => {
-      view.zoomCameraByDelta(deltaY);
-      view.syncCameraImmediately();
-    },
-    getInteractiveCanvasPoint: () => view.getInteractiveCanvasPoint(),
-    setPaintMode,
-    setBrushTerrainKind,
-    paintStroke,
-    getSelectedCellSummary: () => buildSelectedCellSummary(appState.cells, appState.selectedCellId),
-    getCellTerrainKind: (cellId) => appState.cells.find((cell) => cell.id === cellId)?.terrainKind ?? null
-  };
-
-  const onResize = () => view.resize();
-  window.addEventListener("resize", onResize);
-
   let isDisposed = false;
+  let cleanupEvents = () => { };
+  let isBootstrapped = false;
+  const onResize = () => view.resize();
 
   const animate = (timestamp: number) => {
     if (isDisposed) {
@@ -221,7 +144,104 @@ export function mountApp(root: HTMLElement): () => void {
   };
 
   refreshHud();
-  view.setAnimationLoop(animate);
+  window.__goldbergAppReady = false;
+
+  const bootstrap = async () => {
+    try {
+      await view.whenReady();
+      if (isDisposed) {
+        return;
+      }
+
+      view.setAutoRotate(appState.autoRotate);
+
+      cleanupEvents = bindAppEvents(elements, view.canvasElement, {
+        onTogglePlay: () => {
+          appState.pausedByUser = !appState.pausedByUser;
+          refreshHud();
+        },
+        onSetMode: (mode) => {
+          setPaintMode(mode === "paint");
+        },
+        onToggleAutoRotate: () => {
+          appState.autoRotate = !appState.autoRotate;
+          view.setAutoRotate(appState.autoRotate);
+          refreshHud();
+        },
+        onStep: () => {
+          syncScene(stepSimulation(appState.cells, DEFAULT_RULE_CONFIG));
+        },
+        onRandomize: () => {
+          syncScene(randomizeCellState(meshData.cells, Math.random() * 1000));
+        },
+        onSetBrush: (terrainKind) => {
+          setBrushTerrainKind(terrainKind);
+        },
+        onSetSpeed: (nextSpeed) => {
+          appState.speed = nextSpeed;
+          refreshHud();
+        },
+        onCanvasHover: (clientX, clientY) => {
+          view.setHoveredFromClientPoint(clientX, clientY);
+        },
+        onCanvasLeave: () => {
+          view.clearHoveredCell();
+        },
+        onCanvasPaintStart: (clientX, clientY) => {
+          appState.lastPaintedCellId = null;
+          paintAtClientPoint(clientX, clientY);
+        },
+        onCanvasPaintMove: (clientX, clientY) => {
+          paintAtClientPoint(clientX, clientY);
+        },
+        onCanvasPaintEnd: () => {
+          appState.lastPaintedCellId = null;
+        },
+        onCanvasSelect: (clientX, clientY) => {
+          const pickedCellId = view.pickCellAtClientPoint(clientX, clientY);
+          appState.selectedCellId = toggleSelectedCell(appState.selectedCellId, pickedCellId);
+          view.setSelectedCell(appState.selectedCellId);
+          refreshHud();
+        }
+      });
+
+      window.__goldbergTestState = {
+        setPlaybackState: (isPlaying) => {
+          appState.pausedByUser = !isPlaying;
+          refreshHud();
+        },
+        setAutoRotateEnabled: (enabled) => {
+          appState.autoRotate = enabled;
+          view.setAutoRotate(enabled);
+          refreshHud();
+        },
+        getCameraPosition: () => view.getCameraPosition(),
+        rotateCameraByPixels: (deltaX, deltaY) => {
+          view.rotateCameraByPixels(deltaX, deltaY);
+          view.syncCameraImmediately();
+        },
+        zoomCameraByDelta: (deltaY) => {
+          view.zoomCameraByDelta(deltaY);
+          view.syncCameraImmediately();
+        },
+        getInteractiveCanvasPoint: () => view.getInteractiveCanvasPoint(),
+        setPaintMode,
+        setBrushTerrainKind,
+        paintStroke,
+        getSelectedCellSummary: () => buildSelectedCellSummary(appState.cells, appState.selectedCellId),
+        getCellTerrainKind: (cellId) => appState.cells.find((cell) => cell.id === cellId)?.terrainKind ?? null
+      };
+
+      window.addEventListener("resize", onResize);
+      isBootstrapped = true;
+      window.__goldbergAppReady = true;
+      await view.setAnimationLoop(animate);
+    } catch (error) {
+      console.error("Failed to initialize simulation view.", error);
+    }
+  };
+
+  void bootstrap();
 
   return () => {
     if (isDisposed) {
@@ -229,9 +249,12 @@ export function mountApp(root: HTMLElement): () => void {
     }
 
     isDisposed = true;
-    view.setAnimationLoop(null);
-    cleanupEvents();
-    window.removeEventListener("resize", onResize);
+    window.__goldbergAppReady = false;
+    if (isBootstrapped) {
+      void view.setAnimationLoop(null);
+      cleanupEvents();
+      window.removeEventListener("resize", onResize);
+    }
     delete window.__goldbergTestState;
     view.dispose();
   };
