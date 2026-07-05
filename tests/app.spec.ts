@@ -2,7 +2,9 @@ import { expect, test, type Page } from '@playwright/test';
 
 async function gotoApp(page: Page) {
   await page.goto('/');
-  await page.locator('html[data-goldberg-app-ready="true"], html[data-goldberg-app-init-error="true"]').waitFor();
+  await page
+    .locator('html[data-goldberg-app-ready="true"], html[data-goldberg-app-init-error="true"]')
+    .waitFor({ state: 'attached' });
 
   const initError = await page.evaluate(() => window.__goldbergAppInitError ?? null);
   if (initError) {
