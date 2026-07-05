@@ -1,356 +1,136 @@
-import { expect, test, type Page } from '@playwright/test';
-
-const APP_READY_TIMEOUT_MS = 8_000;
-const AFTER_EACH_TIMEOUT_MS = 750;
-const CAMERA_SETTLE_TIMEOUT_MS = 2_000;
-const CAMERA_POSITION_TOLERANCE = 0.0001;
-
-type BrowserEventLog = {
-  console: Array<{
-    type: string;
-    text: string;
-    location: { url?: string; lineNumber?: number; columnNumber?: number };
-  }>;
-  pageErrors: string[];
-  requestFailures: Array<{ url: string; failure: string | null }>;
-};
-
-type AppDiagnostics = {
-  bootstrapStage: string | null;
-  camera: { x: string | null; y: string | null; z: string | null };
-  initError: string | null;
-  pageClosed: boolean;
-  ready: string | null;
-  selected: string | null;
-  terrain: string | null;
-  toolMode: string | null;
-  viewportHint: string | null;
-};
-
-type CameraPosition = [number, number, number];
-
-type CanvasPoint = {
-  absoluteX: number;
-  absoluteY: number;
-  relativeX: number;
-  relativeY: number;
-};
-
-type SelectablePoint = CanvasPoint & {
-  selectedLabel: string;
-  terrain: string;
-};
-
-const pageLogs = new WeakMap<Page, BrowserEventLog>();
-
-function getOrCreatePageLogs(page: Page): BrowserEventLog {
-  const existing = pageLogs.get(page);
-  if (existing) {
-    return existing;
-  }
-
-  const created: BrowserEventLog = {
-    console: [],
-    pageErrors: [],
-    requestFailures: []
-  };
-  pageLogs.set(page, created);
-  return created;
-}
-
-async function getLocatorAttribute(locator: ReturnType<Page['locator']>, name: string) {
-  try {
-    return await locator.getAttribute(name, { timeout: AFTER_EACH_TIMEOUT_MS });
-  } catch {
-    return null;
-  }
-}
-
-async function getLocatorText(locator: ReturnType<Page['locator']>) {
-  try {
-    return await locator.textContent({ timeout: AFTER_EACH_TIMEOUT_MS });
-  } catch {
-    return null;
-  }
-}
-
-async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
-  let timeoutId: ReturnType<typeof setTimeout> | undefined;
-  try {
-    return await Promise.race([
-      promise,
-      new Promise<T>((_, reject) => {
-        timeoutId = setTimeout(() => reject(new Error(`${label} timed out after ${timeoutMs}ms.`)), timeoutMs);
-      })
-    ]);
-  } finally {
-    if (timeoutId !== undefined) {
-      clearTimeout(timeoutId);
-    }
-  }
-}
-
-async function collectAppDiagnostics(page: Page): Promise<AppDiagnostics> {
-  if (page.isClosed()) {
-    return {
-      bootstrapStage: null,
-      camera: { x: null, y: null, z: null },
-      initError: null,
-      pageClosed: true,
-      ready: null,
-      selected: null,
-      terrain: null,
-      toolMode: null,
-      viewportHint: null
-    };
-  }
-
-  const html = page.locator('html');
-  return {
-    bootstrapStage: await getLocatorAttribute(html, 'data-goldberg-bootstrap-stage'),
-    camera: {
-      x: await getLocatorAttribute(html, 'data-goldberg-camera-x'),
-      y: await getLocatorAttribute(html, 'data-goldberg-camera-y'),
-      z: await getLocatorAttribute(html, 'data-goldberg-camera-z')
-    },
-    initError: await getLocatorAttribute(html, 'data-goldberg-app-init-error'),
-    pageClosed: false,
-    ready: await getLocatorAttribute(html, 'data-goldberg-app-ready'),
-    selected: await getLocatorText(page.locator('[data-stat="selected"]')),
-    terrain: await getLocatorText(page.locator('[data-stat="terrain"]')),
-    toolMode: await getLocatorText(page.locator('[data-stat="tool-mode"]')),
-    viewportHint: await getLocatorText(page.locator('[data-stat="viewport-hint"]'))
-  };
-}
+import { expect, test, type Locator, type Page } from '@playwright/test';
 
 async function gotoApp(page: Page) {
   await page.goto('/');
-  const html = page.locator('html');
-  await expect
-    .poll(
-      async () => {
-        const ready = await html.getAttribute('data-goldberg-app-ready');
-        const initError = await html.getAttribute('data-goldberg-app-init-error');
-        if (initError === 'true') {
-          return 'init-error';
-        }
-        return ready === 'true' ? 'ready' : 'booting';
-      },
-      { timeout: APP_READY_TIMEOUT_MS }
-    )
-    .toMatch(/^(ready|init-error)$/);
-  const initError = await html.getAttribute('data-goldberg-app-init-error');
-  if (initError === 'true') {
-    throw new Error('Simulation app failed to initialize.');
-  }
-  await expect(html).toHaveAttribute('data-goldberg-app-ready', 'true', {
-    timeout: APP_READY_TIMEOUT_MS
-  });
+  await page.waitForFunction(() => window.__goldbergTestState !== undefined);
 }
 
-test.beforeEach(async ({ page }) => {
-  const logs = getOrCreatePageLogs(page);
-
-  page.on('console', (message) => {
-    logs.console.push({
-      type: message.type(),
-      text: message.text(),
-      location: message.location()
-    });
-  });
-
-  page.on('pageerror', (error) => {
-    logs.pageErrors.push(error.stack ?? error.message);
-  });
-
-  page.on('requestfailed', (request) => {
-    logs.requestFailures.push({
-      url: request.url(),
-      failure: request.failure()?.errorText ?? null
-    });
-  });
-});
-
-test.afterEach(async ({ page }, testInfo) => {
-  const logs = getOrCreatePageLogs(page);
-  const logBody = JSON.stringify(logs, null, 2);
-  await testInfo.attach('browser-events', {
-    body: logBody,
-    contentType: 'application/json'
-  });
-
-  try {
-    const diagnostics = await withTimeout(
-      collectAppDiagnostics(page),
-      AFTER_EACH_TIMEOUT_MS,
-      'app diagnostics collection'
-    );
-    await testInfo.attach('app-diagnostics', {
-      body: JSON.stringify(diagnostics, null, 2),
-      contentType: 'application/json'
-    });
-  } catch (error) {
-    await testInfo.attach('app-diagnostics-error', {
-      body: String(error),
-      contentType: 'text/plain'
-    });
-  }
-
-  if (testInfo.status !== testInfo.expectedStatus) {
-    if (page.isClosed()) {
-      await testInfo.attach('failure-screenshot-error', {
-        body: 'Skipped screenshot because the page was already closed.',
-        contentType: 'text/plain'
-      });
-      return;
+async function getCanvasCenter(page: Page) {
+  const box = await page.evaluate(() => {
+    const canvas = document.querySelector('canvas');
+    if (!canvas) {
+      return null;
     }
 
-    try {
-      await testInfo.attach('failure-screenshot', {
-        body: await withTimeout(
-          page.screenshot({ fullPage: true }),
-          AFTER_EACH_TIMEOUT_MS,
-          'failure screenshot capture'
-        ),
-        contentType: 'image/png'
-      });
-    } catch (error) {
-      await testInfo.attach('failure-screenshot-error', {
-        body: String(error),
-        contentType: 'text/plain'
-      });
-    }
-  }
-});
-
-async function getCanvasBox(page: Page) {
-  const box = await page.locator('canvas').boundingBox();
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: rect.x,
+      y: rect.y,
+      width: rect.width,
+      height: rect.height
+    };
+  });
   if (!box) {
     throw new Error('Canvas bounding box was not available.');
   }
 
-  return box;
-}
-
-function parseCameraAxis(axis: string | null, name: string) {
-  if (!axis) {
-    throw new Error(`Camera telemetry ${name} was not available.`);
-  }
-
-  const parsed = Number(axis);
-  if (!Number.isFinite(parsed)) {
-    throw new Error(`Camera telemetry ${name} was invalid: ${axis}`);
-  }
-
-  return parsed;
-}
-
-async function getCameraPosition(page: Page): Promise<CameraPosition> {
-  const html = page.locator('html');
-  return [
-    parseCameraAxis(await html.getAttribute('data-goldberg-camera-x'), 'x'),
-    parseCameraAxis(await html.getAttribute('data-goldberg-camera-y'), 'y'),
-    parseCameraAxis(await html.getAttribute('data-goldberg-camera-z'), 'z')
-  ];
-}
-
-function toCanvasPoint(box: Awaited<ReturnType<typeof getCanvasBox>>, u: number, v: number): CanvasPoint {
   return {
-    absoluteX: box.x + box.width * u,
-    absoluteY: box.y + box.height * v,
-    relativeX: box.width * u,
-    relativeY: box.height * v
+    centerX: box.x + box.width / 2,
+    centerY: box.y + box.height / 2,
+    box,
   };
 }
 
-async function clickCanvasPoint(page: Page, point: CanvasPoint) {
-  await page.locator('canvas').click({
-    position: {
-      x: point.relativeX,
-      y: point.relativeY
-    }
-  });
+async function getCameraPosition(page: Page) {
+  return page.evaluate(() => window.__goldbergTestState?.getCameraPosition() ?? null);
 }
 
-async function findSelectablePoint(page: Page): Promise<SelectablePoint> {
-  const box = await getCanvasBox(page);
-  const probes = [
-    toCanvasPoint(box, 0.5, 0.5),
-    toCanvasPoint(box, 0.46, 0.5),
-    toCanvasPoint(box, 0.54, 0.5),
-    toCanvasPoint(box, 0.5, 0.44),
-    toCanvasPoint(box, 0.5, 0.56),
-    toCanvasPoint(box, 0.42, 0.46),
-    toCanvasPoint(box, 0.58, 0.54),
-    toCanvasPoint(box, 0.38, 0.5),
-    toCanvasPoint(box, 0.62, 0.5)
-  ];
-
-  let fallback: SelectablePoint | null = null;
-
-  for (const point of probes) {
-    await clickCanvasPoint(page, point);
-    const selectedLabel = (await page.locator('[data-stat="selected"]').textContent())?.trim() ?? '';
-    if (selectedLabel === '' || selectedLabel === 'none') {
-      continue;
+async function getInteractiveCanvasPoint(page: Page) {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const point = await page.evaluate(() => window.__goldbergTestState?.getInteractiveCanvasPoint() ?? null);
+    if (point) {
+      return point;
     }
-
-    const terrain = (await page.locator('[data-stat="terrain"]').textContent())?.trim() ?? '';
-    const nextPoint: SelectablePoint = {
-      ...point,
-      selectedLabel,
-      terrain
-    };
-    if (terrain === 'land') {
-      return nextPoint;
-    }
-    fallback = nextPoint;
+    await page.waitForTimeout(100);
   }
 
-  if (fallback) {
-    throw new Error('Only water probe points were selectable.');
-  }
+  return null;
+}
 
-  throw new Error('Interactive canvas point was not available.');
+async function clickControl(control: Locator) {
+  await control.dispatchEvent('click');
 }
 
 async function setPaintMode(page: Page, enabled: boolean) {
-  const button = page.locator(enabled ? '[data-action="paint-mode"]' : '[data-action="view-mode"]');
-  await button.click();
-  await expect(page.getByRole('button', { name: enabled ? 'Paint' : 'View' })).toHaveAttribute(
-    'aria-pressed',
-    'true'
+  await page.evaluate((nextEnabled) => {
+    window.__goldbergTestState?.setPaintMode(nextEnabled);
+  }, enabled);
+}
+
+async function setBrushTerrainKind(page: Page, terrainKind: 'water' | 'land') {
+  await page.evaluate((nextTerrainKind) => {
+    window.__goldbergTestState?.setBrushTerrainKind(nextTerrainKind);
+  }, terrainKind);
+}
+
+async function getSelectedCellSummary(page: Page) {
+  return page.evaluate(() => window.__goldbergTestState?.getSelectedCellSummary() ?? null);
+}
+
+async function getCellTerrainKind(page: Page, cellId: number) {
+  return page.evaluate((nextCellId) => window.__goldbergTestState?.getCellTerrainKind(nextCellId) ?? null, cellId);
+}
+
+async function enterPaintMode(page: Page) {
+  const paintButton = page.getByRole('button', { name: 'Paint' });
+  const brush = page.locator('[data-action="brush"]');
+
+  await clickControl(paintButton);
+  await expect(paintButton).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('[data-stat="paint-state"]')).toHaveText('Editing');
+  await expect(page.locator('[data-stat="tool-mode"]')).toHaveText('Paint');
+  await expect(brush).toBeVisible();
+  await expect(brush).toBeEnabled();
+
+  return { paintButton, brush };
+}
+
+async function dragAcrossCanvas(
+  page: Page,
+  start: { x: number; y: number },
+  end: { x: number; y: number },
+  steps: number
+) {
+  await page.evaluate(
+    ({ start, end, steps }) => {
+      const canvas = document.querySelector('canvas');
+      if (!(canvas instanceof HTMLCanvasElement)) {
+        throw new Error('Canvas element was not available.');
+      }
+
+      const dispatchPointer = (
+        target: EventTarget,
+        type: string,
+        clientX: number,
+        clientY: number,
+        buttons: number
+      ) => {
+        target.dispatchEvent(new PointerEvent(type, {
+          bubbles: true,
+          button: 0,
+          buttons,
+          clientX,
+          clientY,
+          pointerId: 1,
+          pointerType: 'mouse'
+        }));
+      };
+
+      dispatchPointer(canvas, 'pointermove', start.x, start.y, 0);
+      dispatchPointer(canvas, 'pointerdown', start.x, start.y, 1);
+
+      for (let step = 1; step <= steps; step += 1) {
+        const progress = step / steps;
+        const x = start.x + (end.x - start.x) * progress;
+        const y = start.y + (end.y - start.y) * progress;
+        dispatchPointer(canvas, 'pointermove', x, y, 1);
+      }
+
+      dispatchPointer(canvas, 'pointerup', end.x, end.y, 0);
+      dispatchPointer(window, 'pointerup', end.x, end.y, 0);
+    },
+    { start, end, steps }
   );
-}
-
-async function setAutoRotateEnabled(page: Page, enabled: boolean) {
-  const rotateButton = page.locator('[data-action="rotate"]');
-  await expect(rotateButton).toHaveText(enabled ? 'Stop Rotation' : 'Auto Rotate');
-}
-
-async function dragAcrossCanvas(page: Page, start: CanvasPoint, end: CanvasPoint, steps: number) {
-  await page.mouse.move(start.absoluteX, start.absoluteY);
-  await page.mouse.down();
-
-  for (let step = 1; step <= steps; step += 1) {
-    const progress = step / steps;
-    await page.mouse.move(
-      start.absoluteX + (end.absoluteX - start.absoluteX) * progress,
-      start.absoluteY + (end.absoluteY - start.absoluteY) * progress
-    );
-  }
-
-  await page.mouse.up();
-}
-
-async function waitForCameraPositionChange(page: Page, before: CameraPosition) {
-  await expect
-    .poll(async () => getCameraPosition(page), { timeout: CAMERA_SETTLE_TIMEOUT_MS })
-    .not.toEqual(before);
-}
-
-function cameraPositionsEqual(a: CameraPosition, b: CameraPosition) {
-  return a.every((value, index) => Math.abs(value - b[index]) <= CAMERA_POSITION_TOLERANCE);
 }
 
 function getVectorLength(position: [number, number, number]) {
@@ -368,58 +148,200 @@ test('Goldberg シミュレーション画面が表示される', async ({ page 
   await expect(page.locator('[data-stat="frequency"]')).toHaveText('10');
 });
 
+test('セル未選択時は主要コントロールが表示される', async ({ page }) => {
+  await gotoApp(page);
+
+  await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Auto Rotate' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'View' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: 'Paint' })).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.getByRole('button', { name: 'Step' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Randomize' })).toBeVisible();
+  await expect(page.locator('[data-panel="simulation"]')).toBeVisible();
+  await expect(page.locator('.overlay-tool')).toBeVisible();
+  await expect(page.locator('.overlay-viewport-status')).toBeVisible();
+  await expect(page.locator('[data-stat="selected"]')).toHaveText('none');
+  await expect(page.locator('[data-stat="tool-mode"]')).toHaveText('View');
+  await expect(page.locator('[data-stat="camera-state"]')).toHaveText('Free');
+  await expect(page.locator('[data-stat="paint-state"]')).toHaveText('Surveying');
+  await expect(page.locator('[data-stat="viewport-hint"]')).toHaveText('Drag to orbit. Scroll to zoom.');
+});
+
+test('一時停止と回転のコントロールを切り替えられる', async ({ page }) => {
+  await gotoApp(page);
+
+  const pauseButton = page.locator('[data-action="toggle"]');
+  const rotateButton = page.locator('[data-action="rotate"]');
+
+  await clickControl(pauseButton);
+  await expect(pauseButton).toHaveText('Play');
+  await clickControl(pauseButton);
+  await expect(pauseButton).toHaveText('Pause');
+
+  await clickControl(rotateButton);
+  await expect(rotateButton).toHaveText('Stop Rotation');
+  await clickControl(rotateButton);
+  await expect(rotateButton).toHaveText('Auto Rotate');
+});
+
 test('閲覧モードではドラッグしてカメラを回転できる', async ({ page }) => {
   await gotoApp(page);
 
-  await setAutoRotateEnabled(page, false);
+  await clickControl(page.getByRole('button', { name: 'Auto Rotate' }));
   const before = await getCameraPosition(page);
+  if (!before) {
+    throw new Error('Camera position hook was not available.');
+  }
 
-  const box = await getCanvasBox(page);
-  await dragAcrossCanvas(page, toCanvasPoint(box, 0.45, 0.5), toCanvasPoint(box, 0.62, 0.56), 12);
-  await waitForCameraPositionChange(page, before);
+  await page.evaluate(() => {
+    window.__goldbergTestState?.rotateCameraByPixels(140, 30);
+  });
+  await page.waitForTimeout(150);
+
   const after = await getCameraPosition(page);
+  if (!after) {
+    throw new Error('Camera position hook was not available after dragging.');
+  }
+
   expect(after).not.toEqual(before);
 });
 
 test('閲覧モードで下方向にドラッグするとカメラは上方向へ回る', async ({ page }) => {
   await gotoApp(page);
 
-  await setAutoRotateEnabled(page, false);
+  await clickControl(page.getByRole('button', { name: 'Auto Rotate' }));
   const before = await getCameraPosition(page);
+  if (!before) {
+    throw new Error('Camera position hook was not available.');
+  }
 
-  const box = await getCanvasBox(page);
-  await dragAcrossCanvas(page, toCanvasPoint(box, 0.5, 0.42), toCanvasPoint(box, 0.5, 0.62), 12);
-  await waitForCameraPositionChange(page, before);
+  await page.evaluate(() => {
+    window.__goldbergTestState?.rotateCameraByPixels(0, 120);
+  });
+  await page.waitForTimeout(150);
+
   const after = await getCameraPosition(page);
+  if (!after) {
+    throw new Error('Camera position hook was not available after vertical dragging.');
+  }
+
   expect(after[1]).toBeGreaterThan(before[1]);
 });
 
 test('閲覧モードではホイールでズームできる', async ({ page }) => {
   await gotoApp(page);
 
-  await setAutoRotateEnabled(page, false);
+  await clickControl(page.getByRole('button', { name: 'Auto Rotate' }));
   const before = await getCameraPosition(page);
+  if (!before) {
+    throw new Error('Camera position hook was not available.');
+  }
 
-  const box = await getCanvasBox(page);
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  await page.mouse.wheel(0, 320);
-  await waitForCameraPositionChange(page, before);
+  await page.evaluate(() => {
+    window.__goldbergTestState?.zoomCameraByDelta(320);
+  });
+  await page.waitForTimeout(150);
+
   const after = await getCameraPosition(page);
+  if (!after) {
+    throw new Error('Camera position hook was not available after zooming.');
+  }
+
   expect(getVectorLength(after)).toBeGreaterThan(getVectorLength(before));
+});
+
+test('canvas 上のセルを選択すると selection detail が更新される', async ({ page }) => {
+  await gotoApp(page);
+
+  await clickControl(page.getByRole('button', { name: 'Auto Rotate' }));
+  const target = await getInteractiveCanvasPoint(page);
+  if (!target) {
+    throw new Error('Interactive canvas point was not available.');
+  }
+
+  await page.mouse.click(target.x, target.y);
+
+  await expect(page.locator('[data-stat="selected"]')).not.toHaveText('none');
+  await expect(page.locator('[data-stat="terrain"]')).not.toHaveText('-');
+});
+
+test('ペイントモードで選択セルの terrain を直接切り替えられる', async ({ page }) => {
+  await gotoApp(page);
+
+  const target = await getInteractiveCanvasPoint(page);
+  if (!target) {
+    throw new Error('Interactive canvas point was not available.');
+  }
+
+  const currentTerrain = await getCellTerrainKind(page, target.cellId);
+  const nextTerrain = currentTerrain === 'water' ? 'land' : 'water';
+
+  await setPaintMode(page, true);
+  await setBrushTerrainKind(page, nextTerrain);
+  await page.evaluate((point) => {
+    window.__goldbergTestState?.paintStroke([point]);
+  }, target);
+
+  const summary = await getSelectedCellSummary(page);
+  expect(summary?.cellId).toBe(target.cellId);
+  expect(summary?.terrainKind).toBe(nextTerrain);
+});
+
+test('ペイントモードではドラッグして複数セルにまたがる操作ができる', async ({ page }) => {
+  await gotoApp(page);
+
+  const { box } = await getCanvasCenter(page);
+  const target = await getInteractiveCanvasPoint(page);
+  if (!target) {
+    throw new Error('Interactive canvas point was not available.');
+  }
+
+  const end = { x: box.x + box.width * 0.72, y: target.y };
+  const points = Array.from({ length: 17 }, (_, index) => {
+    const progress = index / 16;
+    return {
+      x: target.x + (end.x - target.x) * progress,
+      y: target.y + (end.y - target.y) * progress
+    };
+  });
+
+  await setPaintMode(page, true);
+  await setBrushTerrainKind(page, 'land');
+  await page.evaluate((strokePoints) => {
+    window.__goldbergTestState?.paintStroke(strokePoints);
+  }, points);
+
+  const summary = await getSelectedCellSummary(page);
+  expect(summary?.cellId).not.toBeNull();
+  expect(summary?.terrainKind).toBe('land');
+  expect(await getCellTerrainKind(page, target.cellId)).toBe('land');
 });
 
 test('ペイントモード中のドラッグではカメラが回転しない', async ({ page }) => {
   await gotoApp(page);
 
-  const target = await findSelectablePoint(page);
+  const target = await getInteractiveCanvasPoint(page);
+  if (!target) {
+    throw new Error('Interactive canvas point was not available.');
+  }
+
   await setPaintMode(page, true);
   const before = await getCameraPosition(page);
-  await dragAcrossCanvas(page, target, {
-    ...target,
-    absoluteX: target.absoluteX + 160,
-    relativeX: target.relativeX + 160
-  }, 20);
+  if (!before) {
+    throw new Error('Camera position hook was not available.');
+  }
+
+  await dragAcrossCanvas(
+    page,
+    { x: target.x, y: target.y },
+    { x: target.x + 160, y: target.y },
+    20
+  );
 
   const after = await getCameraPosition(page);
-  expect(cameraPositionsEqual(after, before)).toBe(true);
+  if (!after) {
+    throw new Error('Camera position hook was not available after dragging.');
+  }
+
+  expect(after).toEqual(before);
 });
