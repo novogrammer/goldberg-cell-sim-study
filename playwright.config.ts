@@ -13,6 +13,7 @@ import { defineConfig, devices } from '@playwright/test';
  */
 export default defineConfig({
   testDir: './tests',
+  timeout: 10_000,
   /* WebGPU-driven canvas interaction is less stable when tests in one file run concurrently. */
   fullyParallel: false,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
