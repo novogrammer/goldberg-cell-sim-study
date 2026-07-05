@@ -1,14 +1,23 @@
 import { expect, test, type Page } from '@playwright/test';
 
+const APP_READY_TIMEOUT_MS = 8_000;
+
 async function gotoApp(page: Page) {
   await page.goto('/');
   await page
     .locator('html[data-goldberg-app-ready="true"], html[data-goldberg-app-init-error="true"]')
-    .waitFor({ state: 'attached' });
+    .waitFor({ state: 'attached', timeout: APP_READY_TIMEOUT_MS });
 
   const initError = await page.evaluate(() => window.__goldbergAppInitError ?? null);
   if (initError) {
     throw new Error(`Simulation app failed to initialize:\n${initError}`);
+  }
+
+  const isReady = await page.evaluate(() => document.documentElement.getAttribute('data-goldberg-app-ready'));
+  if (isReady !== 'true') {
+    throw new Error(
+      `Simulation app did not reach ready state within ${APP_READY_TIMEOUT_MS}ms. data-goldberg-app-ready=${isReady}`
+    );
   }
 }
 
