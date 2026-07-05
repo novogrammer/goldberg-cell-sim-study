@@ -34,6 +34,7 @@ npm run build
 - 現在は E2E テストを常用しません。`npm run test:e2e` や `npm test` は、ユーザーが明示的に求めた場合だけ実行してください。
 - 既定の検証は `npm run test:unit` と `npm run build` です。
 - UI の見た目や操作感に影響する変更では、`npm run test:unit` と `npm run build` の完了に加えて、必要ならヘッドレスブラウザでの追加確認内容も完了時に明記してください。
+- E2E の設計方針を変更・追加する場合は、[tests/README.md](/Users/novo/Documents/aptanastudio3workspace/goldberg-cell-sim-study/tests/README.md:1) の方針と整合させてください。
 
 フロントエンドの見た目や操作感に影響する変更を行う場合は、可能ならヘッドレスブラウザで表示や操作を確認してください。通常ブラウザでの最終確認はユーザーが行う前提です。
 

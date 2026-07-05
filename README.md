@@ -45,6 +45,8 @@ Vite の開発サーバーが立ち上がります。
 npm test
 ```
 
+E2E の運用方針は [tests/README.md](/Users/novo/Documents/aptanastudio3workspace/goldberg-cell-sim-study/tests/README.md:1) を参照してください。
+
 確認している内容:
 
 - `frequency=2` で 42 セル、`frequency=3` で 92 セルの Goldberg多面体メッシュが生成される
