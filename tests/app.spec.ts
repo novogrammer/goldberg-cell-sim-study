@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 const APP_READY_TIMEOUT_MS = 8_000;
+const AFTER_EACH_TIMEOUT_MS = 750;
 const CAMERA_SETTLE_TIMEOUT_MS = 2_000;
 const CAMERA_POSITION_TOLERANCE = 0.0001;
 
@@ -18,6 +19,7 @@ type AppDiagnostics = {
   bootstrapStage: string | null;
   camera: { x: string | null; y: string | null; z: string | null };
   initError: string | null;
+  pageClosed: boolean;
   ready: string | null;
   selected: string | null;
   terrain: string | null;
@@ -56,21 +58,68 @@ function getOrCreatePageLogs(page: Page): BrowserEventLog {
   return created;
 }
 
+async function getLocatorAttribute(locator: ReturnType<Page['locator']>, name: string) {
+  try {
+    return await locator.getAttribute(name, { timeout: AFTER_EACH_TIMEOUT_MS });
+  } catch {
+    return null;
+  }
+}
+
+async function getLocatorText(locator: ReturnType<Page['locator']>) {
+  try {
+    return await locator.textContent({ timeout: AFTER_EACH_TIMEOUT_MS });
+  } catch {
+    return null;
+  }
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error(`${label} timed out after ${timeoutMs}ms.`)), timeoutMs);
+      })
+    ]);
+  } finally {
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
 async function collectAppDiagnostics(page: Page): Promise<AppDiagnostics> {
+  if (page.isClosed()) {
+    return {
+      bootstrapStage: null,
+      camera: { x: null, y: null, z: null },
+      initError: null,
+      pageClosed: true,
+      ready: null,
+      selected: null,
+      terrain: null,
+      toolMode: null,
+      viewportHint: null
+    };
+  }
+
   const html = page.locator('html');
   return {
-    bootstrapStage: await html.getAttribute('data-goldberg-bootstrap-stage'),
+    bootstrapStage: await getLocatorAttribute(html, 'data-goldberg-bootstrap-stage'),
     camera: {
-      x: await html.getAttribute('data-goldberg-camera-x'),
-      y: await html.getAttribute('data-goldberg-camera-y'),
-      z: await html.getAttribute('data-goldberg-camera-z')
+      x: await getLocatorAttribute(html, 'data-goldberg-camera-x'),
+      y: await getLocatorAttribute(html, 'data-goldberg-camera-y'),
+      z: await getLocatorAttribute(html, 'data-goldberg-camera-z')
     },
-    initError: await html.getAttribute('data-goldberg-app-init-error'),
-    ready: await html.getAttribute('data-goldberg-app-ready'),
-    selected: await page.locator('[data-stat="selected"]').textContent(),
-    terrain: await page.locator('[data-stat="terrain"]').textContent(),
-    toolMode: await page.locator('[data-stat="tool-mode"]').textContent(),
-    viewportHint: await page.locator('[data-stat="viewport-hint"]').textContent()
+    initError: await getLocatorAttribute(html, 'data-goldberg-app-init-error'),
+    pageClosed: false,
+    ready: await getLocatorAttribute(html, 'data-goldberg-app-ready'),
+    selected: await getLocatorText(page.locator('[data-stat="selected"]')),
+    terrain: await getLocatorText(page.locator('[data-stat="terrain"]')),
+    toolMode: await getLocatorText(page.locator('[data-stat="tool-mode"]')),
+    viewportHint: await getLocatorText(page.locator('[data-stat="viewport-hint"]'))
   };
 }
 
@@ -131,7 +180,11 @@ test.afterEach(async ({ page }, testInfo) => {
   });
 
   try {
-    const diagnostics = await collectAppDiagnostics(page);
+    const diagnostics = await withTimeout(
+      collectAppDiagnostics(page),
+      AFTER_EACH_TIMEOUT_MS,
+      'app diagnostics collection'
+    );
     await testInfo.attach('app-diagnostics', {
       body: JSON.stringify(diagnostics, null, 2),
       contentType: 'application/json'
@@ -144,9 +197,21 @@ test.afterEach(async ({ page }, testInfo) => {
   }
 
   if (testInfo.status !== testInfo.expectedStatus) {
+    if (page.isClosed()) {
+      await testInfo.attach('failure-screenshot-error', {
+        body: 'Skipped screenshot because the page was already closed.',
+        contentType: 'text/plain'
+      });
+      return;
+    }
+
     try {
       await testInfo.attach('failure-screenshot', {
-        body: await page.screenshot({ fullPage: true }),
+        body: await withTimeout(
+          page.screenshot({ fullPage: true }),
+          AFTER_EACH_TIMEOUT_MS,
+          'failure screenshot capture'
+        ),
         contentType: 'image/png'
       });
     } catch (error) {
