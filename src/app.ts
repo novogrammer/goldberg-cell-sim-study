@@ -1,15 +1,11 @@
 import "./style.css";
 
-import type { AppState } from "./appState";
-import { paintAtPickedPoint, toggleSelectedCell } from "./editor/planetEditor";
+import { AppController, buildAppHudState, createInitialAppState } from "./appController";
 import { createSimulationView } from "./render/createSimulationView";
 import { createGoldbergMesh, randomizeCellState } from "./sim/goldberg";
-import { DEFAULT_RULE_CONFIG, stepSimulation } from "./sim/simulation";
 import { bindAppEvents } from "./ui/bindAppEvents";
 import { buildSelectedCellSummary } from "./ui/buildSelectedCellSummary";
 import { createAppLayout } from "./ui/createAppLayout";
-import type { HudState } from "./ui/types";
-import { updateHud } from "./ui/updateHud";
 import type { Cell } from "./types";
 
 const DISPLAY_FREQUENCY = 10;
@@ -44,92 +40,17 @@ declare global {
 
 export function mountApp(root: HTMLElement): () => void {
   const meshData = createGoldbergMesh(DISPLAY_FREQUENCY);
-  const appState: AppState = {
-    cells: randomizeCellState(meshData.cells),
-    speed: 6,
-    pausedByUser: false,
-    pausedByPaint: false,
-    autoRotate: false,
-    isPaintMode: false,
-    brushTerrainKind: "land",
-    lastPaintedCellId: null,
-    lastTick: 0,
-    selectedCellId: null
-  };
-
-  const buildHudState = (): HudState => {
-    const isPlaying = !appState.pausedByUser && !appState.pausedByPaint;
-
-    return {
-      isPaintMode: appState.isPaintMode,
-      isPlaying,
-      autoRotate: appState.autoRotate,
-      speed: appState.speed,
-      brushTerrainKind: appState.brushTerrainKind,
-      selectedCellSummary: buildSelectedCellSummary(appState.cells, appState.selectedCellId)
-    };
-  };
+  const initialState = createInitialAppState(randomizeCellState(meshData.cells));
 
   const elements = createAppLayout(root, {
-    cellCount: appState.cells.length,
+    cellCount: initialState.cells.length,
     pentagonCount: meshData.pentagonCount,
     hexagonCount: meshData.hexagonCount,
     frequency: meshData.frequency,
-    speed: appState.speed
-  }, buildHudState());
+    speed: initialState.speed
+  }, buildAppHudState(initialState));
 
-  const view = createSimulationView(elements.viewport, meshData, appState.cells);
-
-  const refreshHud = () => updateHud(elements, buildHudState());
-
-  const syncScene = (nextCells: AppState["cells"]) => {
-    appState.cells = nextCells;
-    view.syncCells(appState.cells);
-    refreshHud();
-  };
-
-  const setPaintMode = (enabled: boolean) => {
-    appState.isPaintMode = enabled;
-    appState.pausedByPaint = enabled;
-    appState.lastPaintedCellId = null;
-    view.setControlsEnabled(!enabled);
-    refreshHud();
-  };
-
-  const setBrushTerrainKind = (terrainKind: Cell["terrainKind"]) => {
-    appState.brushTerrainKind = terrainKind;
-    refreshHud();
-  };
-
-  const paintAtClientPoint = (clientX: number, clientY: number) => {
-    const nextState = paintAtPickedPoint(
-      {
-        cells: appState.cells,
-        selectedCellId: appState.selectedCellId,
-        lastPaintedCellId: appState.lastPaintedCellId
-      },
-      appState.brushTerrainKind,
-      view.pickCellAtClientPoint(clientX, clientY)
-    );
-    if (nextState.cells === appState.cells) {
-      return;
-    }
-
-    appState.cells = nextState.cells;
-    appState.selectedCellId = nextState.selectedCellId;
-    appState.lastPaintedCellId = nextState.lastPaintedCellId;
-    view.setSelectedCell(appState.selectedCellId);
-    view.syncCells(appState.cells);
-    refreshHud();
-  };
-
-  const paintStroke = (points: Array<{ x: number; y: number }>) => {
-    appState.lastPaintedCellId = null;
-    for (const point of points) {
-      paintAtClientPoint(point.x, point.y);
-    }
-    appState.lastPaintedCellId = null;
-  };
+  const view = createSimulationView(elements.viewport, meshData, initialState.cells);
 
   const setBootstrapStage = (stage: string) => {
     window.__goldbergBootstrapStage = stage;
@@ -183,25 +104,13 @@ export function mountApp(root: HTMLElement): () => void {
   let cleanupEvents = () => { };
   let isBootstrapped = false;
   const onResize = () => view.resize();
-
-  const animate = (timestamp: number) => {
-    if (isDisposed) {
-      return;
-    }
-
-    const interval = 1000 / appState.speed;
-    const isPlaying = !appState.pausedByUser && !appState.pausedByPaint;
-
-    if (isPlaying && timestamp - appState.lastTick >= interval) {
-      syncScene(stepSimulation(appState.cells, DEFAULT_RULE_CONFIG));
-      appState.lastTick = timestamp;
-    }
-
-    view.render();
-    writeCameraTelemetry();
-  };
-
-  refreshHud();
+  const controller = new AppController({
+    elements,
+    initialState,
+    meshData,
+    view,
+    onAfterRender: writeCameraTelemetry
+  });
   window.__goldbergBootstrapHistory = [];
   setBootstrapStage("bootstrap-started");
   delete window.__goldbergAppInitError;
@@ -218,85 +127,38 @@ export function mountApp(root: HTMLElement): () => void {
         return;
       }
 
-      view.setAutoRotate(appState.autoRotate);
+      view.setAutoRotate(false);
       setBootstrapStage("auto-rotate-configured");
 
       cleanupEvents = bindAppEvents(elements, view.canvasElement, {
-        onTogglePlay: () => {
-          appState.pausedByUser = !appState.pausedByUser;
-          refreshHud();
-        },
-        onSetMode: (mode) => {
-          setPaintMode(mode === "paint");
-        },
-        onToggleAutoRotate: () => {
-          appState.autoRotate = !appState.autoRotate;
-          view.setAutoRotate(appState.autoRotate);
-          refreshHud();
-        },
-        onStep: () => {
-          syncScene(stepSimulation(appState.cells, DEFAULT_RULE_CONFIG));
-        },
-        onRandomize: () => {
-          syncScene(randomizeCellState(meshData.cells, Math.random() * 1000));
-        },
-        onSetBrush: (terrainKind) => {
-          setBrushTerrainKind(terrainKind);
-        },
-        onSetSpeed: (nextSpeed) => {
-          appState.speed = nextSpeed;
-          refreshHud();
-        },
-        onCanvasHover: (clientX, clientY) => {
-          view.setHoveredFromClientPoint(clientX, clientY);
-        },
-        onCanvasLeave: () => {
-          view.clearHoveredCell();
-        },
-        onCanvasPaintStart: (clientX, clientY) => {
-          appState.lastPaintedCellId = null;
-          paintAtClientPoint(clientX, clientY);
-        },
-        onCanvasPaintMove: (clientX, clientY) => {
-          paintAtClientPoint(clientX, clientY);
-        },
-        onCanvasPaintEnd: () => {
-          appState.lastPaintedCellId = null;
-        },
-        onCanvasSelect: (clientX, clientY) => {
-          const pickedCellId = view.pickCellAtClientPoint(clientX, clientY);
-          appState.selectedCellId = toggleSelectedCell(appState.selectedCellId, pickedCellId);
-          view.setSelectedCell(appState.selectedCellId);
-          refreshHud();
-        }
+        onTogglePlay: () => controller.onTogglePlay(),
+        onSetMode: (mode) => controller.onSetMode(mode),
+        onToggleAutoRotate: () => controller.onToggleAutoRotate(),
+        onStep: () => controller.onStep(),
+        onRandomize: () => controller.onRandomize(),
+        onSetBrush: (terrainKind) => controller.onSetBrush(terrainKind),
+        onSetSpeed: (nextSpeed) => controller.onSetSpeed(nextSpeed),
+        onCanvasHover: (clientX, clientY) => controller.onCanvasHover(clientX, clientY),
+        onCanvasLeave: () => controller.onCanvasLeave(),
+        onCanvasPaintStart: (clientX, clientY) => controller.onCanvasPaintStart(clientX, clientY),
+        onCanvasPaintMove: (clientX, clientY) => controller.onCanvasPaintMove(clientX, clientY),
+        onCanvasPaintEnd: () => controller.onCanvasPaintEnd(),
+        onCanvasSelect: (clientX, clientY) => controller.onCanvasSelect(clientX, clientY)
       });
       setBootstrapStage("events-bound");
 
       window.__goldbergTestState = {
-        setPlaybackState: (isPlaying) => {
-          appState.pausedByUser = !isPlaying;
-          refreshHud();
-        },
-        setAutoRotateEnabled: (enabled) => {
-          appState.autoRotate = enabled;
-          view.setAutoRotate(enabled);
-          refreshHud();
-        },
-        getCameraPosition: () => view.getCameraPosition(),
-        rotateCameraByPixels: (deltaX, deltaY) => {
-          view.rotateCameraByPixels(deltaX, deltaY);
-          view.syncCameraImmediately();
-        },
-        zoomCameraByDelta: (deltaY) => {
-          view.zoomCameraByDelta(deltaY);
-          view.syncCameraImmediately();
-        },
-        getInteractiveCanvasPoint: () => view.getInteractiveCanvasPoint(),
-        setPaintMode,
-        setBrushTerrainKind,
-        paintStroke,
-        getSelectedCellSummary: () => buildSelectedCellSummary(appState.cells, appState.selectedCellId),
-        getCellTerrainKind: (cellId) => appState.cells.find((cell) => cell.id === cellId)?.terrainKind ?? null
+        setPlaybackState: (isPlaying) => controller.setPlaybackState(isPlaying),
+        setAutoRotateEnabled: (enabled) => controller.setAutoRotateEnabled(enabled),
+        getCameraPosition: () => controller.getCameraPosition(),
+        rotateCameraByPixels: (deltaX, deltaY) => controller.rotateCameraByPixels(deltaX, deltaY),
+        zoomCameraByDelta: (deltaY) => controller.zoomCameraByDelta(deltaY),
+        getInteractiveCanvasPoint: () => controller.getInteractiveCanvasPoint(),
+        setPaintMode: (enabled) => controller.setPaintMode(enabled),
+        setBrushTerrainKind: (terrainKind) => controller.setBrushTerrainKind(terrainKind),
+        paintStroke: (points) => controller.paintStroke(points),
+        getSelectedCellSummary: () => controller.getSelectedCellSummary(),
+        getCellTerrainKind: (cellId) => controller.getCellTerrainKind(cellId)
       };
       setBootstrapStage("test-state-published");
 
@@ -308,7 +170,12 @@ export function mountApp(root: HTMLElement): () => void {
       window.__goldbergAppReady = true;
       setAppStatusAttributes("ready");
       setBootstrapStage("ready");
-      await view.setAnimationLoop(animate);
+      await view.setAnimationLoop((timestamp) => {
+        if (isDisposed) {
+          return;
+        }
+        controller.animate(timestamp);
+      });
       setBootstrapStage("animation-loop-started");
     } catch (error) {
       setBootstrapStage("init-error");

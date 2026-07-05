@@ -2,7 +2,7 @@ import { findInteractiveCanvasPoint } from "../editor/findInteractiveCanvasPoint
 import type { Cell, GoldbergMeshData } from "../types";
 import { createSimulationScene, type SimulationScene } from "./simulationScene";
 
-interface SimulationView {
+export interface SimulationView {
   canvasElement: HTMLCanvasElement;
   whenReady: () => Promise<void>;
   resize: () => void;
