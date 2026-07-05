@@ -20,6 +20,7 @@ import { Inspector } from "three/addons/inspector/Inspector.js";
 
 import { GoldbergCameraControls } from "./GoldbergCameraControls";
 import { colorForCell } from "./cellVisualAppearance";
+import { buildSimulationRendererOptions } from "./simulationRendererOptions";
 import {
   TREE_INSTANCE_COUNT,
   WEED_INSTANCE_COUNT,
@@ -94,10 +95,9 @@ class SimulationSceneController implements SimulationScene {
     this.camera = new PerspectiveCamera(45, 1, 0.1, 100);
     this.camera.position.set(0, 0, 4.4);
 
-    this.renderer = new WebGPURenderer({
-      antialias: true,
-      forceWebGL: false,
-    });
+    this.renderer = new WebGPURenderer(buildSimulationRendererOptions({
+      isAutomation: navigator.webdriver === true
+    }));
     if (!navigator.webdriver) {
       this.renderer.inspector = new Inspector();
     }

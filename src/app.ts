@@ -17,6 +17,8 @@ const DISPLAY_FREQUENCY = 10;
 declare global {
   interface Window {
     __goldbergTestState?: {
+      setPlaybackState: (isPlaying: boolean) => void;
+      setAutoRotateEnabled: (enabled: boolean) => void;
       getCameraPosition: () => [number, number, number];
       rotateCameraByPixels: (deltaX: number, deltaY: number) => void;
       zoomCameraByDelta: (deltaY: number) => void;
@@ -171,6 +173,15 @@ export function mountApp(root: HTMLElement): () => void {
   });
 
   window.__goldbergTestState = {
+    setPlaybackState: (isPlaying) => {
+      appState.pausedByUser = !isPlaying;
+      refreshHud();
+    },
+    setAutoRotateEnabled: (enabled) => {
+      appState.autoRotate = enabled;
+      view.setAutoRotate(enabled);
+      refreshHud();
+    },
     getCameraPosition: () => view.getCameraPosition(),
     rotateCameraByPixels: (deltaX, deltaY) => {
       view.rotateCameraByPixels(deltaX, deltaY);
