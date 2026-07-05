@@ -15,9 +15,12 @@ import type { Cell } from "./types";
 const DISPLAY_FREQUENCY = 10;
 const APP_READY_ATTRIBUTE = "data-goldberg-app-ready";
 const APP_INIT_ERROR_ATTRIBUTE = "data-goldberg-app-init-error";
+const APP_BOOTSTRAP_STAGE_ATTRIBUTE = "data-goldberg-bootstrap-stage";
 
 declare global {
   interface Window {
+    __goldbergBootstrapHistory?: string[];
+    __goldbergBootstrapStage?: string;
     __goldbergAppInitError?: string;
     __goldbergAppReady?: boolean;
     __goldbergTestState?: {
@@ -125,6 +128,13 @@ export function mountApp(root: HTMLElement): () => void {
     appState.lastPaintedCellId = null;
   };
 
+  const setBootstrapStage = (stage: string) => {
+    window.__goldbergBootstrapStage = stage;
+    window.__goldbergBootstrapHistory ??= [];
+    window.__goldbergBootstrapHistory.push(stage);
+    document.documentElement.setAttribute(APP_BOOTSTRAP_STAGE_ATTRIBUTE, stage);
+  };
+
   const setAppStatusAttributes = (status: "booting" | "ready" | "init-error") => {
     if (status === "ready") {
       document.documentElement.setAttribute(APP_READY_ATTRIBUTE, "true");
@@ -163,18 +173,24 @@ export function mountApp(root: HTMLElement): () => void {
   };
 
   refreshHud();
+  window.__goldbergBootstrapHistory = [];
+  setBootstrapStage("bootstrap-started");
   delete window.__goldbergAppInitError;
   window.__goldbergAppReady = false;
   setAppStatusAttributes("booting");
 
   const bootstrap = async () => {
     try {
+      setBootstrapStage("whenReady-waiting");
       await view.whenReady();
+      setBootstrapStage("whenReady-resolved");
       if (isDisposed) {
+        setBootstrapStage("disposed-before-bootstrap-complete");
         return;
       }
 
       view.setAutoRotate(appState.autoRotate);
+      setBootstrapStage("auto-rotate-configured");
 
       cleanupEvents = bindAppEvents(elements, view.canvasElement, {
         onTogglePlay: () => {
@@ -225,6 +241,7 @@ export function mountApp(root: HTMLElement): () => void {
           refreshHud();
         }
       });
+      setBootstrapStage("events-bound");
 
       window.__goldbergTestState = {
         setPlaybackState: (isPlaying) => {
@@ -252,14 +269,19 @@ export function mountApp(root: HTMLElement): () => void {
         getSelectedCellSummary: () => buildSelectedCellSummary(appState.cells, appState.selectedCellId),
         getCellTerrainKind: (cellId) => appState.cells.find((cell) => cell.id === cellId)?.terrainKind ?? null
       };
+      setBootstrapStage("test-state-published");
 
       window.addEventListener("resize", onResize);
+      setBootstrapStage("resize-listener-bound");
       isBootstrapped = true;
       delete window.__goldbergAppInitError;
       window.__goldbergAppReady = true;
       setAppStatusAttributes("ready");
+      setBootstrapStage("ready");
       await view.setAnimationLoop(animate);
+      setBootstrapStage("animation-loop-started");
     } catch (error) {
+      setBootstrapStage("init-error");
       window.__goldbergAppInitError = error instanceof Error ? error.stack ?? error.message : String(error);
       window.__goldbergAppReady = false;
       setAppStatusAttributes("init-error");
@@ -275,6 +297,7 @@ export function mountApp(root: HTMLElement): () => void {
     }
 
     isDisposed = true;
+    setBootstrapStage("disposed");
     delete window.__goldbergAppInitError;
     window.__goldbergAppReady = false;
     document.documentElement.removeAttribute(APP_READY_ATTRIBUTE);

@@ -2,6 +2,55 @@ import { expect, test, type Page } from '@playwright/test';
 
 const APP_READY_TIMEOUT_MS = 8_000;
 
+type BrowserEventLog = {
+  console: Array<{
+    type: string;
+    text: string;
+    location: { url?: string; lineNumber?: number; columnNumber?: number };
+  }>;
+  pageErrors: string[];
+  requestFailures: Array<{ url: string; failure: string | null }>;
+};
+
+type AppDiagnostics = {
+  bootstrapHistory: string[];
+  bootstrapStage: string | null;
+  canvasCount: number;
+  dataset: Record<string, string>;
+  hasTestState: boolean;
+  initError: string | null;
+  ready: boolean | null;
+};
+
+const pageLogs = new WeakMap<Page, BrowserEventLog>();
+
+function getOrCreatePageLogs(page: Page): BrowserEventLog {
+  const existing = pageLogs.get(page);
+  if (existing) {
+    return existing;
+  }
+
+  const created: BrowserEventLog = {
+    console: [],
+    pageErrors: [],
+    requestFailures: []
+  };
+  pageLogs.set(page, created);
+  return created;
+}
+
+async function collectAppDiagnostics(page: Page): Promise<AppDiagnostics> {
+  return page.evaluate(() => ({
+    bootstrapHistory: window.__goldbergBootstrapHistory ?? [],
+    bootstrapStage: window.__goldbergBootstrapStage ?? null,
+    canvasCount: document.querySelectorAll('canvas').length,
+    dataset: { ...document.documentElement.dataset },
+    hasTestState: window.__goldbergTestState !== undefined,
+    initError: window.__goldbergAppInitError ?? null,
+    ready: window.__goldbergAppReady ?? null
+  }));
+}
+
 async function gotoApp(page: Page) {
   await page.goto('/');
   await page.waitForFunction(
@@ -25,6 +74,51 @@ async function gotoApp(page: Page) {
     );
   }
 }
+
+test.beforeEach(async ({ page }) => {
+  const logs = getOrCreatePageLogs(page);
+
+  page.on('console', (message) => {
+    logs.console.push({
+      type: message.type(),
+      text: message.text(),
+      location: message.location()
+    });
+  });
+
+  page.on('pageerror', (error) => {
+    logs.pageErrors.push(error.stack ?? error.message);
+  });
+
+  page.on('requestfailed', (request) => {
+    logs.requestFailures.push({
+      url: request.url(),
+      failure: request.failure()?.errorText ?? null
+    });
+  });
+});
+
+test.afterEach(async ({ page }, testInfo) => {
+  const logs = getOrCreatePageLogs(page);
+  const logBody = JSON.stringify(logs, null, 2);
+  await testInfo.attach('browser-events', {
+    body: logBody,
+    contentType: 'application/json'
+  });
+
+  try {
+    const diagnostics = await collectAppDiagnostics(page);
+    await testInfo.attach('app-diagnostics', {
+      body: JSON.stringify(diagnostics, null, 2),
+      contentType: 'application/json'
+    });
+  } catch (error) {
+    await testInfo.attach('app-diagnostics-error', {
+      body: String(error),
+      contentType: 'text/plain'
+    });
+  }
+});
 
 async function getCanvasCenter(page: Page) {
   const box = await page.evaluate(() => {
