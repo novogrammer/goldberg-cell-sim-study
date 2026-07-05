@@ -13,6 +13,8 @@ import { updateHud } from "./ui/updateHud";
 import type { Cell } from "./types";
 
 const DISPLAY_FREQUENCY = 10;
+const APP_READY_ATTRIBUTE = "data-goldberg-app-ready";
+const APP_INIT_ERROR_ATTRIBUTE = "data-goldberg-app-init-error";
 
 declare global {
   interface Window {
@@ -123,6 +125,22 @@ export function mountApp(root: HTMLElement): () => void {
     appState.lastPaintedCellId = null;
   };
 
+  const setAppStatusAttributes = (status: "booting" | "ready" | "init-error") => {
+    if (status === "ready") {
+      document.documentElement.setAttribute(APP_READY_ATTRIBUTE, "true");
+      document.documentElement.removeAttribute(APP_INIT_ERROR_ATTRIBUTE);
+      return;
+    }
+
+    document.documentElement.setAttribute(APP_READY_ATTRIBUTE, "false");
+    if (status === "booting") {
+      document.documentElement.removeAttribute(APP_INIT_ERROR_ATTRIBUTE);
+      return;
+    }
+
+    document.documentElement.setAttribute(APP_INIT_ERROR_ATTRIBUTE, "true");
+  };
+
   let isDisposed = false;
   let cleanupEvents = () => { };
   let isBootstrapped = false;
@@ -147,6 +165,7 @@ export function mountApp(root: HTMLElement): () => void {
   refreshHud();
   delete window.__goldbergAppInitError;
   window.__goldbergAppReady = false;
+  setAppStatusAttributes("booting");
 
   const bootstrap = async () => {
     try {
@@ -238,10 +257,12 @@ export function mountApp(root: HTMLElement): () => void {
       isBootstrapped = true;
       delete window.__goldbergAppInitError;
       window.__goldbergAppReady = true;
+      setAppStatusAttributes("ready");
       await view.setAnimationLoop(animate);
     } catch (error) {
       window.__goldbergAppInitError = error instanceof Error ? error.stack ?? error.message : String(error);
       window.__goldbergAppReady = false;
+      setAppStatusAttributes("init-error");
       console.error("Failed to initialize simulation view.", error);
     }
   };
@@ -256,6 +277,8 @@ export function mountApp(root: HTMLElement): () => void {
     isDisposed = true;
     delete window.__goldbergAppInitError;
     window.__goldbergAppReady = false;
+    document.documentElement.removeAttribute(APP_READY_ATTRIBUTE);
+    document.documentElement.removeAttribute(APP_INIT_ERROR_ATTRIBUTE);
     if (isBootstrapped) {
       void view.setAnimationLoop(null);
       cleanupEvents();
