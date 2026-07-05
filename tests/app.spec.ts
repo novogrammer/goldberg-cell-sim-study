@@ -4,9 +4,14 @@ const APP_READY_TIMEOUT_MS = 8_000;
 
 async function gotoApp(page: Page) {
   await page.goto('/');
-  await page
-    .locator('html[data-goldberg-app-ready="true"], html[data-goldberg-app-init-error="true"]')
-    .waitFor({ state: 'attached', timeout: APP_READY_TIMEOUT_MS });
+  await page.waitForFunction(
+    () => {
+      const ready = document.documentElement.getAttribute('data-goldberg-app-ready');
+      const initError = document.documentElement.getAttribute('data-goldberg-app-init-error');
+      return ready === 'true' || initError === 'true';
+    },
+    { timeout: APP_READY_TIMEOUT_MS }
+  );
 
   const initError = await page.evaluate(() => window.__goldbergAppInitError ?? null);
   if (initError) {
