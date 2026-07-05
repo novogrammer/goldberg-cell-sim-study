@@ -2,7 +2,14 @@ import { expect, test, type Page } from '@playwright/test';
 
 async function gotoApp(page: Page) {
   await page.goto('/');
-  await page.waitForFunction(() => window.__goldbergAppReady === true);
+  await page.waitForFunction(
+    () => window.__goldbergAppReady === true || window.__goldbergAppInitError !== undefined
+  );
+
+  const initError = await page.evaluate(() => window.__goldbergAppInitError ?? null);
+  if (initError) {
+    throw new Error(`Simulation app failed to initialize:\n${initError}`);
+  }
 }
 
 async function getCanvasCenter(page: Page) {

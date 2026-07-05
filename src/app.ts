@@ -16,6 +16,7 @@ const DISPLAY_FREQUENCY = 10;
 
 declare global {
   interface Window {
+    __goldbergAppInitError?: string;
     __goldbergAppReady?: boolean;
     __goldbergTestState?: {
       setPlaybackState: (isPlaying: boolean) => void;
@@ -144,6 +145,7 @@ export function mountApp(root: HTMLElement): () => void {
   };
 
   refreshHud();
+  delete window.__goldbergAppInitError;
   window.__goldbergAppReady = false;
 
   const bootstrap = async () => {
@@ -234,9 +236,12 @@ export function mountApp(root: HTMLElement): () => void {
 
       window.addEventListener("resize", onResize);
       isBootstrapped = true;
+      delete window.__goldbergAppInitError;
       window.__goldbergAppReady = true;
       await view.setAnimationLoop(animate);
     } catch (error) {
+      window.__goldbergAppInitError = error instanceof Error ? error.stack ?? error.message : String(error);
+      window.__goldbergAppReady = false;
       console.error("Failed to initialize simulation view.", error);
     }
   };
@@ -249,6 +254,7 @@ export function mountApp(root: HTMLElement): () => void {
     }
 
     isDisposed = true;
+    delete window.__goldbergAppInitError;
     window.__goldbergAppReady = false;
     if (isBootstrapped) {
       void view.setAnimationLoop(null);
