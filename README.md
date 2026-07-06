@@ -47,7 +47,7 @@ npm test
 
 `npm test` は unit テストと E2E テストの両方を実行します。E2E のみ実行したい場合は `npm run test:e2e` を使ってください。
 
-E2E の運用方針は [tests/README.md](/Users/novo/Documents/aptanastudio3workspace/goldberg-cell-sim-study/tests/README.md:1) を参照してください。
+E2E はローカル実行を前提にしています。GitHub Actions では `.github/workflows/playwright.yml` の手動実行で確認します。
 
 確認している内容:
 
