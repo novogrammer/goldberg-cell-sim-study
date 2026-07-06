@@ -2,12 +2,11 @@ import { findInteractiveCanvasPoint } from "../editor/findInteractiveCanvasPoint
 import type { Cell, GoldbergMeshData } from "../types";
 import { createSimulationScene, type SimulationScene } from "./simulationScene";
 
-export interface SimulationView {
+interface SimulationView {
   canvasElement: HTMLCanvasElement;
-  whenReady: () => Promise<void>;
   resize: () => void;
   render: () => void;
-  setAnimationLoop: (callback: ((time: number, frame?: XRFrame) => void) | null) => Promise<void>;
+  setAnimationLoop: (callback: ((time: number, frame?: XRFrame) => void) | null) => void;
   dispose: () => void;
   syncCells: (cells: Cell[]) => void;
   setAutoRotate: (enabled: boolean) => void;
@@ -25,15 +24,9 @@ export interface SimulationView {
 
 class SimulationViewAdapter implements SimulationView {
   readonly canvasElement: HTMLCanvasElement;
-  private readonly initPromise: Promise<void>;
 
   constructor(private readonly scene: SimulationScene) {
     this.canvasElement = scene.renderer.domElement;
-    this.initPromise = scene.init();
-  }
-
-  whenReady() {
-    return this.initPromise;
   }
 
   resize() {
@@ -45,7 +38,7 @@ class SimulationViewAdapter implements SimulationView {
   }
 
   setAnimationLoop(callback: ((time: number, frame?: XRFrame) => void) | null) {
-    return this.scene.setAnimationLoop(callback);
+    this.scene.setAnimationLoop(callback);
   }
 
   dispose() {

@@ -20,7 +20,6 @@ import { Inspector } from "three/addons/inspector/Inspector.js";
 
 import { GoldbergCameraControls } from "./GoldbergCameraControls";
 import { colorForCell } from "./cellVisualAppearance";
-import { buildSimulationRendererOptions } from "./simulationRendererOptions";
 import {
   TREE_INSTANCE_COUNT,
   WEED_INSTANCE_COUNT,
@@ -46,11 +45,10 @@ type RenderCellVisual = SurfaceCellInstanceData & {
 };
 
 export interface SimulationScene {
-  init: () => Promise<void>;
   renderer: WebGPURenderer;
   resize: () => void;
   render: () => void;
-  setAnimationLoop: (callback: AnimationLoopCallback) => Promise<void>;
+  setAnimationLoop: (callback: AnimationLoopCallback) => void;
   updateCells: (cells: Cell[]) => void;
   setAutoRotate: (enabled: boolean) => void;
   setControlsEnabled: (enabled: boolean) => void;
@@ -83,7 +81,6 @@ class SimulationSceneController implements SimulationScene {
   private readonly weedGeometry: BoxGeometry;
   private readonly weedMaterial: MeshStandardMaterial;
   private readonly weedMesh: InstancedMesh;
-  private initPromise: Promise<void> | null = null;
   private lastRenderTimestamp = performance.now();
 
   constructor(
@@ -97,9 +94,10 @@ class SimulationSceneController implements SimulationScene {
     this.camera = new PerspectiveCamera(45, 1, 0.1, 100);
     this.camera.position.set(0, 0, 4.4);
 
-    this.renderer = new WebGPURenderer(buildSimulationRendererOptions({
-      isAutomation: navigator.webdriver === true
-    }));
+    this.renderer = new WebGPURenderer({
+      antialias: true,
+      forceWebGL: false,
+    });
     if (!navigator.webdriver) {
       this.renderer.inspector = new Inspector();
     }
@@ -177,7 +175,6 @@ class SimulationSceneController implements SimulationScene {
       const instanceRotation = new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), faceNormal);
       const landInstanceId = face.cellId;
       const treeStartIndex = face.cellId * TREE_INSTANCE_COUNT;
-      const waterInstanceId = face.cellId;
       const weedStartIndex = face.cellId * WEED_INSTANCE_COUNT;
       const sphereCenter = new Vector3(...face.center).add(
         faceNormal.clone().multiplyScalar(surfaceSphereRadius)
@@ -189,7 +186,7 @@ class SimulationSceneController implements SimulationScene {
         sphereCenter,
         treeStartIndex,
         vegetationLayout,
-        waterInstanceId,
+        waterInstanceId: face.cellId,
         weedStartIndex
       };
       this.surfaceCellInstances.registerCell(face.cellId, visual);
@@ -213,14 +210,6 @@ class SimulationSceneController implements SimulationScene {
     this.resize();
   }
 
-  init() {
-    if (!this.initPromise) {
-      this.initPromise = this.renderer.init().then(() => undefined);
-    }
-
-    return this.initPromise;
-  }
-
   resize() {
     const width = this.mount.clientWidth;
     const height = this.mount.clientHeight;
@@ -237,9 +226,8 @@ class SimulationSceneController implements SimulationScene {
     this.renderer.render(this.scene, this.camera);
   }
 
-  async setAnimationLoop(callback: AnimationLoopCallback) {
-    await this.init();
-    await this.renderer.setAnimationLoop(callback);
+  setAnimationLoop(callback: AnimationLoopCallback) {
+    this.renderer.setAnimationLoop(callback);
   }
 
   updateCells(cells: Cell[]) {

@@ -1,30 +1,22 @@
 import "./style.css";
 
-import { AppController, buildAppHudState, createInitialAppState } from "./appController";
+import type { AppState } from "./appState";
+import { paintAtPickedPoint, toggleSelectedCell } from "./editor/planetEditor";
 import { createSimulationView } from "./render/createSimulationView";
 import { createGoldbergMesh, randomizeCellState } from "./sim/goldberg";
+import { DEFAULT_RULE_CONFIG, stepSimulation } from "./sim/simulation";
 import { bindAppEvents } from "./ui/bindAppEvents";
 import { buildSelectedCellSummary } from "./ui/buildSelectedCellSummary";
 import { createAppLayout } from "./ui/createAppLayout";
+import type { HudState } from "./ui/types";
+import { updateHud } from "./ui/updateHud";
 import type { Cell } from "./types";
 
 const DISPLAY_FREQUENCY = 10;
-const APP_READY_ATTRIBUTE = "data-goldberg-app-ready";
-const APP_INIT_ERROR_ATTRIBUTE = "data-goldberg-app-init-error";
-const APP_BOOTSTRAP_STAGE_ATTRIBUTE = "data-goldberg-bootstrap-stage";
-const APP_CAMERA_X_ATTRIBUTE = "data-goldberg-camera-x";
-const APP_CAMERA_Y_ATTRIBUTE = "data-goldberg-camera-y";
-const APP_CAMERA_Z_ATTRIBUTE = "data-goldberg-camera-z";
 
 declare global {
   interface Window {
-    __goldbergBootstrapHistory?: string[];
-    __goldbergBootstrapStage?: string;
-    __goldbergAppInitError?: string;
-    __goldbergAppReady?: boolean;
     __goldbergTestState?: {
-      setPlaybackState: (isPlaying: boolean) => void;
-      setAutoRotateEnabled: (enabled: boolean) => void;
       getCameraPosition: () => [number, number, number];
       rotateCameraByPixels: (deltaX: number, deltaY: number) => void;
       zoomCameraByDelta: (deltaY: number) => void;
@@ -40,153 +32,185 @@ declare global {
 
 export function mountApp(root: HTMLElement): () => void {
   const meshData = createGoldbergMesh(DISPLAY_FREQUENCY);
-  const initialState = createInitialAppState(randomizeCellState(meshData.cells));
+  const appState: AppState = {
+    cells: randomizeCellState(meshData.cells),
+    speed: 6,
+    pausedByUser: false,
+    pausedByPaint: false,
+    autoRotate: false,
+    isPaintMode: false,
+    brushTerrainKind: "land",
+    lastPaintedCellId: null,
+    lastTick: 0,
+    selectedCellId: null
+  };
+
+  const buildHudState = (): HudState => {
+    const isPlaying = !appState.pausedByUser && !appState.pausedByPaint;
+
+    return {
+      isPaintMode: appState.isPaintMode,
+      isPlaying,
+      autoRotate: appState.autoRotate,
+      speed: appState.speed,
+      brushTerrainKind: appState.brushTerrainKind,
+      selectedCellSummary: buildSelectedCellSummary(appState.cells, appState.selectedCellId)
+    };
+  };
 
   const elements = createAppLayout(root, {
-    cellCount: initialState.cells.length,
+    cellCount: appState.cells.length,
     pentagonCount: meshData.pentagonCount,
     hexagonCount: meshData.hexagonCount,
     frequency: meshData.frequency,
-    speed: initialState.speed
-  }, buildAppHudState(initialState));
+    speed: appState.speed
+  }, buildHudState());
 
-  const view = createSimulationView(elements.viewport, meshData, initialState.cells);
+  const view = createSimulationView(elements.viewport, meshData, appState.cells);
+  view.setAutoRotate(appState.autoRotate);
 
-  const setBootstrapStage = (stage: string) => {
-    window.__goldbergBootstrapStage = stage;
-    window.__goldbergBootstrapHistory ??= [];
-    window.__goldbergBootstrapHistory.push(stage);
-    document.documentElement.setAttribute(APP_BOOTSTRAP_STAGE_ATTRIBUTE, stage);
+  const refreshHud = () => updateHud(elements, buildHudState());
+
+  const syncScene = (nextCells: AppState["cells"]) => {
+    appState.cells = nextCells;
+    view.syncCells(appState.cells);
+    refreshHud();
   };
 
-  const setAppStatusAttributes = (status: "booting" | "ready" | "init-error") => {
-    if (status === "ready") {
-      document.documentElement.setAttribute(APP_READY_ATTRIBUTE, "true");
-      document.documentElement.removeAttribute(APP_INIT_ERROR_ATTRIBUTE);
+  const setPaintMode = (enabled: boolean) => {
+    appState.isPaintMode = enabled;
+    appState.pausedByPaint = enabled;
+    appState.lastPaintedCellId = null;
+    view.setControlsEnabled(!enabled);
+    refreshHud();
+  };
+
+  const setBrushTerrainKind = (terrainKind: Cell["terrainKind"]) => {
+    appState.brushTerrainKind = terrainKind;
+    refreshHud();
+  };
+
+  const paintAtClientPoint = (clientX: number, clientY: number) => {
+    const nextState = paintAtPickedPoint(
+      {
+        cells: appState.cells,
+        selectedCellId: appState.selectedCellId,
+        lastPaintedCellId: appState.lastPaintedCellId
+      },
+      appState.brushTerrainKind,
+      view.pickCellAtClientPoint(clientX, clientY)
+    );
+    if (nextState.cells === appState.cells) {
       return;
     }
 
-    document.documentElement.setAttribute(APP_READY_ATTRIBUTE, "false");
-    if (status === "booting") {
-      document.documentElement.removeAttribute(APP_INIT_ERROR_ATTRIBUTE);
-      return;
-    }
-
-    document.documentElement.setAttribute(APP_INIT_ERROR_ATTRIBUTE, "true");
+    appState.cells = nextState.cells;
+    appState.selectedCellId = nextState.selectedCellId;
+    appState.lastPaintedCellId = nextState.lastPaintedCellId;
+    view.setSelectedCell(appState.selectedCellId);
+    view.syncCells(appState.cells);
+    refreshHud();
   };
 
-  let lastCameraTelemetry: [string, string, string] | null = null;
-
-  const writeCameraTelemetry = () => {
-    const [x, y, z] = view.getCameraPosition();
-    const nextTelemetry: [string, string, string] = [
-      x.toFixed(4),
-      y.toFixed(4),
-      z.toFixed(4)
-    ];
-
-    if (
-      lastCameraTelemetry &&
-      lastCameraTelemetry[0] === nextTelemetry[0] &&
-      lastCameraTelemetry[1] === nextTelemetry[1] &&
-      lastCameraTelemetry[2] === nextTelemetry[2]
-    ) {
-      return;
+  const paintStroke = (points: Array<{ x: number; y: number }>) => {
+    appState.lastPaintedCellId = null;
+    for (const point of points) {
+      paintAtClientPoint(point.x, point.y);
     }
-
-    document.documentElement.setAttribute(APP_CAMERA_X_ATTRIBUTE, nextTelemetry[0]);
-    document.documentElement.setAttribute(APP_CAMERA_Y_ATTRIBUTE, nextTelemetry[1]);
-    document.documentElement.setAttribute(APP_CAMERA_Z_ATTRIBUTE, nextTelemetry[2]);
-    lastCameraTelemetry = nextTelemetry;
+    appState.lastPaintedCellId = null;
   };
+
+  const cleanupEvents = bindAppEvents(elements, view.canvasElement, {
+    onTogglePlay: () => {
+      appState.pausedByUser = !appState.pausedByUser;
+      refreshHud();
+    },
+    onSetMode: (mode) => {
+      setPaintMode(mode === "paint");
+    },
+    onToggleAutoRotate: () => {
+      appState.autoRotate = !appState.autoRotate;
+      view.setAutoRotate(appState.autoRotate);
+      refreshHud();
+    },
+    onStep: () => {
+      syncScene(stepSimulation(appState.cells, DEFAULT_RULE_CONFIG));
+    },
+    onRandomize: () => {
+      syncScene(randomizeCellState(meshData.cells, Math.random() * 1000));
+    },
+    onSetBrush: (terrainKind) => {
+      setBrushTerrainKind(terrainKind);
+    },
+    onSetSpeed: (nextSpeed) => {
+      appState.speed = nextSpeed;
+      refreshHud();
+    },
+    onCanvasHover: (clientX, clientY) => {
+      view.setHoveredFromClientPoint(clientX, clientY);
+    },
+    onCanvasLeave: () => {
+      view.clearHoveredCell();
+    },
+    onCanvasPaintStart: (clientX, clientY) => {
+      appState.lastPaintedCellId = null;
+      paintAtClientPoint(clientX, clientY);
+    },
+    onCanvasPaintMove: (clientX, clientY) => {
+      paintAtClientPoint(clientX, clientY);
+    },
+    onCanvasPaintEnd: () => {
+      appState.lastPaintedCellId = null;
+    },
+    onCanvasSelect: (clientX, clientY) => {
+      const pickedCellId = view.pickCellAtClientPoint(clientX, clientY);
+      appState.selectedCellId = toggleSelectedCell(appState.selectedCellId, pickedCellId);
+      view.setSelectedCell(appState.selectedCellId);
+      refreshHud();
+    }
+  });
+
+  window.__goldbergTestState = {
+    getCameraPosition: () => view.getCameraPosition(),
+    rotateCameraByPixels: (deltaX, deltaY) => {
+      view.rotateCameraByPixels(deltaX, deltaY);
+      view.syncCameraImmediately();
+    },
+    zoomCameraByDelta: (deltaY) => {
+      view.zoomCameraByDelta(deltaY);
+      view.syncCameraImmediately();
+    },
+    getInteractiveCanvasPoint: () => view.getInteractiveCanvasPoint(),
+    setPaintMode,
+    setBrushTerrainKind,
+    paintStroke,
+    getSelectedCellSummary: () => buildSelectedCellSummary(appState.cells, appState.selectedCellId),
+    getCellTerrainKind: (cellId) => appState.cells.find((cell) => cell.id === cellId)?.terrainKind ?? null
+  };
+
+  const onResize = () => view.resize();
+  window.addEventListener("resize", onResize);
 
   let isDisposed = false;
-  let cleanupEvents = () => { };
-  let isBootstrapped = false;
-  const onResize = () => view.resize();
-  const controller = new AppController({
-    elements,
-    initialState,
-    meshData,
-    view,
-    onAfterRender: writeCameraTelemetry
-  });
-  window.__goldbergBootstrapHistory = [];
-  setBootstrapStage("bootstrap-started");
-  delete window.__goldbergAppInitError;
-  window.__goldbergAppReady = false;
-  setAppStatusAttributes("booting");
 
-  const bootstrap = async () => {
-    try {
-      setBootstrapStage("whenReady-waiting");
-      await view.whenReady();
-      setBootstrapStage("whenReady-resolved");
-      if (isDisposed) {
-        setBootstrapStage("disposed-before-bootstrap-complete");
-        return;
-      }
-
-      view.setAutoRotate(false);
-      setBootstrapStage("auto-rotate-configured");
-
-      cleanupEvents = bindAppEvents(elements, view.canvasElement, {
-        onTogglePlay: () => controller.onTogglePlay(),
-        onSetMode: (mode) => controller.onSetMode(mode),
-        onToggleAutoRotate: () => controller.onToggleAutoRotate(),
-        onStep: () => controller.onStep(),
-        onRandomize: () => controller.onRandomize(),
-        onSetBrush: (terrainKind) => controller.onSetBrush(terrainKind),
-        onSetSpeed: (nextSpeed) => controller.onSetSpeed(nextSpeed),
-        onCanvasHover: (clientX, clientY) => controller.onCanvasHover(clientX, clientY),
-        onCanvasLeave: () => controller.onCanvasLeave(),
-        onCanvasPaintStart: (clientX, clientY) => controller.onCanvasPaintStart(clientX, clientY),
-        onCanvasPaintMove: (clientX, clientY) => controller.onCanvasPaintMove(clientX, clientY),
-        onCanvasPaintEnd: () => controller.onCanvasPaintEnd(),
-        onCanvasSelect: (clientX, clientY) => controller.onCanvasSelect(clientX, clientY)
-      });
-      setBootstrapStage("events-bound");
-
-      window.__goldbergTestState = {
-        setPlaybackState: (isPlaying) => controller.setPlaybackState(isPlaying),
-        setAutoRotateEnabled: (enabled) => controller.setAutoRotateEnabled(enabled),
-        getCameraPosition: () => controller.getCameraPosition(),
-        rotateCameraByPixels: (deltaX, deltaY) => controller.rotateCameraByPixels(deltaX, deltaY),
-        zoomCameraByDelta: (deltaY) => controller.zoomCameraByDelta(deltaY),
-        getInteractiveCanvasPoint: () => controller.getInteractiveCanvasPoint(),
-        setPaintMode: (enabled) => controller.setPaintMode(enabled),
-        setBrushTerrainKind: (terrainKind) => controller.setBrushTerrainKind(terrainKind),
-        paintStroke: (points) => controller.paintStroke(points),
-        getSelectedCellSummary: () => controller.getSelectedCellSummary(),
-        getCellTerrainKind: (cellId) => controller.getCellTerrainKind(cellId)
-      };
-      setBootstrapStage("test-state-published");
-
-      window.addEventListener("resize", onResize);
-      setBootstrapStage("resize-listener-bound");
-      isBootstrapped = true;
-      writeCameraTelemetry();
-      delete window.__goldbergAppInitError;
-      window.__goldbergAppReady = true;
-      setAppStatusAttributes("ready");
-      setBootstrapStage("ready");
-      await view.setAnimationLoop((timestamp) => {
-        if (isDisposed) {
-          return;
-        }
-        controller.animate(timestamp);
-      });
-      setBootstrapStage("animation-loop-started");
-    } catch (error) {
-      setBootstrapStage("init-error");
-      window.__goldbergAppInitError = error instanceof Error ? error.stack ?? error.message : String(error);
-      window.__goldbergAppReady = false;
-      setAppStatusAttributes("init-error");
-      console.error("Failed to initialize simulation view.", error);
+  const animate = (timestamp: number) => {
+    if (isDisposed) {
+      return;
     }
+
+    const interval = 1000 / appState.speed;
+    const isPlaying = !appState.pausedByUser && !appState.pausedByPaint;
+
+    if (isPlaying && timestamp - appState.lastTick >= interval) {
+      syncScene(stepSimulation(appState.cells, DEFAULT_RULE_CONFIG));
+      appState.lastTick = timestamp;
+    }
+
+    view.render();
   };
 
-  void bootstrap();
+  refreshHud();
+  view.setAnimationLoop(animate);
 
   return () => {
     if (isDisposed) {
@@ -194,19 +218,9 @@ export function mountApp(root: HTMLElement): () => void {
     }
 
     isDisposed = true;
-    setBootstrapStage("disposed");
-    delete window.__goldbergAppInitError;
-    window.__goldbergAppReady = false;
-    document.documentElement.removeAttribute(APP_READY_ATTRIBUTE);
-    document.documentElement.removeAttribute(APP_INIT_ERROR_ATTRIBUTE);
-    document.documentElement.removeAttribute(APP_CAMERA_X_ATTRIBUTE);
-    document.documentElement.removeAttribute(APP_CAMERA_Y_ATTRIBUTE);
-    document.documentElement.removeAttribute(APP_CAMERA_Z_ATTRIBUTE);
-    if (isBootstrapped) {
-      void view.setAnimationLoop(null);
-      cleanupEvents();
-      window.removeEventListener("resize", onResize);
-    }
+    view.setAnimationLoop(null);
+    cleanupEvents();
+    window.removeEventListener("resize", onResize);
     delete window.__goldbergTestState;
     view.dispose();
   };
