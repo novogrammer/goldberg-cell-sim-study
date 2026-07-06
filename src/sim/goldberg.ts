@@ -278,9 +278,7 @@ function createGoldbergTopology(frequency = DEFAULT_GOLDBERG_FREQUENCY): Goldber
       moisture: 0,
       nextMoisture: 0,
       vegetation: 0,
-      nextVegetation: 0,
-      state: 0,
-      nextState: 0
+      nextVegetation: 0
     };
   });
 
@@ -394,9 +392,7 @@ function createInitialPlanetEnvironment(
       moisture,
       nextMoisture: moisture,
       vegetation,
-      nextVegetation: vegetation,
-      state: vegetation,
-      nextState: vegetation
+      nextVegetation: vegetation
     };
   });
 }
@@ -449,21 +445,17 @@ export function randomizeCellState(cells: Cell[], seed = 0.5): Cell[] {
         moisture: 1,
         nextMoisture: 1,
         vegetation: 0,
-        nextVegetation: 0,
-        state: 0,
-        nextState: 0
+        nextVegetation: 0
       };
     }
     const phase = Math.sin((cell.id + 1) * 12.9898 + seed * 78.233) * 43758.5453;
-    const state = clamp01(phase - Math.floor(phase));
+    const vegetation = clamp01(phase - Math.floor(phase));
     return {
       ...cell,
-      moisture: clamp01(0.1 + state * 0.35 + cell.geology * 0.08),
-      nextMoisture: clamp01(0.1 + state * 0.35 + cell.geology * 0.08),
-      vegetation: state,
-      nextVegetation: state,
-      state,
-      nextState: state
+      moisture: clamp01(0.1 + vegetation * 0.35 + cell.geology * 0.08),
+      nextMoisture: clamp01(0.1 + vegetation * 0.35 + cell.geology * 0.08),
+      vegetation,
+      nextVegetation: vegetation
     };
   });
 }

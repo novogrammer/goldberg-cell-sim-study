@@ -193,8 +193,7 @@ export function stepSimulation(
     const nextVegetation = updateVegetation(cell, moistureStaged, context);
     return {
       ...cell,
-      nextVegetation,
-      nextState: nextVegetation
+      nextVegetation
     };
   });
 
@@ -202,7 +201,6 @@ export function stepSimulation(
     ...cell,
     fertility: updateFertility(cell, vegetationStaged, context),
     moisture: cell.nextMoisture,
-    vegetation: cell.nextVegetation,
-    state: cell.nextVegetation
+    vegetation: cell.nextVegetation
   }));
 }

@@ -22,9 +22,7 @@ export function setCellTerrainKind(
         moisture,
         nextMoisture: moisture,
         vegetation,
-        nextVegetation: vegetation,
-        state: vegetation,
-        nextState: vegetation
+        nextVegetation: vegetation
       }
       : cell
   ));

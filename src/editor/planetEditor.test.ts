@@ -17,8 +17,6 @@ function createCell(overrides: Partial<Cell>): Cell {
     nextMoisture: 0.5,
     vegetation: 0.5,
     nextVegetation: 0.5,
-    state: 0.5,
-    nextState: 0.5,
     ...overrides
   };
 }
@@ -48,14 +46,14 @@ describe("planetEditor", () => {
     expect(nextCells[0].vegetation).toBe(0);
   });
 
-  it("同じセルを連続で塗ると state を再計算しない", () => {
-    const state = {
+  it("同じセルを連続で塗ると vegetation を再計算しない", () => {
+    const editorState = {
       cells: [createCell({ id: 0 })],
       selectedCellId: 0,
       lastPaintedCellId: 0
     };
 
-    expect(applyTerrainToCell(state, 0, "water")).toBe(state);
+    expect(applyTerrainToCell(editorState, 0, "water")).toBe(editorState);
   });
 
   it("同じセルを選ぶと選択解除する", () => {

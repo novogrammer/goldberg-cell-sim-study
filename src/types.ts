@@ -11,8 +11,6 @@ export interface Cell {
   nextMoisture: number;
   vegetation: number;
   nextVegetation: number;
-  state: number;
-  nextState: number;
 }
 
 export interface SimulationRuleConfig {

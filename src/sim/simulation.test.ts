@@ -34,9 +34,7 @@ function createCell(
     moisture,
     nextMoisture: moisture,
     vegetation,
-    nextVegetation: vegetation,
-    state: vegetation,
-    nextState: vegetation
+    nextVegetation: vegetation
   };
 }
 
@@ -93,7 +91,7 @@ describe("simulation", () => {
     expect(next).toBe(0);
   });
 
-  it("各ステップで nextVegetation を vegetation と state に反映する", () => {
+  it("各ステップで nextVegetation を vegetation に反映する", () => {
     const cells = [
       createCell(0, [1], 0.2, false, "land", 0.6, 0.6),
       createCell(1, [0], 0, false, "water")
@@ -102,7 +100,6 @@ describe("simulation", () => {
     const next = stepSimulation(cells, DEFAULT_RULE_CONFIG);
 
     expect(next[0].moisture).toBeGreaterThan(cells[0].moisture);
-    expect(next[0].vegetation).toBeCloseTo(next[0].state);
     expect(next[1].vegetation).toBe(0);
     expect(next[0].nextVegetation).toBeCloseTo(next[0].vegetation);
   });

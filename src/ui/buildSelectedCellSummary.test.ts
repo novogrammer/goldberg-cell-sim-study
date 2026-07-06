@@ -17,8 +17,6 @@ function createCell(overrides: Partial<Cell>): Cell {
     nextMoisture: 0.5,
     vegetation: 0.5,
     nextVegetation: 0.5,
-    state: 0.5,
-    nextState: 0.5,
     ...overrides
   };
 }
