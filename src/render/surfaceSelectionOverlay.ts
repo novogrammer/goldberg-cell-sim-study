@@ -1,6 +1,6 @@
 import {
+  MeshBasicMaterial,
   Mesh,
-  MeshStandardMaterial,
   Quaternion,
   SphereGeometry,
   Vector3
@@ -51,15 +51,11 @@ export class SurfaceSelectionOverlay {
       SELECTED_RING_THETA_START,
       SELECTED_RING_THETA_LENGTH
     );
-    const hoverMaterial = new MeshStandardMaterial({
+    const hoverMaterial = new MeshBasicMaterial({
       color: "#e1ff8a",
-      roughness: 0.32,
-      metalness: 0.02
     });
-    const selectedMaterial = new MeshStandardMaterial({
+    const selectedMaterial = new MeshBasicMaterial({
       color: "#fff3c4",
-      roughness: 0.22,
-      metalness: 0.04
     });
 
     this.hoverMesh = new Mesh(hoverGeometry, hoverMaterial);
