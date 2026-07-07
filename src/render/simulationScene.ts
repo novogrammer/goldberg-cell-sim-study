@@ -118,8 +118,8 @@ class SimulationSceneController implements SimulationScene {
       getPackedSurfaceSphereRadius(meshData) * SURFACE_SPHERE_RADIUS_SCALE;
     this.surfaceSphereGeometry = new SphereGeometry(
       surfaceSphereRadius,
-      32,
       16,
+      8,
       0,
       Math.PI * 2,
       0,
