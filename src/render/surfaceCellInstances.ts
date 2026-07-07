@@ -3,6 +3,7 @@ import {
   InstancedMesh,
   Matrix4,
   Material,
+  MeshBasicMaterial,
   Quaternion,
   SphereGeometry,
   Vector3
@@ -30,18 +31,25 @@ export interface SurfaceCellInstanceData {
 
 export class SurfaceCellInstances {
   readonly landMesh: InstancedMesh;
+  readonly pickMesh: InstancedMesh;
   readonly waterMesh: InstancedMesh;
-
-  private readonly landInstanceToCellId = new Map<number, number>();
-  private readonly waterInstanceToCellId = new Map<number, number>();
 
   constructor(surfaceSphereGeometry: SphereGeometry, maxCount: number) {
     const landSurfaceMaterial = createLandSurfaceMaterial();
+    const pickSurfaceMaterial = new MeshBasicMaterial({
+      colorWrite: false,
+      depthWrite: false
+    });
     const waterSurfaceMaterial = createWaterSurfaceMaterial();
 
     this.landMesh = new InstancedMesh(
       surfaceSphereGeometry,
       landSurfaceMaterial,
+      maxCount
+    );
+    this.pickMesh = new InstancedMesh(
+      surfaceSphereGeometry,
+      pickSurfaceMaterial,
       maxCount
     );
     this.waterMesh = new InstancedMesh(
@@ -50,12 +58,18 @@ export class SurfaceCellInstances {
       maxCount
     );
     this.landMesh.count = maxCount;
+    this.pickMesh.count = maxCount;
     this.waterMesh.count = maxCount;
   }
 
   registerCell(cellId: number, visual: SurfaceCellInstanceData) {
-    this.landInstanceToCellId.set(visual.landInstanceId, cellId);
-    this.waterInstanceToCellId.set(visual.waterInstanceId, cellId);
+    setSurfaceInstanceTransform(
+      this.pickMesh,
+      cellId,
+      visual.sphereCenter,
+      visual.surfaceRotation,
+      true
+    );
   }
 
   applyCellState(
@@ -83,6 +97,7 @@ export class SurfaceCellInstances {
 
   sync() {
     this.landMesh.instanceMatrix.needsUpdate = true;
+    this.pickMesh.instanceMatrix.needsUpdate = true;
     this.waterMesh.instanceMatrix.needsUpdate = true;
     if (this.landMesh.instanceColor) {
       this.landMesh.instanceColor.needsUpdate = true;
@@ -93,12 +108,8 @@ export class SurfaceCellInstances {
   }
 
   pickCellId(hitObject: unknown, instanceId: number) {
-    if (hitObject === this.landMesh) {
-      return this.landInstanceToCellId.get(instanceId) ?? null;
-    }
-
-    if (hitObject === this.waterMesh) {
-      return this.waterInstanceToCellId.get(instanceId) ?? null;
+    if (hitObject === this.pickMesh) {
+      return instanceId;
     }
 
     return null;
@@ -106,6 +117,7 @@ export class SurfaceCellInstances {
 
   dispose() {
     disposeMaterial(this.landMesh.material);
+    disposeMaterial(this.pickMesh.material);
     disposeMaterial(this.waterMesh.material);
   }
 }

@@ -156,6 +156,7 @@ class SimulationSceneController implements SimulationScene {
     this.weedMesh.count = meshData.geometry.faces.length * WEED_INSTANCE_COUNT;
     group.add(
       this.surfaceCellInstances.landMesh,
+      this.surfaceCellInstances.pickMesh,
       this.surfaceCellInstances.waterMesh,
       this.treeMesh,
       this.weedMesh,
@@ -288,7 +289,7 @@ class SimulationSceneController implements SimulationScene {
     this.pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
     this.raycaster.setFromCamera(this.pointer, this.camera);
     const intersections = this.raycaster.intersectObjects(
-      [this.surfaceCellInstances.landMesh, this.surfaceCellInstances.waterMesh],
+      [this.surfaceCellInstances.pickMesh],
       false
     );
 
