@@ -24,7 +24,7 @@ import {
   TREE_INSTANCE_COUNT,
   WEED_INSTANCE_COUNT,
   createCellVegetationLayout,
-  updateCellVegetationInstances,
+  syncPackedVegetationInstances,
   type CellVegetationLayout
 } from "./cellVegetationAppearance";
 import {
@@ -39,9 +39,7 @@ type AnimationLoopCallback = ((time: number, frame?: XRFrame) => void) | null;
 const SURFACE_SPHERE_RADIUS_SCALE = 2;
 
 type RenderCellVisual = SurfaceCellInstanceData & {
-  treeStartIndex: number;
   vegetationLayout: CellVegetationLayout;
-  weedStartIndex: number;
 };
 
 export interface SimulationScene {
@@ -152,8 +150,8 @@ class SimulationSceneController implements SimulationScene {
       meshData.geometry.faces.length * WEED_INSTANCE_COUNT
     );
     this.selectionOverlay = new SurfaceSelectionOverlay(surfaceSphereRadius);
-    this.treeMesh.count = meshData.geometry.faces.length * TREE_INSTANCE_COUNT;
-    this.weedMesh.count = meshData.geometry.faces.length * WEED_INSTANCE_COUNT;
+    this.treeMesh.count = 0;
+    this.weedMesh.count = 0;
     group.add(
       this.surfaceCellInstances.landMesh,
       this.surfaceCellInstances.pickMesh,
@@ -174,8 +172,6 @@ class SimulationSceneController implements SimulationScene {
       );
       const instanceRotation = new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), faceNormal);
       const landInstanceId = face.cellId;
-      const treeStartIndex = face.cellId * TREE_INSTANCE_COUNT;
-      const weedStartIndex = face.cellId * WEED_INSTANCE_COUNT;
       const sphereCenter = new Vector3(...face.center).add(
         faceNormal.clone().multiplyScalar(surfaceSphereRadius)
       );
@@ -184,26 +180,22 @@ class SimulationSceneController implements SimulationScene {
         normal: faceNormal.clone(),
         surfaceRotation: instanceRotation.clone(),
         sphereCenter,
-        treeStartIndex,
         vegetationLayout,
-        waterInstanceId: face.cellId,
-        weedStartIndex
+        waterInstanceId: face.cellId
       };
       this.surfaceCellInstances.registerCell(face.cellId, visual);
       this.cellVisuals.set(face.cellId, visual);
-      updateCellVegetationInstances(
-        this.treeMesh,
-        this.weedMesh,
-        treeStartIndex,
-        weedStartIndex,
-        vegetationLayout,
-        cell
-      );
     }
     this.surfaceCellInstances.syncPackedInstances(
       cells,
       (cellId) => this.cellVisuals.get(cellId),
       colorForCell
+    );
+    syncPackedVegetationInstances(
+      this.treeMesh,
+      this.weedMesh,
+      cells,
+      (cellId) => this.cellVisuals.get(cellId)?.vegetationLayout
     );
     this.surfaceCellInstances.sync();
     this.syncVegetationInstances();
@@ -231,24 +223,16 @@ class SimulationSceneController implements SimulationScene {
   }
 
   updateCells(cells: Cell[]) {
-    for (const cell of cells) {
-      const visual = this.cellVisuals.get(cell.id);
-      if (!visual) {
-        continue;
-      }
-      updateCellVegetationInstances(
-        this.treeMesh,
-        this.weedMesh,
-        visual.treeStartIndex,
-        visual.weedStartIndex,
-        visual.vegetationLayout,
-        cell
-      );
-    }
     this.surfaceCellInstances.syncPackedInstances(
       cells,
       (cellId) => this.cellVisuals.get(cellId),
       colorForCell
+    );
+    syncPackedVegetationInstances(
+      this.treeMesh,
+      this.weedMesh,
+      cells,
+      (cellId) => this.cellVisuals.get(cellId)?.vegetationLayout
     );
     this.surfaceCellInstances.sync();
     this.syncVegetationInstances();

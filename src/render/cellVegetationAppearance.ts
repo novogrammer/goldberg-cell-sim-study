@@ -31,7 +31,6 @@ const MAX_TREES = 5;
 const TREE_SURFACE_ANCHOR = 0.24;
 const WEED_SURFACE_ANCHOR = 0.12;
 const localUp = new Vector3(0, 1, 0);
-const hiddenScale = new Vector3(0, 0, 0);
 const tempPosition = new Vector3();
 const tempScale = new Vector3();
 const tempWorldPosition = new Vector3();
@@ -39,7 +38,6 @@ const tempWorldQuaternion = new Quaternion();
 const tempLocalQuaternion = new Quaternion();
 const tempEuler = new Euler();
 const tempMatrix = new Matrix4();
-
 const TREE_LAYOUTS: ReadonlyArray<{ x: number; z: number }> = [
   { x: 0, z: 0 },
   { x: 0.4, z: 0.2 },
@@ -120,11 +118,6 @@ export function createCellVegetationLayout(
   };
 }
 
-function setHiddenInstance(mesh: InstancedMesh, index: number) {
-  tempMatrix.compose(new Vector3(), new Quaternion(), hiddenScale);
-  mesh.setMatrixAt(index, tempMatrix);
-}
-
 function setInstanceTransform(
   mesh: InstancedMesh,
   index: number,
@@ -146,93 +139,100 @@ function setInstanceTransform(
   mesh.setColorAt(index, tint);
 }
 
-export function updateCellVegetationInstances(
+export function syncPackedVegetationInstances(
   treeMesh: InstancedMesh,
   weedMesh: InstancedMesh,
-  treeStartIndex: number,
-  weedStartIndex: number,
-  layout: CellVegetationLayout,
-  cell: Cell
+  cells: Cell[],
+  getLayout: (cellId: number) => CellVegetationLayout | undefined
 ) {
-  const state = getVegetationIndicatorState(cell);
-  const treeBaseHeight = layout.sizeUnit * 1.28;
-  const treeBaseRadius = layout.sizeUnit * 0.22;
-  const weedBaseHeight = layout.sizeUnit * 0.62;
-  const weedBaseRadius = layout.sizeUnit * 0.05;
-  const layoutScale = layout.sizeUnit * 1.18;
+  let treePackedIndex = 0;
+  let weedPackedIndex = 0;
 
-  for (let index = 0; index < TREE_INSTANCE_COUNT; index += 1) {
-    const treeIndex = treeStartIndex + index;
-    const isVisible =
-      cell.vegetation >= TREE_VEGETATION_THRESHOLD && index < state.visibleTreeCount;
-
-    if (!isVisible) {
-      setHiddenInstance(treeMesh, treeIndex);
+  for (const cell of cells) {
+    const layout = getLayout(cell.id);
+    if (!layout) {
       continue;
     }
 
-    const treeLayout = TREE_LAYOUTS[index];
-    const height = treeBaseHeight * state.heightScale * (1 - index * 0.08);
-    const radius = treeBaseRadius * state.radiusScale * (1 - index * 0.06);
-    const yaw = Math.atan2(treeLayout.x, treeLayout.z);
+    const state = getVegetationIndicatorState(cell);
+    const treeBaseHeight = layout.sizeUnit * 1.28;
+    const treeBaseRadius = layout.sizeUnit * 0.22;
+    const weedBaseHeight = layout.sizeUnit * 0.62;
+    const weedBaseRadius = layout.sizeUnit * 0.05;
+    const layoutScale = layout.sizeUnit * 1.18;
 
-    tempPosition.set(
-      treeLayout.x * layoutScale,
-      height * TREE_SURFACE_ANCHOR,
-      treeLayout.z * layoutScale
-    );
-    tempLocalQuaternion.setFromEuler(tempEuler.set(0, yaw, 0));
-    tempScale.set(radius, height, radius);
+    for (let index = 0; index < TREE_INSTANCE_COUNT; index += 1) {
+      const isVisible =
+        cell.vegetation >= TREE_VEGETATION_THRESHOLD && index < state.visibleTreeCount;
 
-    setInstanceTransform(
-      treeMesh,
-      treeIndex,
-      layout,
-      tempPosition,
-      tempLocalQuaternion,
-      tempScale,
-      state.tint
-    );
-  }
+      if (!isVisible) {
+        continue;
+      }
 
-  const visibleWeedCount = Math.min(
-    WEED_INSTANCE_COUNT,
-    Math.max(2, state.visibleTreeCount * 2)
-  );
+      const treeLayout = TREE_LAYOUTS[index];
+      const height = treeBaseHeight * state.heightScale * (1 - index * 0.08);
+      const radius = treeBaseRadius * state.radiusScale * (1 - index * 0.06);
+      const yaw = Math.atan2(treeLayout.x, treeLayout.z);
 
-  for (let index = 0; index < WEED_INSTANCE_COUNT; index += 1) {
-    const weedIndex = weedStartIndex + index;
-    const isVisible = index < visibleWeedCount;
+      tempPosition.set(
+        treeLayout.x * layoutScale,
+        height * TREE_SURFACE_ANCHOR,
+        treeLayout.z * layoutScale
+      );
+      tempLocalQuaternion.setFromEuler(tempEuler.set(0, yaw, 0));
+      tempScale.set(radius, height, radius);
 
-    if (!isVisible) {
-      setHiddenInstance(weedMesh, weedIndex);
-      continue;
+      setInstanceTransform(
+        treeMesh,
+        treePackedIndex,
+        layout,
+        tempPosition,
+        tempLocalQuaternion,
+        tempScale,
+        state.tint
+      );
+      treePackedIndex += 1;
     }
 
-    const weedLayout = WEED_LAYOUTS[index];
-    const height = weedBaseHeight * state.heightScale * (1 - index * 0.035);
-    const radius = weedBaseRadius * state.radiusScale * (1 - index * 0.03);
-    const yaw = Math.atan2(weedLayout.x, weedLayout.z);
-    const lean = 0.26 + index * 0.06;
+    const visibleWeedCount = Math.min(
+      WEED_INSTANCE_COUNT,
+      state.visibleTreeCount === 0 ? 0 : Math.max(2, state.visibleTreeCount * 2)
+    );
 
-    tempPosition.set(
-      weedLayout.x * layoutScale,
-      height * WEED_SURFACE_ANCHOR,
-      weedLayout.z * layoutScale
-    );
-    tempLocalQuaternion.setFromEuler(
-      tempEuler.set(Math.cos(yaw) * lean, yaw, -Math.sin(yaw) * lean)
-    );
-    tempScale.set(radius * 2, height, radius * 0.9);
+    for (let index = 0; index < WEED_INSTANCE_COUNT; index += 1) {
+      if (index >= visibleWeedCount) {
+        continue;
+      }
 
-    setInstanceTransform(
-      weedMesh,
-      weedIndex,
-      layout,
-      tempPosition,
-      tempLocalQuaternion,
-      tempScale,
-      state.tint
-    );
+      const weedLayout = WEED_LAYOUTS[index];
+      const height = weedBaseHeight * state.heightScale * (1 - index * 0.035);
+      const radius = weedBaseRadius * state.radiusScale * (1 - index * 0.03);
+      const yaw = Math.atan2(weedLayout.x, weedLayout.z);
+      const lean = 0.26 + index * 0.06;
+
+      tempPosition.set(
+        weedLayout.x * layoutScale,
+        height * WEED_SURFACE_ANCHOR,
+        weedLayout.z * layoutScale
+      );
+      tempLocalQuaternion.setFromEuler(
+        tempEuler.set(Math.cos(yaw) * lean, yaw, -Math.sin(yaw) * lean)
+      );
+      tempScale.set(radius * 2, height, radius * 0.9);
+
+      setInstanceTransform(
+        weedMesh,
+        weedPackedIndex,
+        layout,
+        tempPosition,
+        tempLocalQuaternion,
+        tempScale,
+        state.tint
+      );
+      weedPackedIndex += 1;
+    }
   }
+
+  treeMesh.count = treePackedIndex;
+  weedMesh.count = weedPackedIndex;
 }
