@@ -172,7 +172,6 @@ class SimulationSceneController implements SimulationScene {
         cell,
         surfaceSphereRadius * 2 + 0.012
       );
-      const cellColor = colorForCell(cell);
       const instanceRotation = new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), faceNormal);
       const landInstanceId = face.cellId;
       const treeStartIndex = face.cellId * TREE_INSTANCE_COUNT;
@@ -191,11 +190,6 @@ class SimulationSceneController implements SimulationScene {
         weedStartIndex
       };
       this.surfaceCellInstances.registerCell(face.cellId, visual);
-      this.surfaceCellInstances.applyCellState(
-        visual,
-        cell.terrainKind,
-        cellColor
-      );
       this.cellVisuals.set(face.cellId, visual);
       updateCellVegetationInstances(
         this.treeMesh,
@@ -206,6 +200,11 @@ class SimulationSceneController implements SimulationScene {
         cell
       );
     }
+    this.surfaceCellInstances.syncPackedInstances(
+      cells,
+      (cellId) => this.cellVisuals.get(cellId),
+      colorForCell
+    );
     this.surfaceCellInstances.sync();
     this.syncVegetationInstances();
     this.resize();
@@ -237,11 +236,6 @@ class SimulationSceneController implements SimulationScene {
       if (!visual) {
         continue;
       }
-      this.surfaceCellInstances.applyCellState(
-        visual,
-        cell.terrainKind,
-        colorForCell(cell)
-      );
       updateCellVegetationInstances(
         this.treeMesh,
         this.weedMesh,
@@ -251,6 +245,11 @@ class SimulationSceneController implements SimulationScene {
         cell
       );
     }
+    this.surfaceCellInstances.syncPackedInstances(
+      cells,
+      (cellId) => this.cellVisuals.get(cellId),
+      colorForCell
+    );
     this.surfaceCellInstances.sync();
     this.syncVegetationInstances();
   }

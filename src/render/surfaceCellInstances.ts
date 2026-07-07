@@ -57,9 +57,9 @@ export class SurfaceCellInstances {
       waterSurfaceMaterial,
       maxCount
     );
-    this.landMesh.count = maxCount;
+    this.landMesh.count = 0;
     this.pickMesh.count = maxCount;
-    this.waterMesh.count = maxCount;
+    this.waterMesh.count = 0;
   }
 
   registerCell(cellId: number, visual: SurfaceCellInstanceData) {
@@ -72,27 +72,47 @@ export class SurfaceCellInstances {
     );
   }
 
-  applyCellState(
-    visual: SurfaceCellInstanceData,
-    terrainKind: Cell["terrainKind"],
-    cellColor: Color
+  syncPackedInstances(
+    cells: Cell[],
+    getVisual: (cellId: number) => SurfaceCellInstanceData | undefined,
+    getCellColor: (cell: Cell) => Color
   ) {
-    setSurfaceInstanceTransform(
-      this.landMesh,
-      visual.landInstanceId,
-      visual.sphereCenter,
-      visual.surfaceRotation,
-      terrainKind === "land"
-    );
-    setSurfaceInstanceTransform(
-      this.waterMesh,
-      visual.waterInstanceId,
-      visual.sphereCenter,
-      visual.surfaceRotation,
-      terrainKind === "water"
-    );
-    this.landMesh.setColorAt(visual.landInstanceId, cellColor);
-    this.waterMesh.setColorAt(visual.waterInstanceId, cellColor);
+    let landPackedIndex = 0;
+    let waterPackedIndex = 0;
+
+    for (const cell of cells) {
+      const visual = getVisual(cell.id);
+      if (!visual) {
+        continue;
+      }
+
+      const cellColor = getCellColor(cell);
+      if (cell.terrainKind === "land") {
+        setSurfaceInstanceTransform(
+          this.landMesh,
+          landPackedIndex,
+          visual.sphereCenter,
+          visual.surfaceRotation,
+          true
+        );
+        this.landMesh.setColorAt(landPackedIndex, cellColor);
+        landPackedIndex += 1;
+        continue;
+      }
+
+      setSurfaceInstanceTransform(
+        this.waterMesh,
+        waterPackedIndex,
+        visual.sphereCenter,
+        visual.surfaceRotation,
+        true
+      );
+      this.waterMesh.setColorAt(waterPackedIndex, cellColor);
+      waterPackedIndex += 1;
+    }
+
+    this.landMesh.count = landPackedIndex;
+    this.waterMesh.count = waterPackedIndex;
   }
 
   sync() {
