@@ -1,7 +1,7 @@
 import { defineConfig } from "vite";
 
 export default defineConfig({
-  base: "/goldberg-cell-sim-study/",
+  base: "./",
   build: {
     rollupOptions: {
       output: {
