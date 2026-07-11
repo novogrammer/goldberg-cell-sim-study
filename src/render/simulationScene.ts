@@ -43,7 +43,7 @@ type RenderCellVisual = SurfaceCellInstanceData & {
 };
 
 export interface SimulationScene {
-  renderer: WebGPURenderer;
+  readonly canvasElement: HTMLCanvasElement;
   resize: () => void;
   render: () => void;
   setAnimationLoop: (callback: AnimationLoopCallback) => void;
@@ -62,7 +62,7 @@ export interface SimulationScene {
 }
 
 class SimulationSceneController implements SimulationScene {
-  readonly renderer: WebGPURenderer;
+  readonly canvasElement: HTMLCanvasElement;
 
   private readonly camera: PerspectiveCamera;
   private readonly cellVisuals = new Map<number, RenderCellVisual>();
@@ -70,6 +70,7 @@ class SimulationSceneController implements SimulationScene {
   private readonly mount: HTMLElement;
   private readonly pointer = new Vector2();
   private readonly raycaster = new Raycaster();
+  private readonly renderer: WebGPURenderer;
   private readonly resizeObserver: ResizeObserver;
   private readonly scene = new Scene();
   private readonly selectionOverlay: SurfaceSelectionOverlay;
@@ -101,9 +102,10 @@ class SimulationSceneController implements SimulationScene {
     if (!navigator.webdriver) {
       this.renderer.inspector = new Inspector();
     }
+    this.canvasElement = this.renderer.domElement;
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this.renderer.domElement.style.touchAction = "none";
-    mount.appendChild(this.renderer.domElement);
+    this.canvasElement.style.touchAction = "none";
+    mount.appendChild(this.canvasElement);
     this.resizeObserver = new ResizeObserver(() => this.resize());
     this.resizeObserver.observe(mount);
     this.controls = new GoldbergCameraControls(this.camera);
@@ -314,7 +316,7 @@ class SimulationSceneController implements SimulationScene {
     this.treeGeometry.dispose();
     this.weedGeometry.dispose();
     this.renderer.dispose();
-    this.mount.removeChild(this.renderer.domElement);
+    this.mount.removeChild(this.canvasElement);
   }
 
   private syncVegetationInstances() {

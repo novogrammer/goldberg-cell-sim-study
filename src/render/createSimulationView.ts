@@ -27,7 +27,7 @@ class SimulationViewAdapter implements SimulationView {
   readonly canvasElement: HTMLCanvasElement;
 
   constructor(private readonly scene: SimulationScene) {
-    this.canvasElement = scene.renderer.domElement;
+    this.canvasElement = scene.canvasElement;
   }
 
   resize() {
