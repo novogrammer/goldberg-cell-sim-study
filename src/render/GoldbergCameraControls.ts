@@ -4,7 +4,7 @@ const MIN_CAMERA_DISTANCE = 2.4;
 const MAX_CAMERA_DISTANCE = 7.5;
 const ROTATION_SENSITIVITY = 0.005;
 const ZOOM_SENSITIVITY = 0.0012;
-const CAMERA_DAMPING = 0.16;
+const CAMERA_DAMPING_SPEED = 10.5;
 const AUTO_ROTATE_SPEED = 0.6;
 const POLAR_EPSILON = 0.32;
 const DRAG_START_THRESHOLD = 4;
@@ -66,9 +66,10 @@ export class GoldbergCameraControls {
       this.targetAzimuth += AUTO_ROTATE_SPEED * deltaSeconds;
     }
 
-    this.currentAzimuth += (this.targetAzimuth - this.currentAzimuth) * CAMERA_DAMPING;
-    this.currentPolar += (this.targetPolar - this.currentPolar) * CAMERA_DAMPING;
-    this.currentRadius += (this.targetRadius - this.currentRadius) * CAMERA_DAMPING;
+    const damping = 1 - Math.exp(-CAMERA_DAMPING_SPEED * deltaSeconds);
+    this.currentAzimuth += (this.targetAzimuth - this.currentAzimuth) * damping;
+    this.currentPolar += (this.targetPolar - this.currentPolar) * damping;
+    this.currentRadius += (this.targetRadius - this.currentRadius) * damping;
 
     this.applyCameraTransform();
   }

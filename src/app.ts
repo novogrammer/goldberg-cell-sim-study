@@ -188,9 +188,6 @@ export function mountApp(root: HTMLElement): () => void {
     getCellTerrainKind: (cellId) => appState.cells.find((cell) => cell.id === cellId)?.terrainKind ?? null
   };
 
-  const onResize = () => view.resize();
-  window.addEventListener("resize", onResize);
-
   let isDisposed = false;
 
   const animate = (timestamp: number) => {
@@ -220,7 +217,6 @@ export function mountApp(root: HTMLElement): () => void {
     isDisposed = true;
     view.setAnimationLoop(null);
     cleanupEvents();
-    window.removeEventListener("resize", onResize);
     delete window.__goldbergTestState;
     view.dispose();
   };

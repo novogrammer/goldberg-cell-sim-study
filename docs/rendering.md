@@ -5,8 +5,8 @@
 ## 概要
 
 - 描画は Three.js の `WebGPURenderer` を前提にしています。
-- メインの 3D 実装は [src/render/simulationScene.ts](/Users/novo/Documents/aptanastudio3workspace/goldberg-cell-sim-study/src/render/simulationScene.ts:1) にあります。
-- `app` からは [src/render/createSimulationView.ts](/Users/novo/Documents/aptanastudio3workspace/goldberg-cell-sim-study/src/render/createSimulationView.ts:1) の `SimulationView` として扱います。
+- メインの 3D 実装は [src/render/simulationScene.ts](../src/render/simulationScene.ts) にあります。
+- `app` からは [src/render/createSimulationView.ts](../src/render/createSimulationView.ts) の `SimulationView` として扱います。
 - HUD や mode 切り替えなどの DOM UI は `ui` 層で扱い、描画ロジックとは分離しています。
 
 ## 地表セル
@@ -19,8 +19,8 @@
 
 関連コード:
 
-- [src/render/surfaceCellInstances.ts](/Users/novo/Documents/aptanastudio3workspace/goldberg-cell-sim-study/src/render/surfaceCellInstances.ts:1)
-- [src/render/cellVisualAppearance.ts](/Users/novo/Documents/aptanastudio3workspace/goldberg-cell-sim-study/src/render/cellVisualAppearance.ts:1)
+- [src/render/surfaceCellInstances.ts](../src/render/surfaceCellInstances.ts)
+- [src/render/cellVisualAppearance.ts](../src/render/cellVisualAppearance.ts)
 
 ## 地表形状
 
@@ -28,7 +28,7 @@
 - 各セルの face center と法線を基準に、小さな半球を表面へ敷き詰める表現を使っています。
 - 半球の半径は、face center 間の平均距離から求めた packed sphere 半径を基準にしています。
 - instance の向きは各 face の法線方向に揃えています。
-- 現在の主描画は [src/render/surfaceCellInstances.ts](/Users/novo/Documents/aptanastudio3workspace/goldberg-cell-sim-study/src/render/surfaceCellInstances.ts:1) 側の方式です。
+- 現在の主描画は [src/render/surfaceCellInstances.ts](../src/render/surfaceCellInstances.ts) 側の方式です。
 
 ## 植生オブジェクト
 
@@ -42,7 +42,7 @@
 
 関連コード:
 
-- [src/render/cellVegetationAppearance.ts](/Users/novo/Documents/aptanastudio3workspace/goldberg-cell-sim-study/src/render/cellVegetationAppearance.ts:1)
+- [src/render/cellVegetationAppearance.ts](../src/render/cellVegetationAppearance.ts)
 
 ## 選択表示
 
@@ -53,13 +53,13 @@
 
 関連コード:
 
-- [src/render/surfaceSelectionOverlay.ts](/Users/novo/Documents/aptanastudio3workspace/goldberg-cell-sim-study/src/render/surfaceSelectionOverlay.ts:1)
+- [src/render/surfaceSelectionOverlay.ts](../src/render/surfaceSelectionOverlay.ts)
 
 ## ピッキング
 
 - ピッキングは raycast ベースです。
 - 地表セルの pick は land / water の `InstancedMesh` に対して行います。
-- `instanceId` から `cellId` へ戻す対応表は [src/render/surfaceCellInstances.ts](/Users/novo/Documents/aptanastudio3workspace/goldberg-cell-sim-study/src/render/surfaceCellInstances.ts:1) が持っています。
+- `instanceId` から `cellId` へ戻す対応表は [src/render/surfaceCellInstances.ts](../src/render/surfaceCellInstances.ts) が持っています。
 - overlay は見た目用であり、セル本体の pick source ではありません。
 
 ## Test Hook
@@ -77,7 +77,7 @@
 
 定義箇所:
 
-- [src/app.ts](/Users/novo/Documents/aptanastudio3workspace/goldberg-cell-sim-study/src/app.ts:1)
+- [src/app.ts](../src/app.ts)
 
 ## WebGPU 依存
 

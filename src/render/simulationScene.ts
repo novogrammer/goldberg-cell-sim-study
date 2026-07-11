@@ -69,6 +69,7 @@ class SimulationSceneController implements SimulationScene {
   private readonly mount: HTMLElement;
   private readonly pointer = new Vector2();
   private readonly raycaster = new Raycaster();
+  private readonly resizeObserver: ResizeObserver;
   private readonly scene = new Scene();
   private readonly selectionOverlay: SurfaceSelectionOverlay;
   private readonly surfaceCellInstances: SurfaceCellInstances;
@@ -102,6 +103,8 @@ class SimulationSceneController implements SimulationScene {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.domElement.style.touchAction = "none";
     mount.appendChild(this.renderer.domElement);
+    this.resizeObserver = new ResizeObserver(() => this.resize());
+    this.resizeObserver.observe(mount);
     this.controls = new GoldbergCameraControls(this.camera, this.renderer.domElement);
 
     const ambientLight = new AmbientLight("#ffffff", 1.2);
@@ -205,6 +208,10 @@ class SimulationSceneController implements SimulationScene {
   resize() {
     const width = this.mount.clientWidth;
     const height = this.mount.clientHeight;
+    if (width === 0 || height === 0) {
+      return;
+    }
+
     this.renderer.setSize(width, height, false);
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
@@ -293,6 +300,7 @@ class SimulationSceneController implements SimulationScene {
   }
 
   dispose() {
+    this.resizeObserver.disconnect();
     this.controls.dispose();
     this.surfaceCellInstances.dispose();
     this.selectionOverlay.dispose();
