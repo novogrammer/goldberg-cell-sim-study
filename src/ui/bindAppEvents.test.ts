@@ -39,7 +39,10 @@ function createHandlers(): AppEventHandlers {
     onCanvasPaintStart: vi.fn(),
     onCanvasPaintMove: vi.fn(),
     onCanvasPaintEnd: vi.fn(),
-    onCanvasSelect: vi.fn()
+    onCanvasSelect: vi.fn(),
+    onCanvasRotate: vi.fn(),
+    onCanvasCameraDragChange: vi.fn(),
+    onCanvasZoom: vi.fn()
   };
 }
 
@@ -139,6 +142,29 @@ describe("bindAppEvents", () => {
     canvas.dispatchEvent(createPointerEvent("pointerdown", { clientX: 10, clientY: 10 }));
     canvas.dispatchEvent(createPointerEvent("pointerup", { clientX: 30, clientY: 30 }));
 
+    expect(handlers.onCanvasSelect).not.toHaveBeenCalled();
+
+    cleanup();
+  });
+
+  it("view mode のドラッグとホイールをカメラ handler へ渡す", () => {
+    const elements = createElements();
+    const canvas = document.createElement("canvas");
+    attachPointerCaptureStubs(canvas);
+    document.body.append(canvas);
+    const handlers = createHandlers();
+    const cleanup = bindAppEvents(elements, canvas, handlers);
+
+    canvas.dispatchEvent(createPointerEvent("pointerdown", { clientX: 10, clientY: 10, buttons: 1 }));
+    canvas.dispatchEvent(createPointerEvent("pointermove", { clientX: 20, clientY: 14, buttons: 1 }));
+    canvas.dispatchEvent(createPointerEvent("pointermove", { clientX: 27, clientY: 19, buttons: 1 }));
+    canvas.dispatchEvent(createPointerEvent("pointerup", { clientX: 27, clientY: 19 }));
+    canvas.dispatchEvent(new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: 120 }));
+
+    expect(handlers.onCanvasRotate).toHaveBeenCalledWith(7, 5);
+    expect(handlers.onCanvasCameraDragChange).toHaveBeenNthCalledWith(1, true);
+    expect(handlers.onCanvasCameraDragChange).toHaveBeenNthCalledWith(2, false);
+    expect(handlers.onCanvasZoom).toHaveBeenCalledWith(120);
     expect(handlers.onCanvasSelect).not.toHaveBeenCalled();
 
     cleanup();

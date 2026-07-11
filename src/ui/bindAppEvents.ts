@@ -1,12 +1,17 @@
 import type { AppElements, AppEventHandlers } from "./types";
 
 const CLICK_SELECTION_THRESHOLD = 6;
+const CAMERA_DRAG_START_THRESHOLD = 4;
 
 class AppEventController {
   private isPaintMode = false;
   private isPointerPainting = false;
+  private activePointerId: number | null = null;
+  private isPointerDragging = false;
   private pointerDownClientX = 0;
   private pointerDownClientY = 0;
+  private lastPointerClientX = 0;
+  private lastPointerClientY = 0;
   private readonly cleanupCallbacks: Array<() => void> = [];
 
   constructor(
@@ -29,6 +34,8 @@ class AppEventController {
     this.bindElement(this.canvasElement, "pointerdown", this.onPointerDown);
     this.bindElement(this.canvasElement, "pointerup", this.onPointerUp);
     this.bindElement(this.canvasElement, "pointercancel", this.onPointerCancel);
+    this.bindElement(this.canvasElement, "wheel", this.onWheel);
+    this.bindElement(this.canvasElement, "contextmenu", this.onContextMenu);
     this.bindWindow("pointerup", this.onWindowPointerUp);
   }
 
@@ -41,6 +48,17 @@ class AppEventController {
   private endPainting() {
     this.isPointerPainting = false;
     this.handlers.onCanvasPaintEnd();
+  }
+
+  private endPointerInteraction(pointerId: number | null = this.activePointerId) {
+    if (this.isPointerDragging) {
+      this.handlers.onCanvasCameraDragChange(false);
+    }
+    if (pointerId !== null) {
+      this.releasePointerCaptureIfHeld(pointerId);
+    }
+    this.activePointerId = null;
+    this.isPointerDragging = false;
   }
 
   private releasePointerCaptureIfHeld(pointerId: number) {
@@ -60,12 +78,14 @@ class AppEventController {
   private onViewMode() {
     this.isPaintMode = false;
     this.endPainting();
+    this.endPointerInteraction();
     this.handlers.onSetMode("view");
   }
 
   private onPaintMode() {
     this.isPaintMode = true;
     this.endPainting();
+    this.endPointerInteraction();
     this.handlers.onSetMode("paint");
   }
 
@@ -91,10 +111,40 @@ class AppEventController {
 
   private onPointerMove(event: PointerEvent) {
     this.handlers.onCanvasHover(event.clientX, event.clientY);
-    if (!this.isPaintMode || !this.isPointerPainting || (event.buttons & 1) === 0) {
+    if (this.isPaintMode) {
+      if (!this.isPointerPainting || (event.buttons & 1) === 0) {
+        return;
+      }
+      this.handlers.onCanvasPaintMove(event.clientX, event.clientY);
       return;
     }
-    this.handlers.onCanvasPaintMove(event.clientX, event.clientY);
+
+    if (this.activePointerId !== event.pointerId || (event.buttons & 1) === 0) {
+      return;
+    }
+
+    if (!this.isPointerDragging) {
+      const dragDistance = Math.hypot(
+        event.clientX - this.pointerDownClientX,
+        event.clientY - this.pointerDownClientY
+      );
+      if (dragDistance < CAMERA_DRAG_START_THRESHOLD) {
+        return;
+      }
+
+      this.isPointerDragging = true;
+      this.handlers.onCanvasCameraDragChange(true);
+      this.lastPointerClientX = event.clientX;
+      this.lastPointerClientY = event.clientY;
+      this.capturePointerIfPossible(event.pointerId);
+      return;
+    }
+
+    const deltaX = event.clientX - this.lastPointerClientX;
+    const deltaY = event.clientY - this.lastPointerClientY;
+    this.lastPointerClientX = event.clientX;
+    this.lastPointerClientY = event.clientY;
+    this.handlers.onCanvasRotate(deltaX, deltaY);
   }
 
   private onPointerLeave() {
@@ -102,10 +152,18 @@ class AppEventController {
   }
 
   private onPointerDown(event: PointerEvent) {
+    if (event.button !== 0) {
+      return;
+    }
+
     this.pointerDownClientX = event.clientX;
     this.pointerDownClientY = event.clientY;
+    this.lastPointerClientX = event.clientX;
+    this.lastPointerClientY = event.clientY;
 
-    if (!this.isPaintMode || event.button !== 0) {
+    if (!this.isPaintMode) {
+      this.activePointerId = event.pointerId;
+      this.isPointerDragging = false;
       return;
     }
 
@@ -116,7 +174,7 @@ class AppEventController {
 
   private onPointerUp(event: PointerEvent) {
     if (!this.isPaintMode) {
-      if (event.button !== 0) {
+      if (event.button !== 0 || this.activePointerId !== event.pointerId) {
         return;
       }
 
@@ -124,11 +182,11 @@ class AppEventController {
         event.clientX - this.pointerDownClientX,
         event.clientY - this.pointerDownClientY
       );
-      if (movedDistance > CLICK_SELECTION_THRESHOLD) {
-        return;
+      const shouldSelect = !this.isPointerDragging && movedDistance <= CLICK_SELECTION_THRESHOLD;
+      this.endPointerInteraction(event.pointerId);
+      if (shouldSelect) {
+        this.handlers.onCanvasSelect(event.clientX, event.clientY);
       }
-
-      this.handlers.onCanvasSelect(event.clientX, event.clientY);
       return;
     }
 
@@ -138,11 +196,27 @@ class AppEventController {
 
   private onPointerCancel(event: PointerEvent) {
     this.endPainting();
-    this.releasePointerCaptureIfHeld(event.pointerId);
+    this.endPointerInteraction(event.pointerId);
   }
 
-  private onWindowPointerUp() {
+  private onWindowPointerUp(event: PointerEvent) {
     this.endPainting();
+    if (this.activePointerId === event.pointerId) {
+      this.endPointerInteraction(event.pointerId);
+    }
+  }
+
+  private onWheel(event: WheelEvent) {
+    if (this.isPaintMode) {
+      return;
+    }
+
+    event.preventDefault();
+    this.handlers.onCanvasZoom(event.deltaY);
+  }
+
+  private onContextMenu(event: MouseEvent) {
+    event.preventDefault();
   }
 
   private bindElement<K extends keyof HTMLElementEventMap>(

@@ -167,6 +167,15 @@ export function mountApp(root: HTMLElement): () => void {
       appState.selectedCellId = toggleSelectedCell(appState.selectedCellId, pickedCellId);
       view.setSelectedCell(appState.selectedCellId);
       refreshHud();
+    },
+    onCanvasRotate: (deltaX, deltaY) => {
+      view.rotateCameraByPixels(deltaX, deltaY);
+    },
+    onCanvasCameraDragChange: (isDragging) => {
+      view.setCameraDragging(isDragging);
+    },
+    onCanvasZoom: (deltaY) => {
+      view.zoomCameraByDelta(deltaY);
     }
   });
 

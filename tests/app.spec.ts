@@ -165,6 +165,7 @@ test('閲覧モードではホイールでズームできる', async ({ page }) 
 
 test('ペイントモード中のドラッグではカメラが回転しない', async ({ page }) => {
   await page.goto('/');
+  await clickControl(page.getByRole('button', { name: 'Paint' }));
 
   const { box } = await getCanvasCenter(page);
   const target = { x: box.x + box.width * 0.45, y: box.y + box.height * 0.45 };

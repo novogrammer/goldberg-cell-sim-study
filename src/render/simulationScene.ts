@@ -52,6 +52,7 @@ export interface SimulationScene {
   setControlsEnabled: (enabled: boolean) => void;
   getCameraPosition: () => [number, number, number];
   rotateCameraByPixels: (deltaX: number, deltaY: number) => void;
+  setCameraDragging: (isDragging: boolean) => void;
   zoomCameraByDelta: (deltaY: number) => void;
   syncCameraImmediately: () => void;
   pickCellAtClientPoint: (clientX: number, clientY: number) => number | null;
@@ -105,7 +106,7 @@ class SimulationSceneController implements SimulationScene {
     mount.appendChild(this.renderer.domElement);
     this.resizeObserver = new ResizeObserver(() => this.resize());
     this.resizeObserver.observe(mount);
-    this.controls = new GoldbergCameraControls(this.camera, this.renderer.domElement);
+    this.controls = new GoldbergCameraControls(this.camera);
 
     const ambientLight = new AmbientLight("#ffffff", 1.2);
     const directionalLight = new DirectionalLight("#d6f0ff", 2.4);
@@ -261,6 +262,10 @@ class SimulationSceneController implements SimulationScene {
     this.controls.rotateByPointerDelta(deltaX, deltaY);
   }
 
+  setCameraDragging(isDragging: boolean) {
+    this.controls.setDragging(isDragging);
+  }
+
   zoomCameraByDelta(deltaY: number) {
     this.controls.zoomByWheelDelta(deltaY);
   }
@@ -301,7 +306,6 @@ class SimulationSceneController implements SimulationScene {
 
   dispose() {
     this.resizeObserver.disconnect();
-    this.controls.dispose();
     this.surfaceCellInstances.dispose();
     this.selectionOverlay.dispose();
     this.surfaceSphereGeometry.dispose();

@@ -63,4 +63,7 @@ export interface AppEventHandlers {
   onCanvasPaintMove: (clientX: number, clientY: number) => void;
   onCanvasPaintEnd: () => void;
   onCanvasSelect: (clientX: number, clientY: number) => void;
+  onCanvasRotate: (deltaX: number, deltaY: number) => void;
+  onCanvasCameraDragChange: (isDragging: boolean) => void;
+  onCanvasZoom: (deltaY: number) => void;
 }

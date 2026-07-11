@@ -17,6 +17,7 @@ interface SimulationView {
   pickCellAtClientPoint: (clientX: number, clientY: number) => number | null;
   getCameraPosition: () => [number, number, number];
   rotateCameraByPixels: (deltaX: number, deltaY: number) => void;
+  setCameraDragging: (isDragging: boolean) => void;
   zoomCameraByDelta: (deltaY: number) => void;
   syncCameraImmediately: () => void;
   getInteractiveCanvasPoint: () => { x: number; y: number; cellId: number } | null;
@@ -79,6 +80,10 @@ class SimulationViewAdapter implements SimulationView {
 
   rotateCameraByPixels(deltaX: number, deltaY: number) {
     this.scene.rotateCameraByPixels(deltaX, deltaY);
+  }
+
+  setCameraDragging(isDragging: boolean) {
+    this.scene.setCameraDragging(isDragging);
   }
 
   zoomCameraByDelta(deltaY: number) {
