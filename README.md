@@ -14,9 +14,9 @@ https://novogrammer.github.io/goldberg-cell-sim-study/
 - `land` セルは `vegetation` スコアを持ち、水場の近接、周囲の植生、肥沃度、地質の影響で変化します。
 - `isPentagon` により、後から描画やルールを分けられる構造です。
 
-詳細は [docs/simulation-model.md](/Users/novo/Documents/aptanastudio3workspace/goldberg-cell-sim-study/docs/simulation-model.md:1) を参照してください。
-描画構成の前提は [docs/rendering.md](/Users/novo/Documents/aptanastudio3workspace/goldberg-cell-sim-study/docs/rendering.md:1) にあります。
-エージェント向けの変更ガイドは [AGENTS.md](/Users/novo/Documents/aptanastudio3workspace/goldberg-cell-sim-study/AGENTS.md:1) にあります。
+詳細は [docs/simulation-model.md](docs/simulation-model.md) を参照してください。
+描画構成の前提は [docs/rendering.md](docs/rendering.md) にあります。
+エージェント向けの変更ガイドは [AGENTS.md](AGENTS.md) にあります。
 
 ## 構成メモ
 

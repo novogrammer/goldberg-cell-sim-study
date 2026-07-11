@@ -68,6 +68,16 @@ describe("createGoldbergMesh", () => {
     }
   });
 
+  it("セル ID を配列 index と一致させ、近傍参照を有効範囲に保つ", () => {
+    for (const [index, cell] of mesh.cells.entries()) {
+      expect(cell.id).toBe(index);
+      expect(cell.neighborCount).toBe(cell.neighbors.length);
+      expect(cell.neighbors.every((neighborId) => (
+        Number.isInteger(neighborId) && neighborId >= 0 && neighborId < mesh.cells.length
+      ))).toBe(true);
+    }
+  });
+
   it("各 face の頂点数をセルの近傍数に一致させる", () => {
     for (const face of mesh.geometry.faces) {
       const cell = mesh.cells[face.cellId];
