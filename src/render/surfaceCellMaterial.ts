@@ -1,4 +1,4 @@
-import { MeshStandardNodeMaterial } from "three/webgpu";
+import { MeshStandardNodeMaterial, type Node } from "three/webgpu";
 import {
   color,
   float,
@@ -79,20 +79,20 @@ export function createWaterSurfaceMaterial() {
   return material;
 }
 
-function createLandNoise(positionNode: any) {
+function createLandNoise(positionNode: Node<"vec3">) {
   const broadLandNoise = mx_fractal_noise_float(positionNode.mul(4.4), 4, 2.0, 0.55, 1);
   const detailLandNoise = mx_fractal_noise_float(positionNode.mul(12.5), 3, 2.4, 0.5, 1);
 
   return broadLandNoise.mul(0.72).add(detailLandNoise.mul(0.28));
 }
 
-function createLandHeight(positionNode: any) {
+function createLandHeight(positionNode: Node<"vec3">) {
   const landHeightNoise = mx_fractal_noise_float(positionNode.mul(20), 5, 2.0, 0.58, 1);
 
   return landHeightNoise.mul(0.006);
 }
 
-function createWaterHeight(positionNode: any) {
+function createWaterHeight(positionNode: Node<"vec3">) {
   const phase = time.mul(1.35);
   const swell = positionNode.x.mul(12.6)
     .add(positionNode.z.mul(6.2))
@@ -112,7 +112,7 @@ function createWaterHeight(positionNode: any) {
     .add(ripple.mul(0.0009));
 }
 
-function createWaterShade(positionNode: any) {
+function createWaterShade(positionNode: Node<"vec3">) {
   const phase = time.mul(1.05);
   const bandA = positionNode.x.mul(10.8)
     .add(positionNode.z.mul(-7.2))
