@@ -177,17 +177,14 @@ class SimulationSceneController implements SimulationScene {
         surfaceSphereRadius * 2 + 0.012
       );
       const instanceRotation = new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), faceNormal);
-      const landInstanceId = face.cellId;
       const sphereCenter = new Vector3(...face.center).add(
         faceNormal.clone().multiplyScalar(surfaceSphereRadius)
       );
       const visual: RenderCellVisual = {
-        landInstanceId,
         normal: faceNormal.clone(),
         surfaceRotation: instanceRotation.clone(),
         sphereCenter,
-        vegetationLayout,
-        waterInstanceId: face.cellId
+        vegetationLayout
       };
       this.surfaceCellInstances.registerCell(face.cellId, visual);
       this.cellVisuals.set(face.cellId, visual);

@@ -16,17 +16,13 @@ import {
 } from "./surfaceCellMaterial";
 
 const DEFAULT_SURFACE_RADIUS = 1;
-const hiddenScale = new Vector3(0, 0, 0);
 const identityScale = new Vector3(1, 1, 1);
-const tempRotation = new Quaternion();
 const tempSurfaceMatrix = new Matrix4();
 
 export interface SurfaceCellInstanceData {
-  landInstanceId: number;
   normal: Vector3;
   sphereCenter: Vector3;
   surfaceRotation: Quaternion;
-  waterInstanceId: number;
 }
 
 export class SurfaceCellInstances {
@@ -67,8 +63,7 @@ export class SurfaceCellInstances {
       this.pickMesh,
       cellId,
       visual.sphereCenter,
-      visual.surfaceRotation,
-      true
+      visual.surfaceRotation
     );
   }
 
@@ -92,8 +87,7 @@ export class SurfaceCellInstances {
           this.landMesh,
           landPackedIndex,
           visual.sphereCenter,
-          visual.surfaceRotation,
-          true
+          visual.surfaceRotation
         );
         this.landMesh.setColorAt(landPackedIndex, cellColor);
         landPackedIndex += 1;
@@ -104,8 +98,7 @@ export class SurfaceCellInstances {
         this.waterMesh,
         waterPackedIndex,
         visual.sphereCenter,
-        visual.surfaceRotation,
-        true
+        visual.surfaceRotation
       );
       this.waterMesh.setColorAt(waterPackedIndex, cellColor);
       waterPackedIndex += 1;
@@ -189,14 +182,12 @@ function setSurfaceInstanceTransform(
   mesh: InstancedMesh,
   instanceId: number,
   sphereCenter: Vector3,
-  surfaceRotation: Quaternion,
-  visible: boolean
+  surfaceRotation: Quaternion
 ) {
-  tempRotation.copy(surfaceRotation);
   tempSurfaceMatrix.compose(
     sphereCenter,
-    tempRotation,
-    visible ? identityScale : hiddenScale
+    surfaceRotation,
+    identityScale
   );
   mesh.setMatrixAt(instanceId, tempSurfaceMatrix);
 }

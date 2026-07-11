@@ -29,19 +29,15 @@ describe("surfaceCellInstances", () => {
   it("pick は表示用 instanceId ではなく専用 mesh の固定スロットを返す", () => {
     const instances = new SurfaceCellInstances(new SphereGeometry(1, 8, 4), 32);
     const visuals = new Map<number, {
-      landInstanceId: number;
       normal: Vector3;
       sphereCenter: Vector3;
       surfaceRotation: Quaternion;
-      waterInstanceId: number;
     }>();
 
     const cellVisual = {
-      landInstanceId: 12,
       normal: new Vector3(0, 1, 0),
       sphereCenter: new Vector3(1, 2, 3),
-      surfaceRotation: new Quaternion(),
-      waterInstanceId: 18
+      surfaceRotation: new Quaternion()
     };
     visuals.set(7, cellVisual);
 
