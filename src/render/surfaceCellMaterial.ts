@@ -7,7 +7,6 @@ import {
   normalWorldGeometry,
   positionLocal,
   positionWorld,
-  sign,
   time,
   transformNormalToView,
   vec3
@@ -41,7 +40,7 @@ export function createWaterSurfaceMaterial() {
   const baseWorldNormal = normalWorldGeometry.normalize();
   const waveHeight = createWaterHeight(positionWorld);
   const waveShade = createWaterShade(positionWorld);
-  const basisSign = sign(baseWorldNormal.z);
+  const basisSign = baseWorldNormal.z.greaterThanEqual(0).select(float(1), float(-1));
   const basisA = float(-1).div(basisSign.add(baseWorldNormal.z));
   const basisB = baseWorldNormal.x.mul(baseWorldNormal.y).mul(basisA);
   const tangentWorld = vec3(
