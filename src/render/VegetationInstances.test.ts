@@ -4,7 +4,7 @@ import type { Cell, CellFaceGeometry } from "../types";
 import { createCellVegetationLayout } from "./cellVegetationAppearance";
 import { VegetationInstances } from "./VegetationInstances";
 
-function createCell(): Cell {
+function createCell(overrides: Partial<Cell> = {}): Cell {
   return {
     id: 0,
     neighbors: [1, 2, 3, 4, 5, 6],
@@ -17,11 +17,12 @@ function createCell(): Cell {
     moisture: 0.5,
     nextMoisture: 0.5,
     vegetation: 0.9,
-    nextVegetation: 0.9
+    nextVegetation: 0.9,
+    ...overrides
   };
 }
 
-function createFace(): CellFaceGeometry {
+function createFace(overrides: Partial<CellFaceGeometry> = {}): CellFaceGeometry {
   return {
     cellId: 0,
     vertexIndices: [0, 1, 2, 3, 4, 5],
@@ -30,7 +31,8 @@ function createFace(): CellFaceGeometry {
     tangent: [1, 0, 0],
     bitangent: [0, 1, 0],
     inradius: 0.08,
-    circumradius: 0.1
+    circumradius: 0.1,
+    ...overrides
   };
 }
 
@@ -44,6 +46,13 @@ describe("VegetationInstances", () => {
 
     expect(instances.treeMesh.count).toBe(0);
     expect(instances.weedMesh.count).toBe(0);
+    expect(instances.weedMesh.material).toMatchObject({
+      isNodeMaterial: true,
+      positionNode: expect.any(Object)
+    });
+    instances.weedMesh.geometry.computeBoundingBox();
+    expect(instances.weedMesh.geometry.boundingBox?.min.y).toBeCloseTo(0);
+    expect(instances.weedMesh.geometry.boundingBox?.max.y).toBeCloseTo(1);
 
     instances.sync([cell], (cellId) => cellId === cell.id ? layout : undefined);
 
@@ -83,5 +92,29 @@ describe("VegetationInstances", () => {
     expect(weedGeometryDispose).toHaveBeenCalledOnce();
     expect(treeMaterialDispose).toHaveBeenCalledOnce();
     expect(weedMaterialDispose).toHaveBeenCalledOnce();
+  });
+
+  it("packed slot が移動しても同じ weed の位相を維持する", () => {
+    const instances = new VegetationInstances(2);
+    const firstCell = createCell({ id: 0 });
+    const targetCell = createCell({ id: 7 });
+    const layouts = new Map([
+      [firstCell.id, createCellVegetationLayout(createFace({ cellId: firstCell.id }), firstCell)],
+      [targetCell.id, createCellVegetationLayout(createFace({ cellId: targetCell.id }), targetCell)]
+    ]);
+    const phaseAttribute = instances.weedMesh.geometry.getAttribute("weedPhase");
+
+    instances.sync([firstCell], (cellId) => layouts.get(cellId));
+    const firstCellWeedCount = instances.weedMesh.count;
+    instances.sync([targetCell], (cellId) => layouts.get(cellId));
+    const targetPhaseBeforePackingShift = phaseAttribute.getX(0);
+
+    instances.sync([firstCell, targetCell], (cellId) => layouts.get(cellId));
+
+    expect(phaseAttribute.getX(firstCellWeedCount)).toBeCloseTo(
+      targetPhaseBeforePackingShift
+    );
+
+    instances.dispose();
   });
 });

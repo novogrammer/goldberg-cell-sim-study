@@ -1,6 +1,7 @@
 import {
   BoxGeometry,
   ConeGeometry,
+  InstancedBufferAttribute,
   InstancedMesh,
   MeshStandardMaterial
 } from "three/webgpu";
@@ -12,6 +13,7 @@ import {
   syncPackedVegetationInstances,
   type CellVegetationLayout
 } from "./cellVegetationAppearance";
+import { createWeedMaterial } from "./vegetationMaterial";
 
 export class VegetationInstances {
   readonly treeMesh: InstancedMesh;
@@ -23,14 +25,17 @@ export class VegetationInstances {
     roughness: 0.88,
     metalness: 0.02
   });
-  private readonly weedGeometry = new BoxGeometry(1, 1, 0.2);
-  private readonly weedMaterial = new MeshStandardMaterial({
-    color: "#ffffff",
-    roughness: 0.88,
-    metalness: 0.02
-  });
+  private readonly weedGeometry = new BoxGeometry(1, 1, 0.2, 1, 4, 1)
+    .translate(0, 0.5, 0);
+  private readonly weedMaterial = createWeedMaterial();
+  private readonly weedPhaseAttribute: InstancedBufferAttribute;
 
   constructor(maxCellCount: number) {
+    this.weedPhaseAttribute = new InstancedBufferAttribute(
+      new Float32Array(maxCellCount * WEED_INSTANCE_COUNT),
+      1
+    );
+    this.weedGeometry.setAttribute("weedPhase", this.weedPhaseAttribute);
     this.treeMesh = new InstancedMesh(
       this.treeGeometry,
       this.treeMaterial,
@@ -53,10 +58,12 @@ export class VegetationInstances {
       this.treeMesh,
       this.weedMesh,
       cells,
-      getLayout
+      getLayout,
+      this.weedPhaseAttribute
     );
     this.treeMesh.instanceMatrix.needsUpdate = true;
     this.weedMesh.instanceMatrix.needsUpdate = true;
+    this.weedPhaseAttribute.needsUpdate = true;
     if (this.treeMesh.instanceColor) {
       this.treeMesh.instanceColor.needsUpdate = true;
     }

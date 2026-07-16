@@ -1,6 +1,7 @@
 import {
   Color,
   Euler,
+  InstancedBufferAttribute,
   InstancedMesh,
   Matrix4,
   Quaternion,
@@ -29,7 +30,7 @@ const MIN_VEGETATION_THRESHOLD = 0.01;
 const TREE_VEGETATION_THRESHOLD = 0.22;
 const MAX_TREES = 5;
 const TREE_SURFACE_ANCHOR = 0.24;
-const WEED_SURFACE_ANCHOR = 0.12;
+const WEED_PHASE_STEP = Math.PI * (3 - Math.sqrt(5));
 const localUp = new Vector3(0, 1, 0);
 const tempPosition = new Vector3();
 const tempScale = new Vector3();
@@ -143,7 +144,8 @@ export function syncPackedVegetationInstances(
   treeMesh: InstancedMesh,
   weedMesh: InstancedMesh,
   cells: Cell[],
-  getLayout: (cellId: number) => CellVegetationLayout | undefined
+  getLayout: (cellId: number) => CellVegetationLayout | undefined,
+  weedPhaseAttribute?: InstancedBufferAttribute
 ) {
   let treePackedIndex = 0;
   let weedPackedIndex = 0;
@@ -212,7 +214,7 @@ export function syncPackedVegetationInstances(
 
       tempPosition.set(
         weedLayout.x * layoutScale,
-        height * WEED_SURFACE_ANCHOR,
+        0,
         weedLayout.z * layoutScale
       );
       tempLocalQuaternion.setFromEuler(
@@ -229,10 +231,19 @@ export function syncPackedVegetationInstances(
         tempScale,
         state.tint
       );
+      weedPhaseAttribute?.setX(
+        weedPackedIndex,
+        getWeedSwayPhase(cell.id, index)
+      );
       weedPackedIndex += 1;
     }
   }
 
   treeMesh.count = treePackedIndex;
   weedMesh.count = weedPackedIndex;
+}
+
+function getWeedSwayPhase(cellId: number, weedIndex: number) {
+  const logicalWeedId = cellId * WEED_INSTANCE_COUNT + weedIndex;
+  return (logicalWeedId * WEED_PHASE_STEP) % (Math.PI * 2);
 }

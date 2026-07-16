@@ -40,10 +40,15 @@
 - 雑草は低い vegetation でも表示されます。
 - 各 instance の位置、傾き、scale、色はセルごとに更新されます。
 - mesh、geometry、material、同期、破棄は `VegetationInstances` が所有します。
+- weed は TSL の `time` と固定の `weedPhase` instanced attribute を使い、根元を固定したまま個体ごとに位相をずらして頂点を揺らします。
+- weed geometry は生成時にY方向へ移動して根元を原点、先端をY=1とし、傾斜とTSL変位の基準を根元に揃えます。
+- `weedPhase` は `cell.id` とセル内の weed index から決めるため、packed instance の slot が変わっても同じ weed の位相は変わりません。
+- 揺れは GPU の頂点変位で行うため、アニメーション中に CPU 側の instance matrix は更新しません。
 
 関連コード:
 
 - [src/render/cellVegetationAppearance.ts](../src/render/cellVegetationAppearance.ts)
+- [src/render/vegetationMaterial.ts](../src/render/vegetationMaterial.ts)
 - [src/render/VegetationInstances.ts](../src/render/VegetationInstances.ts)
 
 ## 選択表示
