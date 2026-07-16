@@ -6,7 +6,7 @@ import {
   Vector3
 } from "three/webgpu";
 
-import type { SurfaceCellInstanceData } from "./surfaceCellInstances";
+import type { SurfaceCellInstanceData } from "./SurfaceCellInstances";
 
 const HOVER_CAP_SCALE = 1.004;
 const SELECTED_CAP_SCALE = 1.005;

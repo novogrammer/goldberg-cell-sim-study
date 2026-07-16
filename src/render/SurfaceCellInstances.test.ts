@@ -5,7 +5,7 @@ import { createGoldbergMesh } from "../sim/goldberg";
 import {
   getPackedSurfaceSphereRadius,
   SurfaceCellInstances
-} from "./surfaceCellInstances";
+} from "./SurfaceCellInstances";
 
 describe("surfaceCellInstances", () => {
   it("packed sphere 半径は正で、惑星半径より小さい", () => {

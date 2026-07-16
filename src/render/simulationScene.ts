@@ -24,9 +24,9 @@ import {
   getPackedSurfaceSphereRadius,
   SurfaceCellInstances,
   type SurfaceCellInstanceData
-} from "./surfaceCellInstances";
-import { SurfaceSelectionOverlay } from "./surfaceSelectionOverlay";
-import { VegetationInstances } from "./vegetationInstances";
+} from "./SurfaceCellInstances";
+import { SurfaceSelectionOverlay } from "./SurfaceSelectionOverlay";
+import { VegetationInstances } from "./VegetationInstances";
 import type { Cell, GoldbergMeshData } from "../types";
 
 type AnimationLoopCallback = ((time: number, frame?: XRFrame) => void) | null;
