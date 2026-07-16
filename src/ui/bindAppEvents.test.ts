@@ -190,7 +190,7 @@ describe("bindAppEvents", () => {
 
     expect(handlers.onCanvasPaintStart).toHaveBeenCalledWith(15, 25);
     expect(handlers.onCanvasPaintMove).toHaveBeenCalledWith(20, 30);
-    expect(handlers.onCanvasPaintEnd).toHaveBeenCalled();
+    expect(handlers.onCanvasPaintEnd).toHaveBeenCalledTimes(1);
     expect(handlers.onCanvasSelect).not.toHaveBeenCalled();
 
     cleanup();

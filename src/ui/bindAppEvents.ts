@@ -45,6 +45,10 @@ class AppEventController {
   }
 
   private endPainting() {
+    if (!this.isPointerPainting) {
+      return;
+    }
+
     this.isPointerPainting = false;
     this.handlers.onCanvasPaintEnd();
   }
