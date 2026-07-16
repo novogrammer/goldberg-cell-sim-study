@@ -1,6 +1,7 @@
 import {
   BoxGeometry,
   ConeGeometry,
+  DynamicDrawUsage,
   InstancedBufferAttribute,
   InstancedMesh,
   MeshStandardMaterial
@@ -14,6 +15,13 @@ import {
   type CellVegetationLayout
 } from "./cellVegetationAppearance";
 import { createWeedMaterial } from "./vegetationMaterial";
+
+function createDynamicInstanceColor(capacity: number) {
+  return new InstancedBufferAttribute(
+    new Float32Array(capacity * 3).fill(1),
+    3
+  ).setUsage(DynamicDrawUsage);
+}
 
 export class VegetationInstances {
   readonly treeMesh: InstancedMesh;
@@ -31,21 +39,28 @@ export class VegetationInstances {
   private readonly weedPhaseAttribute: InstancedBufferAttribute;
 
   constructor(maxCellCount: number) {
+    const treeCapacity = maxCellCount * TREE_INSTANCE_COUNT;
+    const weedCapacity = maxCellCount * WEED_INSTANCE_COUNT;
+
     this.weedPhaseAttribute = new InstancedBufferAttribute(
-      new Float32Array(maxCellCount * WEED_INSTANCE_COUNT),
+      new Float32Array(weedCapacity),
       1
-    );
+    ).setUsage(DynamicDrawUsage);
     this.weedGeometry.setAttribute("weedPhase", this.weedPhaseAttribute);
     this.treeMesh = new InstancedMesh(
       this.treeGeometry,
       this.treeMaterial,
-      maxCellCount * TREE_INSTANCE_COUNT
+      treeCapacity
     );
     this.weedMesh = new InstancedMesh(
       this.weedGeometry,
       this.weedMaterial,
-      maxCellCount * WEED_INSTANCE_COUNT
+      weedCapacity
     );
+    this.treeMesh.instanceMatrix.setUsage(DynamicDrawUsage);
+    this.weedMesh.instanceMatrix.setUsage(DynamicDrawUsage);
+    this.treeMesh.instanceColor = createDynamicInstanceColor(treeCapacity);
+    this.weedMesh.instanceColor = createDynamicInstanceColor(weedCapacity);
     this.treeMesh.count = 0;
     this.weedMesh.count = 0;
   }

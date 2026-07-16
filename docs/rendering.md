@@ -36,6 +36,7 @@
 - どちらも `InstancedMesh` を使い、全セル共通の geometry を最大数ぶん確保しています。
 - 木は `ConeGeometry`、雑草は `BoxGeometry` をベースにしています。
 - tree / weed の各 `InstancedMesh` は、表示する植生だけを packed instance として保持します。
+- instance matrix、instance color、`weedPhase` は動的更新用の buffer として扱います。
 - 木は `TREE_VEGETATION_THRESHOLD` 以上で表示されます。
 - 雑草は低い vegetation でも表示されます。
 - 各 instance の位置、傾き、scale、色はセルごとに更新されます。
