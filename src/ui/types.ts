@@ -50,6 +50,7 @@ export interface AppElements {
 }
 
 export interface AppEventHandlers {
+  getIsPaintMode: () => boolean;
   onTogglePlay: () => void;
   onSetMode: (mode: "view" | "paint") => void;
   onToggleAutoRotate: () => void;

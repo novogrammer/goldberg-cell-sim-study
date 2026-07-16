@@ -159,6 +159,7 @@ class AppController {
 
   private buildEventHandlers(): Parameters<typeof bindAppEvents>[2] {
     return {
+      getIsPaintMode: () => this.appState.isPaintMode,
       onTogglePlay: () => {
         this.appState.pausedByUser = !this.appState.pausedByUser;
         this.refreshHud();

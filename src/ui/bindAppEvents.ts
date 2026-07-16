@@ -4,7 +4,6 @@ const CLICK_SELECTION_THRESHOLD = 6;
 const CAMERA_DRAG_START_THRESHOLD = 4;
 
 class AppEventController {
-  private isPaintMode = false;
   private isPointerPainting = false;
   private activePointerId: number | null = null;
   private isPointerDragging = false;
@@ -76,14 +75,12 @@ class AppEventController {
   }
 
   private onViewMode() {
-    this.isPaintMode = false;
     this.endPainting();
     this.endPointerInteraction();
     this.handlers.onSetMode("view");
   }
 
   private onPaintMode() {
-    this.isPaintMode = true;
     this.endPainting();
     this.endPointerInteraction();
     this.handlers.onSetMode("paint");
@@ -111,7 +108,7 @@ class AppEventController {
 
   private onPointerMove(event: PointerEvent) {
     this.handlers.onCanvasHover(event.clientX, event.clientY);
-    if (this.isPaintMode) {
+    if (this.handlers.getIsPaintMode()) {
       if (!this.isPointerPainting || (event.buttons & 1) === 0) {
         return;
       }
@@ -161,7 +158,7 @@ class AppEventController {
     this.lastPointerClientX = event.clientX;
     this.lastPointerClientY = event.clientY;
 
-    if (!this.isPaintMode) {
+    if (!this.handlers.getIsPaintMode()) {
       this.activePointerId = event.pointerId;
       this.isPointerDragging = false;
       return;
@@ -173,7 +170,7 @@ class AppEventController {
   }
 
   private onPointerUp(event: PointerEvent) {
-    if (!this.isPaintMode) {
+    if (!this.handlers.getIsPaintMode()) {
       if (event.button !== 0 || this.activePointerId !== event.pointerId) {
         return;
       }
@@ -207,7 +204,7 @@ class AppEventController {
   }
 
   private onWheel(event: WheelEvent) {
-    if (this.isPaintMode) {
+    if (this.handlers.getIsPaintMode()) {
       return;
     }
 

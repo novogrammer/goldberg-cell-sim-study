@@ -26,9 +26,14 @@ function createElements() {
 }
 
 function createHandlers(): AppEventHandlers {
+  let isPaintMode = false;
+
   return {
+    getIsPaintMode: vi.fn(() => isPaintMode),
     onTogglePlay: vi.fn(),
-    onSetMode: vi.fn(),
+    onSetMode: vi.fn((mode) => {
+      isPaintMode = mode === "paint";
+    }),
     onToggleAutoRotate: vi.fn(),
     onStep: vi.fn(),
     onRandomize: vi.fn(),
@@ -186,6 +191,32 @@ describe("bindAppEvents", () => {
     expect(handlers.onCanvasPaintStart).toHaveBeenCalledWith(15, 25);
     expect(handlers.onCanvasPaintMove).toHaveBeenCalledWith(20, 30);
     expect(handlers.onCanvasPaintEnd).toHaveBeenCalled();
+    expect(handlers.onCanvasSelect).not.toHaveBeenCalled();
+
+    cleanup();
+  });
+
+  it("外部で変更された paint mode を次の pointer 操作から参照する", () => {
+    const elements = createElements();
+    const canvas = document.createElement("canvas");
+    attachPointerCaptureStubs(canvas);
+    document.body.append(canvas);
+    const handlers = createHandlers();
+    handlers.getIsPaintMode = vi.fn(() => true);
+    const cleanup = bindAppEvents(elements, canvas, handlers);
+
+    canvas.dispatchEvent(createPointerEvent("pointerdown", {
+      clientX: 15,
+      clientY: 25,
+      buttons: 1
+    }));
+    canvas.dispatchEvent(createPointerEvent("pointerup", {
+      clientX: 15,
+      clientY: 25,
+      buttons: 0
+    }));
+
+    expect(handlers.onCanvasPaintStart).toHaveBeenCalledWith(15, 25);
     expect(handlers.onCanvasSelect).not.toHaveBeenCalled();
 
     cleanup();
