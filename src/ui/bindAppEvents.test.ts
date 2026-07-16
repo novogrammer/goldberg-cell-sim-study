@@ -221,4 +221,50 @@ describe("bindAppEvents", () => {
 
     cleanup();
   });
+
+  it("paint mode では開始した pointer だけが stroke を更新・終了する", () => {
+    const elements = createElements();
+    const canvas = document.createElement("canvas");
+    attachPointerCaptureStubs(canvas);
+    document.body.append(canvas);
+    const handlers = createHandlers();
+    const cleanup = bindAppEvents(elements, canvas, handlers);
+
+    elements.paintModeButton.click();
+    canvas.dispatchEvent(createPointerEvent("pointerdown", {
+      clientX: 10,
+      clientY: 20,
+      buttons: 1,
+      pointerId: 1
+    }));
+    canvas.dispatchEvent(createPointerEvent("pointermove", {
+      clientX: 30,
+      clientY: 40,
+      buttons: 1,
+      pointerId: 2
+    }));
+    canvas.dispatchEvent(createPointerEvent("pointerup", {
+      clientX: 30,
+      clientY: 40,
+      pointerId: 2
+    }));
+    canvas.dispatchEvent(createPointerEvent("pointermove", {
+      clientX: 15,
+      clientY: 25,
+      buttons: 1,
+      pointerId: 1
+    }));
+    canvas.dispatchEvent(createPointerEvent("pointerup", {
+      clientX: 15,
+      clientY: 25,
+      pointerId: 1
+    }));
+
+    expect(handlers.onCanvasPaintStart).toHaveBeenCalledWith(10, 20);
+    expect(handlers.onCanvasPaintMove).toHaveBeenCalledTimes(1);
+    expect(handlers.onCanvasPaintMove).toHaveBeenCalledWith(15, 25);
+    expect(handlers.onCanvasPaintEnd).toHaveBeenCalledTimes(1);
+
+    cleanup();
+  });
 });

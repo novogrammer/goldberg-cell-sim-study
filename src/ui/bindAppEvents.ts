@@ -113,7 +113,11 @@ class AppEventController {
   private onPointerMove(event: PointerEvent) {
     this.handlers.onCanvasHover(event.clientX, event.clientY);
     if (this.handlers.getIsPaintMode()) {
-      if (!this.isPointerPainting || (event.buttons & 1) === 0) {
+      if (
+        !this.isPointerPainting ||
+        this.activePointerId !== event.pointerId ||
+        (event.buttons & 1) === 0
+      ) {
         return;
       }
       this.handlers.onCanvasPaintMove(event.clientX, event.clientY);
@@ -153,7 +157,7 @@ class AppEventController {
   }
 
   private onPointerDown(event: PointerEvent) {
-    if (event.button !== 0) {
+    if (event.button !== 0 || this.activePointerId !== null) {
       return;
     }
 
@@ -168,6 +172,7 @@ class AppEventController {
       return;
     }
 
+    this.activePointerId = event.pointerId;
     this.isPointerPainting = true;
     this.capturePointerIfPossible(event.pointerId);
     this.handlers.onCanvasPaintStart(event.clientX, event.clientY);
@@ -191,20 +196,30 @@ class AppEventController {
       return;
     }
 
+    if (event.button !== 0 || this.activePointerId !== event.pointerId) {
+      return;
+    }
+
     this.endPainting();
-    this.releasePointerCaptureIfHeld(event.pointerId);
+    this.endPointerInteraction(event.pointerId);
   }
 
   private onPointerCancel(event: PointerEvent) {
+    if (this.activePointerId !== event.pointerId) {
+      return;
+    }
+
     this.endPainting();
     this.endPointerInteraction(event.pointerId);
   }
 
   private onWindowPointerUp(event: PointerEvent) {
-    this.endPainting();
-    if (this.activePointerId === event.pointerId) {
-      this.endPointerInteraction(event.pointerId);
+    if (this.activePointerId !== event.pointerId) {
+      return;
     }
+
+    this.endPainting();
+    this.endPointerInteraction(event.pointerId);
   }
 
   private onWheel(event: WheelEvent) {
