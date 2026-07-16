@@ -38,7 +38,6 @@ type RenderCellVisual = SurfaceCellInstanceData & {
 
 export interface SimulationScene {
   readonly canvasElement: HTMLCanvasElement;
-  resize: () => void;
   render: () => void;
   setAnimationLoop: (callback: AnimationLoopCallback) => void;
   updateCells: (cells: Cell[]) => void;
@@ -168,7 +167,7 @@ class SimulationSceneController implements SimulationScene {
     this.resize();
   }
 
-  resize() {
+  private resize() {
     const width = this.mount.clientWidth;
     const height = this.mount.clientHeight;
     if (width === 0 || height === 0) {

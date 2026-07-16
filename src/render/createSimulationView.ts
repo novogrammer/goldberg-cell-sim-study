@@ -4,7 +4,6 @@ import { createSimulationScene, type SimulationScene } from "./simulationScene";
 
 interface SimulationView {
   canvasElement: HTMLCanvasElement;
-  resize: () => void;
   render: () => void;
   setAnimationLoop: (callback: ((time: number, frame?: XRFrame) => void) | null) => void;
   dispose: () => void;
@@ -28,10 +27,6 @@ class SimulationViewAdapter implements SimulationView {
 
   constructor(private readonly scene: SimulationScene) {
     this.canvasElement = scene.canvasElement;
-  }
-
-  resize() {
-    this.scene.resize();
   }
 
   render() {
