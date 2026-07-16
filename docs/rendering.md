@@ -14,7 +14,7 @@
 - 地表は「セルごとの個別メッシュ」ではなく、共通の半球ジオメトリを使った `InstancedMesh` で描画しています。
 - 地表は land 用と water 用の 2 本に分かれています。
 - land / water の 2 本に分けている理由は、roughness を材質単位で分けるためです。
-- 各セルの表示・非表示は instance の scale を `1` または `0` にして切り替えています。
+- land / water の各 `InstancedMesh` は、対応する terrain のセルだけを packed instance として保持しています。
 - 色は `setColorAt` を使って instance ごとに設定しています。
 
 関連コード:
@@ -58,9 +58,16 @@
 ## ピッキング
 
 - ピッキングは raycast ベースです。
-- 地表セルの pick は land / water の `InstancedMesh` に対して行います。
-- `instanceId` から `cellId` へ戻す対応表は [src/render/surfaceCellInstances.ts](../src/render/surfaceCellInstances.ts) が持っています。
+- 地表セルの pick は表示用の land / water mesh ではなく、専用の `pickMesh` に対して行います。
+- `pickMesh` の instance slot は `cellId` と一致するため、raycast の `instanceId` をそのまま `cellId` として使います。
 - overlay は見た目用であり、セル本体の pick source ではありません。
+
+### 表示形状と pick 形状の差
+
+- land / water の表示材質は TSL で小さな頂点変位を加えています。
+- `pickMesh` は変位前の共通半球ジオメトリを使います。raycast は CPU 側で行うため、表示材質の頂点変位は反映されません。
+- 現在の変位量は小さいため、見た目と選択位置の差は許容範囲です。
+- 将来、地表や水面の変位量を大きくする場合は、pick 形状も対応させるか、この差をUX上許容できるか確認します。
 
 ## Test Hook
 
