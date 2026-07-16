@@ -5,6 +5,7 @@ import { paintAtPickedPoint, toggleSelectedCell } from "./editor/planetEditor";
 import { createSimulationView } from "./render/createSimulationView";
 import { createGoldbergMesh, randomizeCellState } from "./sim/goldberg";
 import { DEFAULT_RULE_CONFIG, stepSimulation } from "./sim/simulation";
+import { getNextSimulationTick } from "./sim/simulationClock";
 import type { Cell } from "./types";
 import { bindAppEvents } from "./ui/bindAppEvents";
 import { buildSelectedCellSummary } from "./ui/buildSelectedCellSummary";
@@ -251,12 +252,18 @@ class AppController {
       return;
     }
 
-    const interval = 1000 / this.appState.speed;
     const isPlaying = !this.appState.pausedByUser && !this.appState.pausedByPaint;
 
-    if (isPlaying && timestamp - this.appState.lastTick >= interval) {
-      this.syncScene(stepSimulation(this.appState.cells, DEFAULT_RULE_CONFIG));
-      this.appState.lastTick = timestamp;
+    if (isPlaying) {
+      const nextTick = getNextSimulationTick(
+        this.appState.lastTick,
+        timestamp,
+        this.appState.speed
+      );
+      if (nextTick !== null) {
+        this.syncScene(stepSimulation(this.appState.cells, DEFAULT_RULE_CONFIG));
+        this.appState.lastTick = nextTick;
+      }
     }
 
     this.view.render();
