@@ -39,6 +39,7 @@
 - instance matrix、instance color、`weedPhase` は動的更新用の buffer として扱います。
 - 木は `TREE_VEGETATION_THRESHOLD` 以上で表示されます。
 - 雑草は低い vegetation でも表示され、1セルあたり最大36本です。
+- tree / weed のセル中心からの配置距離は、基準レイアウトの1.5倍です。
 - 各 instance の位置、傾き、scale、色はセルごとに更新されます。
 - mesh、geometry、material、同期、破棄は `VegetationInstances` が所有します。
 - weed は TSL の `time` と固定の `weedPhase` instanced attribute を使い、根元を固定したまま個体ごとに位相をずらして頂点を揺らします。

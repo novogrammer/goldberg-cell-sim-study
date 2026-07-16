@@ -31,6 +31,7 @@ const TREE_VEGETATION_THRESHOLD = 0.22;
 const MAX_TREES = 5;
 const MIN_VISIBLE_WEEDS = 8;
 const WEEDS_PER_VISIBLE_TREE = 8;
+const VEGETATION_SPREAD = 1.5;
 const TREE_SURFACE_ANCHOR = 0.24;
 const WEED_PHASE_STEP = Math.PI * (3 - Math.sqrt(5));
 const WEED_LAYOUT_ROTATION = Math.PI / 18;
@@ -198,9 +199,9 @@ export function syncPackedVegetationInstances(
       const yaw = Math.atan2(treeLayout.x, treeLayout.z);
 
       tempPosition.set(
-        treeLayout.x * layoutScale,
+        treeLayout.x * layoutScale * VEGETATION_SPREAD,
         height * TREE_SURFACE_ANCHOR,
-        treeLayout.z * layoutScale
+        treeLayout.z * layoutScale * VEGETATION_SPREAD
       );
       tempLocalQuaternion.setFromEuler(tempEuler.set(0, yaw, 0));
       tempScale.set(radius, height, radius);
@@ -237,9 +238,9 @@ export function syncPackedVegetationInstances(
       const lean = 0.26 + variationIndex * 0.06;
 
       tempPosition.set(
-        weedLayout.x * layoutScale,
+        weedLayout.x * layoutScale * VEGETATION_SPREAD,
         0,
-        weedLayout.z * layoutScale
+        weedLayout.z * layoutScale * VEGETATION_SPREAD
       );
       tempLocalQuaternion.setFromEuler(
         tempEuler.set(Math.cos(yaw) * lean, yaw, -Math.sin(yaw) * lean)
