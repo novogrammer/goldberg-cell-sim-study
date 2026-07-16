@@ -29,8 +29,11 @@ const PENTAGON_SCALE = 0.9;
 const MIN_VEGETATION_THRESHOLD = 0.01;
 const TREE_VEGETATION_THRESHOLD = 0.22;
 const MAX_TREES = 5;
+const MIN_VISIBLE_WEEDS = 8;
+const WEEDS_PER_VISIBLE_TREE = 8;
 const TREE_SURFACE_ANCHOR = 0.24;
 const WEED_PHASE_STEP = Math.PI * (3 - Math.sqrt(5));
+const WEED_LAYOUT_ROTATION = Math.PI / 18;
 const localUp = new Vector3(0, 1, 0);
 const tempPosition = new Vector3();
 const tempScale = new Vector3();
@@ -47,7 +50,7 @@ const TREE_LAYOUTS: ReadonlyArray<{ x: number; z: number }> = [
   { x: -0.28, z: -0.34 }
 ];
 
-const WEED_LAYOUTS: ReadonlyArray<{ x: number; z: number }> = [
+const BASE_WEED_LAYOUTS: ReadonlyArray<{ x: number; z: number }> = [
   { x: 0.34, z: 0.12 },
   { x: -0.38, z: 0.26 },
   { x: 0.4, z: -0.22 },
@@ -56,7 +59,25 @@ const WEED_LAYOUTS: ReadonlyArray<{ x: number; z: number }> = [
   { x: 0.52, z: 0.18 },
   { x: -0.5, z: 0.04 },
   { x: 0.14, z: -0.54 },
-  { x: -0.34, z: -0.46 }
+  { x: -0.34, z: -0.46 },
+  { x: 0.2, z: 0.32 },
+  { x: -0.12, z: 0.34 },
+  { x: 0.3, z: -0.08 },
+  { x: -0.3, z: -0.12 },
+  { x: 0.06, z: -0.3 },
+  { x: 0.38, z: 0.32 },
+  { x: -0.38, z: 0.34 },
+  { x: 0.38, z: -0.34 },
+  { x: -0.4, z: -0.3 }
+];
+const weedLayoutRotationCos = Math.cos(WEED_LAYOUT_ROTATION);
+const weedLayoutRotationSin = Math.sin(WEED_LAYOUT_ROTATION);
+const WEED_LAYOUTS: ReadonlyArray<{ x: number; z: number }> = [
+  ...BASE_WEED_LAYOUTS,
+  ...BASE_WEED_LAYOUTS.map(({ x, z }) => ({
+    x: x * weedLayoutRotationCos - z * weedLayoutRotationSin,
+    z: x * weedLayoutRotationSin + z * weedLayoutRotationCos
+  }))
 ];
 
 export const TREE_INSTANCE_COUNT = TREE_LAYOUTS.length;
@@ -198,7 +219,9 @@ export function syncPackedVegetationInstances(
 
     const visibleWeedCount = Math.min(
       WEED_INSTANCE_COUNT,
-      state.visibleTreeCount === 0 ? 0 : Math.max(2, state.visibleTreeCount * 2)
+      state.visibleTreeCount === 0
+        ? 0
+        : Math.max(MIN_VISIBLE_WEEDS, state.visibleTreeCount * WEEDS_PER_VISIBLE_TREE)
     );
 
     for (let index = 0; index < WEED_INSTANCE_COUNT; index += 1) {
@@ -207,10 +230,11 @@ export function syncPackedVegetationInstances(
       }
 
       const weedLayout = WEED_LAYOUTS[index];
-      const height = weedBaseHeight * state.heightScale * (1 - index * 0.035);
-      const radius = weedBaseRadius * state.radiusScale * (1 - index * 0.03);
+      const variationIndex = index % 9;
+      const height = weedBaseHeight * state.heightScale * (1 - variationIndex * 0.035);
+      const radius = weedBaseRadius * state.radiusScale * (1 - variationIndex * 0.03);
       const yaw = Math.atan2(weedLayout.x, weedLayout.z);
-      const lean = 0.26 + index * 0.06;
+      const lean = 0.26 + variationIndex * 0.06;
 
       tempPosition.set(
         weedLayout.x * layoutScale,

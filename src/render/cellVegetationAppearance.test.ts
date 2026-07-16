@@ -139,10 +139,10 @@ describe("cellVegetationAppearance", () => {
     expect(weedMesh.count).toBe(
       (sparseState.visibleTreeCount === 0
         ? 0
-        : Math.min(WEED_INSTANCE_COUNT, Math.max(2, sparseState.visibleTreeCount * 2))) +
+        : Math.min(WEED_INSTANCE_COUNT, Math.max(8, sparseState.visibleTreeCount * 8))) +
         (denseState.visibleTreeCount === 0
           ? 0
-          : Math.min(WEED_INSTANCE_COUNT, Math.max(2, denseState.visibleTreeCount * 2)))
+          : Math.min(WEED_INSTANCE_COUNT, Math.max(8, denseState.visibleTreeCount * 8)))
     );
   });
 
@@ -166,7 +166,7 @@ describe("cellVegetationAppearance", () => {
 
     expect(treeMesh.count).toBe(landState.visibleTreeCount);
     expect(weedMesh.count).toBe(
-      Math.min(WEED_INSTANCE_COUNT, Math.max(2, landState.visibleTreeCount * 2))
+      Math.min(WEED_INSTANCE_COUNT, Math.max(8, landState.visibleTreeCount * 8))
     );
   });
 });
