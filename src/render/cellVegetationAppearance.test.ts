@@ -1,4 +1,11 @@
-import { BoxGeometry, InstancedMesh, MeshBasicMaterial } from "three/webgpu";
+import {
+  BoxGeometry,
+  InstancedMesh,
+  Matrix4,
+  MeshBasicMaterial,
+  Quaternion,
+  Vector3
+} from "three/webgpu";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -144,6 +151,64 @@ describe("cellVegetationAppearance", () => {
           ? 0
           : Math.min(WEED_INSTANCE_COUNT, Math.max(8, denseState.visibleTreeCount * 8)))
     );
+  });
+
+  it("tree を配置位置ごとの球面法線へ向ける", () => {
+    const treeMesh = createVegetationTestMesh(TREE_INSTANCE_COUNT);
+    const weedMesh = createVegetationTestMesh(WEED_INSTANCE_COUNT);
+    const cell = createCell({ vegetation: 0.9 });
+    const face = createFace({ inradius: 0.2 });
+    const layout = createCellVegetationLayout(face, cell);
+
+    syncPackedVegetationInstances(
+      treeMesh,
+      weedMesh,
+      [cell],
+      () => layout
+    );
+
+    const centerMatrix = new Matrix4();
+    const offsetMatrix = new Matrix4();
+    const centerPosition = new Vector3();
+    const offsetPosition = new Vector3();
+    const centerRotation = new Quaternion();
+    const offsetRotation = new Quaternion();
+    const scale = new Vector3();
+    treeMesh.getMatrixAt(0, centerMatrix);
+    treeMesh.getMatrixAt(1, offsetMatrix);
+    centerMatrix.decompose(centerPosition, centerRotation, scale);
+    offsetMatrix.decompose(offsetPosition, offsetRotation, scale);
+
+    const centerUp = new Vector3(0, 1, 0).applyQuaternion(centerRotation).normalize();
+    const offsetUp = new Vector3(0, 1, 0).applyQuaternion(offsetRotation).normalize();
+
+    expect(centerUp.dot(centerPosition.sub(layout.surfaceCenter).normalize())).toBeCloseTo(1);
+    expect(offsetUp.dot(offsetPosition.sub(layout.surfaceCenter).normalize())).toBeCloseTo(1);
+    expect(centerUp.angleTo(offsetUp)).toBeGreaterThan(0.01);
+  });
+
+  it("weed の根元を表示用のセル半球へ接地する", () => {
+    const treeMesh = createVegetationTestMesh(TREE_INSTANCE_COUNT);
+    const weedMesh = createVegetationTestMesh(WEED_INSTANCE_COUNT);
+    const cell = createCell({ vegetation: 0.9 });
+    const layout = createCellVegetationLayout(createFace({ inradius: 0.2 }), cell);
+
+    syncPackedVegetationInstances(
+      treeMesh,
+      weedMesh,
+      [cell],
+      () => layout
+    );
+
+    const matrix = new Matrix4();
+    const position = new Vector3();
+    for (const index of [0, weedMesh.count - 1]) {
+      weedMesh.getMatrixAt(index, matrix);
+      position.setFromMatrixPosition(matrix);
+      expect(position.distanceTo(layout.surfaceCenter)).toBeCloseTo(
+        layout.surfaceRadius + layout.surfaceClearance
+      );
+    }
   });
 
   it("water セルは vegetation 描画から除外する", () => {

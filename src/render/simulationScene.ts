@@ -139,7 +139,7 @@ class SimulationSceneController implements SimulationScene {
       const vegetationLayout = createCellVegetationLayout(
         face,
         cell,
-        surfaceSphereRadius * 2 + 0.012
+        surfaceSphereRadius
       );
       const instanceRotation = new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), faceNormal);
       const sphereCenter = new Vector3(...face.center).add(

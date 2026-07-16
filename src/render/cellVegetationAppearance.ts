@@ -19,12 +19,14 @@ interface VegetationIndicatorState {
 
 export interface CellVegetationLayout {
   cellScale: number;
-  position: Vector3;
   rotation: Quaternion;
   sizeUnit: number;
+  surfaceCenter: Vector3;
+  surfaceClearance: number;
+  surfaceRadius: number;
 }
 
-const SURFACE_LIFT = 0.102;
+const SURFACE_CLEARANCE = 0;
 const PENTAGON_SCALE = 0.9;
 const MIN_VEGETATION_THRESHOLD = 0.01;
 const TREE_VEGETATION_THRESHOLD = 0.22;
@@ -39,6 +41,9 @@ const localUp = new Vector3(0, 1, 0);
 const tempPosition = new Vector3();
 const tempScale = new Vector3();
 const tempWorldPosition = new Vector3();
+const tempCellNormal = new Vector3();
+const tempSurfaceNormal = new Vector3();
+const tempSurfaceCorrection = new Quaternion();
 const tempWorldQuaternion = new Quaternion();
 const tempLocalQuaternion = new Quaternion();
 const tempEuler = new Euler();
@@ -129,15 +134,19 @@ export function getVegetationSizeMetrics(face: CellFaceGeometry): VegetationSize
 export function createCellVegetationLayout(
   face: CellFaceGeometry,
   cell: Cell,
-  surfaceLift = SURFACE_LIFT
+  surfaceRadius = face.inradius * 2
 ): CellVegetationLayout {
   const normal = new Vector3(...face.normal).normalize();
 
   return {
     cellScale: cell.isPentagon ? PENTAGON_SCALE : 1,
-    position: new Vector3(...face.center).add(normal.clone().multiplyScalar(surfaceLift)),
     rotation: new Quaternion().setFromUnitVectors(localUp, normal),
-    sizeUnit: getVegetationSizeMetrics(face).layoutScale / 0.92
+    sizeUnit: getVegetationSizeMetrics(face).layoutScale / 0.92,
+    surfaceCenter: new Vector3(...face.center).add(
+      normal.clone().multiplyScalar(surfaceRadius)
+    ),
+    surfaceClearance: SURFACE_CLEARANCE,
+    surfaceRadius
   };
 }
 
@@ -150,12 +159,35 @@ function setInstanceTransform(
   localScale: Vector3,
   tint: Color
 ) {
+  const normalOffset = localPosition.y * layout.cellScale;
+  tempCellNormal.copy(localUp).applyQuaternion(layout.rotation);
   tempWorldPosition
-    .copy(localPosition)
+    .set(localPosition.x, 0, localPosition.z)
     .multiplyScalar(layout.cellScale)
-    .applyQuaternion(layout.rotation)
-    .add(layout.position);
-  tempWorldQuaternion.copy(layout.rotation).multiply(localRotation);
+    .applyQuaternion(layout.rotation);
+  const tangentDistance = tempWorldPosition.length();
+  if (tangentDistance > layout.surfaceRadius) {
+    tempWorldPosition.multiplyScalar(layout.surfaceRadius / tangentDistance);
+  }
+  const surfaceHeight = Math.sqrt(
+    Math.max(0, layout.surfaceRadius ** 2 - tempWorldPosition.lengthSq())
+  );
+  tempWorldPosition
+    .add(layout.surfaceCenter)
+    .addScaledVector(tempCellNormal, surfaceHeight);
+  tempSurfaceNormal
+    .copy(tempWorldPosition)
+    .sub(layout.surfaceCenter)
+    .normalize();
+  tempWorldPosition.addScaledVector(
+    tempSurfaceNormal,
+    layout.surfaceClearance + normalOffset
+  );
+  tempSurfaceCorrection.setFromUnitVectors(tempCellNormal, tempSurfaceNormal);
+  tempWorldQuaternion
+    .copy(tempSurfaceCorrection)
+    .multiply(layout.rotation)
+    .multiply(localRotation);
   tempScale.copy(localScale).multiplyScalar(layout.cellScale);
   tempMatrix.compose(tempWorldPosition, tempWorldQuaternion, tempScale);
   mesh.setMatrixAt(index, tempMatrix);
