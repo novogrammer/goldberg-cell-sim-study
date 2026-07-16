@@ -19,7 +19,7 @@
 
 関連コード:
 
-- [src/render/surfaceCellInstances.ts](../src/render/surfaceCellInstances.ts)
+- [src/render/SurfaceCellInstances.ts](../src/render/SurfaceCellInstances.ts)
 - [src/render/cellVisualAppearance.ts](../src/render/cellVisualAppearance.ts)
 
 ## 地表形状
@@ -28,7 +28,7 @@
 - 各セルの face center と法線を基準に、小さな半球を表面へ敷き詰める表現を使っています。
 - 半球の半径は、face center 間の平均距離から求めた packed sphere 半径を基準にしています。
 - instance の向きは各 face の法線方向に揃えています。
-- 現在の主描画は [src/render/surfaceCellInstances.ts](../src/render/surfaceCellInstances.ts) 側の方式です。
+- 現在の主描画は [src/render/SurfaceCellInstances.ts](../src/render/SurfaceCellInstances.ts) 側の方式です。
 
 ## 植生オブジェクト
 
@@ -44,7 +44,7 @@
 関連コード:
 
 - [src/render/cellVegetationAppearance.ts](../src/render/cellVegetationAppearance.ts)
-- [src/render/vegetationInstances.ts](../src/render/vegetationInstances.ts)
+- [src/render/VegetationInstances.ts](../src/render/VegetationInstances.ts)
 
 ## 選択表示
 
@@ -55,7 +55,7 @@
 
 関連コード:
 
-- [src/render/surfaceSelectionOverlay.ts](../src/render/surfaceSelectionOverlay.ts)
+- [src/render/SurfaceSelectionOverlay.ts](../src/render/SurfaceSelectionOverlay.ts)
 
 ## ピッキング
 
