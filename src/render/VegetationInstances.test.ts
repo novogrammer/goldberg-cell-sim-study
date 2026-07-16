@@ -1,3 +1,4 @@
+import { DynamicDrawUsage, InstancedBufferAttribute } from "three/webgpu";
 import { describe, expect, it, vi } from "vitest";
 
 import type { Cell, CellFaceGeometry } from "../types";
@@ -58,6 +59,16 @@ describe("VegetationInstances", () => {
 
     expect(instances.treeMesh.count).toBeGreaterThan(0);
     expect(instances.weedMesh.count).toBeGreaterThan(0);
+    expect(instances.treeMesh.instanceMatrix.usage).toBe(DynamicDrawUsage);
+    expect(instances.weedMesh.instanceMatrix.usage).toBe(DynamicDrawUsage);
+    expect(instances.treeMesh.instanceColor?.usage).toBe(DynamicDrawUsage);
+    expect(instances.weedMesh.instanceColor?.usage).toBe(DynamicDrawUsage);
+    const phaseAttribute = instances.weedMesh.geometry.getAttribute("weedPhase");
+    expect(phaseAttribute).toBeInstanceOf(InstancedBufferAttribute);
+    if (!(phaseAttribute instanceof InstancedBufferAttribute)) {
+      throw new Error("weedPhase は InstancedBufferAttribute である必要があります");
+    }
+    expect(phaseAttribute.usage).toBe(DynamicDrawUsage);
     expect(instances.treeMesh.instanceMatrix.version).toBeGreaterThan(
       initialTreeMatrixVersion
     );
