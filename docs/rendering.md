@@ -35,14 +35,16 @@
 - 植生は木と雑草の 2 系統です。
 - どちらも `InstancedMesh` を使い、全セル共通の geometry を最大数ぶん確保しています。
 - 木は `ConeGeometry`、雑草は `BoxGeometry` をベースにしています。
-- 各セルは固定レイアウトの instance slot を持ち、表示しない slot は scale `0` で隠します。
+- tree / weed の各 `InstancedMesh` は、表示する植生だけを packed instance として保持します。
 - 木は `TREE_VEGETATION_THRESHOLD` 以上で表示されます。
 - 雑草は低い vegetation でも表示されます。
 - 各 instance の位置、傾き、scale、色はセルごとに更新されます。
+- mesh、geometry、material、同期、破棄は `VegetationInstances` が所有します。
 
 関連コード:
 
 - [src/render/cellVegetationAppearance.ts](../src/render/cellVegetationAppearance.ts)
+- [src/render/vegetationInstances.ts](../src/render/vegetationInstances.ts)
 
 ## 選択表示
 

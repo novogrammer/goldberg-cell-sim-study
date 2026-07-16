@@ -1,12 +1,8 @@
 import {
   AmbientLight,
-  BoxGeometry,
   Color,
-  ConeGeometry,
   DirectionalLight,
   Group,
-  InstancedMesh,
-  MeshStandardMaterial,
   PerspectiveCamera,
   Quaternion,
   Raycaster,
@@ -21,10 +17,7 @@ import { Inspector } from "three/addons/inspector/Inspector.js";
 import { GoldbergCameraControls } from "./GoldbergCameraControls";
 import { colorForCell } from "./cellVisualAppearance";
 import {
-  TREE_INSTANCE_COUNT,
-  WEED_INSTANCE_COUNT,
   createCellVegetationLayout,
-  syncPackedVegetationInstances,
   type CellVegetationLayout
 } from "./cellVegetationAppearance";
 import {
@@ -33,6 +26,7 @@ import {
   type SurfaceCellInstanceData
 } from "./surfaceCellInstances";
 import { SurfaceSelectionOverlay } from "./surfaceSelectionOverlay";
+import { VegetationInstances } from "./vegetationInstances";
 import type { Cell, GoldbergMeshData } from "../types";
 
 type AnimationLoopCallback = ((time: number, frame?: XRFrame) => void) | null;
@@ -76,12 +70,7 @@ class SimulationSceneController implements SimulationScene {
   private readonly selectionOverlay: SurfaceSelectionOverlay;
   private readonly surfaceCellInstances: SurfaceCellInstances;
   private readonly surfaceSphereGeometry: SphereGeometry;
-  private readonly treeGeometry: ConeGeometry;
-  private readonly treeMaterial: MeshStandardMaterial;
-  private readonly treeMesh: InstancedMesh;
-  private readonly weedGeometry: BoxGeometry;
-  private readonly weedMaterial: MeshStandardMaterial;
-  private readonly weedMesh: InstancedMesh;
+  private readonly vegetationInstances: VegetationInstances;
   private lastRenderTimestamp = performance.now();
 
   constructor(
@@ -129,41 +118,18 @@ class SimulationSceneController implements SimulationScene {
       0,
       Math.PI / 2
     );
-    this.treeGeometry = new ConeGeometry(1, 1, 5);
-    this.weedGeometry = new BoxGeometry(1, 1, 0.2);
-    this.treeMaterial = new MeshStandardMaterial({
-      color: "#ffffff",
-      roughness: 0.88,
-      metalness: 0.02
-    });
-    this.weedMaterial = new MeshStandardMaterial({
-      color: "#ffffff",
-      roughness: 0.88,
-      metalness: 0.02
-    });
     this.surfaceCellInstances = new SurfaceCellInstances(
       this.surfaceSphereGeometry,
       meshData.geometry.faces.length
     );
-    this.treeMesh = new InstancedMesh(
-      this.treeGeometry,
-      this.treeMaterial,
-      meshData.geometry.faces.length * TREE_INSTANCE_COUNT
-    );
-    this.weedMesh = new InstancedMesh(
-      this.weedGeometry,
-      this.weedMaterial,
-      meshData.geometry.faces.length * WEED_INSTANCE_COUNT
-    );
+    this.vegetationInstances = new VegetationInstances(meshData.geometry.faces.length);
     this.selectionOverlay = new SurfaceSelectionOverlay(surfaceSphereRadius);
-    this.treeMesh.count = 0;
-    this.weedMesh.count = 0;
     group.add(
       this.surfaceCellInstances.landMesh,
       this.surfaceCellInstances.pickMesh,
       this.surfaceCellInstances.waterMesh,
-      this.treeMesh,
-      this.weedMesh,
+      this.vegetationInstances.treeMesh,
+      this.vegetationInstances.weedMesh,
       this.selectionOverlay.hoverMesh,
       this.selectionOverlay.selectedMesh
     );
@@ -194,14 +160,11 @@ class SimulationSceneController implements SimulationScene {
       (cellId) => this.cellVisuals.get(cellId),
       colorForCell
     );
-    syncPackedVegetationInstances(
-      this.treeMesh,
-      this.weedMesh,
+    this.vegetationInstances.sync(
       cells,
       (cellId) => this.cellVisuals.get(cellId)?.vegetationLayout
     );
     this.surfaceCellInstances.sync();
-    this.syncVegetationInstances();
     this.resize();
   }
 
@@ -235,14 +198,11 @@ class SimulationSceneController implements SimulationScene {
       (cellId) => this.cellVisuals.get(cellId),
       colorForCell
     );
-    syncPackedVegetationInstances(
-      this.treeMesh,
-      this.weedMesh,
+    this.vegetationInstances.sync(
       cells,
       (cellId) => this.cellVisuals.get(cellId)?.vegetationLayout
     );
     this.surfaceCellInstances.sync();
-    this.syncVegetationInstances();
   }
 
   setAutoRotate(enabled: boolean) {
@@ -307,25 +267,12 @@ class SimulationSceneController implements SimulationScene {
     this.resizeObserver.disconnect();
     this.surfaceCellInstances.dispose();
     this.selectionOverlay.dispose();
+    this.vegetationInstances.dispose();
     this.surfaceSphereGeometry.dispose();
-    this.treeMaterial.dispose();
-    this.weedMaterial.dispose();
-    this.treeGeometry.dispose();
-    this.weedGeometry.dispose();
     this.renderer.dispose();
     this.mount.removeChild(this.canvasElement);
   }
 
-  private syncVegetationInstances() {
-    this.treeMesh.instanceMatrix.needsUpdate = true;
-    this.weedMesh.instanceMatrix.needsUpdate = true;
-    if (this.treeMesh.instanceColor) {
-      this.treeMesh.instanceColor.needsUpdate = true;
-    }
-    if (this.weedMesh.instanceColor) {
-      this.weedMesh.instanceColor.needsUpdate = true;
-    }
-  }
 }
 
 export function createSimulationScene(
